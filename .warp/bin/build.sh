@@ -18,7 +18,7 @@ function build_command()
         build_help_usage 
         exit 1
     else
-        docker build $*
+        docker build "$@"
     fi;
 }
 
@@ -27,7 +27,7 @@ function build_main()
     case "$1" in
         build)
             shift 1
-            build_command $*
+            build_command "$@"
         ;;
 
         -h | --help)
