@@ -15,8 +15,8 @@ function elasticsearch_info()
     ES_HOST="elasticsearch"
     ES_VERSION=$(warp_env_read_var ES_VERSION)
     ES_MEMORY=$(warp_env_read_var ES_MEMORY)
-    if [ $(warp_check_is_running) = true ] && [[ -n $ES_VERSION ]]; then
-        ES_HOST2CONTAINER_PORT=$(docker inspect --format='{{(index (index .NetworkSettings.Ports "9200/tcp") 0).HostPort}}' $(warp docker ps -q elasticsearch))
+    if [ "$(warp_check_is_running)" = true ] && [[ -n $ES_VERSION ]]; then
+        ES_HOST2CONTAINER_PORT=$(docker inspect --format='{{(index (index .NetworkSettings.Ports "9200/tcp") 0).HostPort}}' "$(warp docker ps -q elasticsearch)")
     fi
 
     MODE_SANDBOX=$(warp_env_read_var MODE_SANDBOX)
@@ -67,21 +67,21 @@ elasticsearch_simil_ssh() {
     else
         if [[ $1 == "--root" ]]; then
             # Check if warp is running:    
-            if [ $(warp_check_is_running) = false ]; then
+            if [ "$(warp_check_is_running)" = false ]; then
                 warp_message_error "The containers are not running"
                 warp_message_error "please, first run warp start"
                 exit 1
             fi
-            docker-compose -f $DOCKERCOMPOSEFILE exec -u root elasticsearch bash
+            docker-compose -f "$DOCKERCOMPOSEFILE" exec -u root elasticsearch bash
         elif [[ -z $1 || $1 == "--elasticsearch" ]]; then
             # Check if warp is running:    
-            if [ $(warp_check_is_running) = false ]; then
+            if [ "$(warp_check_is_running)" = false ]; then
                 warp_message_error "The containers are not running"
                 warp_message_error "please, first run warp start"
                 exit 1
             fi
             # It is better if defines elasticsearch user as default ######################
-            docker-compose -f $DOCKERCOMPOSEFILE exec -u elasticsearch elasticsearch bash
+            docker-compose -f "$DOCKERCOMPOSEFILE" exec -u elasticsearch elasticsearch bash
         elif [[ $1 == "-h" || $1 == "--help" ]]; then
             elasticsearch_ssh_help
             exit 0
@@ -96,12 +96,12 @@ elasticsearch_flush() {
     This function unlocks and delete all indexes.
     '
 
-    if [[ $* == "-h" || $* == "--help" ]]; then
+    if [[ "$1" == "-h" || "$1" == "--help" ]]; then
         elasticsearch_flush_help
         exit 0
-    elif [[ -z $* ]]; then
+    elif [[ $# -eq 0 ]]; then
         # Check if warp is running:    
-        if [ $(warp_check_is_running) = false ]; then
+        if [ "$(warp_check_is_running)" = false ]; then
             warp_message_error "The containers are not running"
             warp_message_error "please, first run warp start"
             exit 1
@@ -178,8 +178,8 @@ elasticsearch_switch() {
         # fi
         warp stop --hard
         # Reconf .env:
-        cat $ENVIRONMENTVARIABLESFILE | sed -e "s/ES_VERSION=$ELASTICSEARCH_CURRENT_VERSION/ES_VERSION=$1/" > "$ENVIRONMENTVARIABLESFILE.warp_tmp"
-        mv "$ENVIRONMENTVARIABLESFILE.warp_tmp" $ENVIRONMENTVARIABLESFILE
+        cat "$ENVIRONMENTVARIABLESFILE" | sed -e "s/ES_VERSION=$ELASTICSEARCH_CURRENT_VERSION/ES_VERSION=$1/" > "$ENVIRONMENTVARIABLESFILE.warp_tmp"
+        mv "$ENVIRONMENTVARIABLESFILE.warp_tmp" "$ENVIRONMENTVARIABLESFILE"
         # Deleting old data:
         sudo rm -rf $PROJECTPATH/.warp/docker/volumes/elasticsearch/* $PROJECTPATH/.warp/docker/volumes/elasticsearch/.* &> /dev/null
         ls_var=($(ls -a $PROJECTPATH/.warp/docker/volumes/elasticsearch/))
@@ -198,12 +198,12 @@ function elasticsearch_main()
     case "$1" in
         elasticsearch)
 		    shift 1
-            elasticsearch_command $*  
+            elasticsearch_command "$@"  
         ;;
 
         flush)
             shift
-            elasticsearch_flush $*
+            elasticsearch_flush "$@"
         ;;
 
         info)
@@ -213,12 +213,12 @@ function elasticsearch_main()
 
         ssh)
             shift
-            elasticsearch_simil_ssh $*
+            elasticsearch_simil_ssh "$@"
         ;;
 
         switch)
             shift
-            elasticsearch_switch $*
+            elasticsearch_switch "$@"
         ;;
 
         # --snapshot_repo_rebuild)
@@ -237,7 +237,7 @@ function elasticsearch_main()
 
 elasticsearch_ssh_wrong_input() {
     warp_message_error "Wrong input."
-    elasticsearch-ssh_help
+    elasticsearch_ssh_help
     exit 1
 }
 
