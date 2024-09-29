@@ -13,7 +13,7 @@ function oro_command()
         exit 1
     fi;
 
-    if [ $(warp_check_is_running) = false ]; then
+    if [ "$(warp_check_is_running)" = false ]; then
         warp_message_error "The containers are not running"
         warp_message_error "please, first run warp start"
 
@@ -33,13 +33,13 @@ function oro_command()
     if [ "$1" = "--root" ]
     then
         shift 1
-        docker-compose -f $DOCKERCOMPOSEFILE exec -uroot php bash -c "$OROBIN $*"
+        docker-compose -f "$DOCKERCOMPOSEFILE" exec -uroot php bash -lc "$OROBIN \"\$@\"" bash "$@"
     elif [ "$1" = "-T" ] ; then
         shift 1
-        docker-compose -f $DOCKERCOMPOSEFILE exec -T php bash -c "$OROBIN $*"
+        docker-compose -f "$DOCKERCOMPOSEFILE" exec -T php bash -lc "$OROBIN \"\$@\"" bash "$@"
     else
 
-        docker-compose -f $DOCKERCOMPOSEFILE exec php bash -c "$OROBIN $*"
+        docker-compose -f "$DOCKERCOMPOSEFILE" exec php bash -lc "$OROBIN \"\$@\"" bash "$@"
     fi
 }
 
@@ -48,7 +48,7 @@ function oro_main()
     case "$1" in
         oro)
             shift 1
-            oro_command $*
+            oro_command "$@"
         ;;
 
         -h | --help)
