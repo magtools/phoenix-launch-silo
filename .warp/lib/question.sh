@@ -16,7 +16,7 @@
 function warp_question_ask() {
     read -p "$1" response
 
-    echo $response
+    echo "$response"
 }
 
 
@@ -32,6 +32,6 @@ function warp_question_ask_default() {
     if [ "$response" = "" ]; then
         echo "$2"
     else
-        echo $response
+        echo "$response"
     fi;
 }
