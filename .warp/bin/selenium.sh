@@ -55,7 +55,7 @@ function selenium_ssh() {
 
     warp_check_selenium_is_installed
 
-    if [ $(warp_check_selenium_is_running) = false ]; then
+    if [ "$(warp_check_selenium_is_running)" = false ]; then
         warp_message_error "The containers of selenium is not running"
         warp_message_error "please, first run: warp stop & warp selenium start"
 
@@ -85,12 +85,12 @@ function selenium_main()
     case "$1" in
         start)
           shift 1
-          selenium_start $*
+          selenium_start "$@"
         ;;
 
         stop)
           shift 1
-          selenium_stop $*
+          selenium_stop "$@"
         ;;
 
         info)
@@ -99,12 +99,12 @@ function selenium_main()
 
         ssh)
           shift 1
-          selenium_ssh $*
+          selenium_ssh "$@"
         ;;
 
         setup)
           shift 1
-          selenium_setup $*
+          selenium_setup "$@"
         ;;
 
         *)
