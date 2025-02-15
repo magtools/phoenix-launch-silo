@@ -48,7 +48,7 @@ function varnish_main()
     case "$1" in
         varnish)
 		      shift 1
-          varnish_command $*  
+          varnish_command "$@"  
         ;;
 
         info)
