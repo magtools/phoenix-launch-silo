@@ -13,14 +13,15 @@ function npm_command()
         exit 1
     fi;
 
-    if [ $(warp_check_is_running) = false ]; then
+    if [ "$(warp_check_is_running)" = false ]; then
         warp_message_error "The containers are not running"
         warp_message_error "please, first run warp start"
 
         exit 1;
     fi
 
-    docker-compose -f $DOCKERCOMPOSEFILE exec -uroot php bash -c "npm $*"
+    # Run npm directly to preserve argument boundaries (no shell re-parsing).
+    docker-compose -f "$DOCKERCOMPOSEFILE" exec -uroot php npm "$@"
 }
 
 function npm_main()
@@ -28,7 +29,7 @@ function npm_main()
     case "$1" in
         npm)
             shift 1
-            npm_command $*
+            npm_command "$@"
         ;;
 
         -h | --help)

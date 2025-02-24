@@ -55,7 +55,7 @@ function warp_message_warn()
 
 function warp_message_bold()
 {
-    warp_message "$HC$1$RC"
+    warp_message "$HC$1$RS"
 }
 
 warp_process_message() {
