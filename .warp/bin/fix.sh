@@ -346,7 +346,7 @@ function fix_main()
     case "$1" in
         fix)
             shift 1
-            fix_permissions $*
+            fix_permissions "$@"
         ;;
 
         -h | --help)
