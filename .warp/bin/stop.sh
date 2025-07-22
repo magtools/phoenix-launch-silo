@@ -30,7 +30,7 @@ function stop() {
       stop_help_usage
       exit 1;
   else
-    if [ $(warp_check_is_running) = true ]; then
+    if [ "$(warp_check_is_running)" = true ]; then
 
       if [ "$1" = "--hard" ] ; then
         DOCKERACTION="down --remove-orphans"
@@ -67,7 +67,7 @@ function stop_main()
     case "$1" in
         stop)
           shift 1
-          stop $*
+          stop "$@"
         ;;
 
         *)
