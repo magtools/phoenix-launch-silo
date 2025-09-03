@@ -13,7 +13,7 @@ function volume_command()
         exit 1
     fi;
 
-    if [ $(warp_check_is_running) = true ]; then
+    if [ "$(warp_check_is_running)" = true ]; then
         warp_message_error "The containers are running"
         warp_message_error "please, first run warp stop --hard"
 
@@ -48,7 +48,7 @@ function volume_main()
     case "$1" in
         --rm)
             shift 1
-            volume_command $*
+            volume_command "$@"
         ;;
 
         *)            

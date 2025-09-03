@@ -44,20 +44,20 @@ php_simil_ssh() {
     else
         if [[ $1 == "--root" ]]; then
             # Check if warp is running:    
-            if [ $(warp_check_is_running) = false ]; then
+            if [ "$(warp_check_is_running)" = false ]; then
                 warp_message_error "The containers are not running"
                 warp_message_error "please, first run warp start"
                 exit 1
             fi
-            docker-compose -f $DOCKERCOMPOSEFILE exec -u root php bash
+            docker-compose -f "$DOCKERCOMPOSEFILE" exec -u root php bash
         elif [[ -z $1 || $1 == "--www-data" ]]; then
             # Check if warp is running:    
-            if [ $(warp_check_is_running) = false ]; then
+            if [ "$(warp_check_is_running)" = false ]; then
                 warp_message_error "The containers are not running"
                 warp_message_error "please, first run warp start"
                 exit 1
             fi
-            docker-compose -f $DOCKERCOMPOSEFILE exec -u www-data php bash
+            docker-compose -f "$DOCKERCOMPOSEFILE" exec -u www-data php bash
         elif [[ $1 == "-h" || $1 == "--help" ]]; then
             php_ssh_help
             exit 0
@@ -77,7 +77,7 @@ function php_switch()
         exit 1
     fi;
 
-    if [ $(warp_check_is_running) = true ]; then
+    if [ "$(warp_check_is_running)" = true ]; then
         warp_message_error "The containers are running"
         warp_message_error "please, first run warp stop --hard"
 
@@ -186,7 +186,7 @@ function php_main()
     case "$1" in
         ssh)
             shift 1
-            php_simil_ssh $*
+            php_simil_ssh "$@"
         ;;
 
         info)
@@ -195,7 +195,7 @@ function php_main()
 
         switch)
             shift 1
-            php_switch $*
+            php_switch "$@"
         ;;
 
         -h | --help)
@@ -210,6 +210,6 @@ function php_main()
 
 php_ssh_wrong_input() {
     warp_message_error "Wrong input."
-    php-ssh_help
+    php_ssh_help
     exit 1
 }

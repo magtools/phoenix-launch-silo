@@ -68,7 +68,7 @@ function redis_cli()
         exit 1
     fi;
 
-    if [ $(warp_check_is_running) = false ]; then
+    if [ "$(warp_check_is_running)" = false ]; then
         warp_message_error "The containers are not running"
         warp_message_error "please, first run warp start"
 
@@ -77,15 +77,15 @@ function redis_cli()
 
     case "$1" in 
         "fpc")
-            docker-compose -f $DOCKERCOMPOSEFILE exec -uroot redis-fpc redis-cli
+            docker-compose -f "$DOCKERCOMPOSEFILE" exec -uroot redis-fpc redis-cli
             ;;
 
         "session")
-            docker-compose -f $DOCKERCOMPOSEFILE exec -uroot redis-session redis-cli
+            docker-compose -f "$DOCKERCOMPOSEFILE" exec -uroot redis-session redis-cli
             ;;
 
         "cache")
-            docker-compose -f $DOCKERCOMPOSEFILE exec -uroot redis-cache redis-cli
+            docker-compose -f "$DOCKERCOMPOSEFILE" exec -uroot redis-cache redis-cli
             ;;
 
         *)            
@@ -106,7 +106,7 @@ function redis_monitor()
         exit 1
     fi;
 
-    if [ $(warp_check_is_running) = false ]; then
+    if [ "$(warp_check_is_running)" = false ]; then
         warp_message_error "The containers are not running"
         warp_message_error "please, first run warp start"
 
@@ -115,15 +115,15 @@ function redis_monitor()
 
     case "$1" in 
         "fpc")
-            docker-compose -f $DOCKERCOMPOSEFILE exec -uroot redis-fpc redis-cli -c "monitor"
+            docker-compose -f "$DOCKERCOMPOSEFILE" exec -uroot redis-fpc redis-cli -c "monitor"
             ;;
 
         "session")
-            docker-compose -f $DOCKERCOMPOSEFILE exec -uroot redis-session redis-cli -c "monitor"
+            docker-compose -f "$DOCKERCOMPOSEFILE" exec -uroot redis-session redis-cli -c "monitor"
             ;;
 
         "cache")
-            docker-compose -f $DOCKERCOMPOSEFILE exec -uroot redis-cache redis-cli -c "monitor"
+            docker-compose -f "$DOCKERCOMPOSEFILE" exec -uroot redis-cache redis-cli -c "monitor"
             ;;
 
         *)            
@@ -140,12 +140,12 @@ function redis_main()
     case "$1" in
         cli)
             shift 1
-            redis_cli $*
+            redis_cli "$@"
         ;;
 
         monitor)
             shift 1
-            redis_monitor $*
+            redis_monitor "$@"
         ;;
 
         info)
@@ -154,12 +154,12 @@ function redis_main()
 
         ssh)
             shift
-            redis_simil_ssh $*
+            redis_simil_ssh "$@"
         ;;
 
         flush)
             shift
-            redis_flush $*
+            redis_flush "$@"
         ;;
 
         -h | --help)
@@ -185,7 +185,7 @@ redis_flush_wrong_input() {
 }
 
 redis_check_warp_running() {
-    if [ $(warp_check_is_running) = false ]; then
+    if [ "$(warp_check_is_running)" = false ]; then
         warp_message_error "The containers are not running"
         warp_message_error "please, first run warp start"
         exit 1
@@ -212,7 +212,7 @@ redis_simil_ssh() {
                 exit 0
             fi
             redis_check_warp_running
-            shift ; redis_simil_ssh_link redis-cache $*
+            shift ; redis_simil_ssh_link redis-cache "$@"
             exit 0
         ;;
         session)
@@ -222,7 +222,7 @@ redis_simil_ssh() {
                 exit 0
             fi
             redis_check_warp_running
-            shift ; redis_simil_ssh_link redis-session $*
+            shift ; redis_simil_ssh_link redis-session "$@"
             exit 0
         ;;
         fpc)
@@ -232,7 +232,7 @@ redis_simil_ssh() {
                 exit 0
             fi
             redis_check_warp_running
-            shift ; redis_simil_ssh_link redis-fpc $*
+            shift ; redis_simil_ssh_link redis-fpc "$@"
             exit 0
         ;;
         *)
@@ -249,9 +249,9 @@ redis_simil_ssh_link() {
     '
 
     if [[ $2 == "--root" ]]; then
-        docker-compose -f $DOCKERCOMPOSEFILE exec -u root $1 bash
+        docker-compose -f "$DOCKERCOMPOSEFILE" exec -u root "$1" bash
     elif [[ -z $2 || $2 == "--redis" ]]; then
-        docker-compose -f $DOCKERCOMPOSEFILE exec -u redis $1 bash
+        docker-compose -f "$DOCKERCOMPOSEFILE" exec -u redis "$1" bash
     elif [[ $1 == "-h" || $1 == "--help" ]]; then
         redis_ssh_help
         exit 0
