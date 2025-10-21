@@ -16,11 +16,11 @@ function magento_command()
     if [ "$1" = "--download" ]
     then
         shift 1
-        magento_download $*
+        magento_download "$@"
         exit 0;
     fi;
 
-    if [ $(warp_check_is_running) = false ]; then
+    if [ "$(warp_check_is_running)" = false ]; then
         warp_message_error "The containers are not running"
         warp_message_error "please, first run warp start"
 
@@ -29,7 +29,7 @@ function magento_command()
 
     if [ "$1" = "--install-only" ]
     then
-        magento_install_only $*
+        magento_install_only "$@"
         exit 0;
     fi;
 
@@ -80,13 +80,14 @@ function magento_command()
     if [ "$1" = "--root" ]
     then
         shift 1
-        docker-compose -f $DOCKERCOMPOSEFILE exec -uroot php bash -c "php -dmemory_limit=-1 $MAGENTOBIN $*"
+        # Forward args as positional params to preserve spacing/quoting.
+        docker-compose -f "$DOCKERCOMPOSEFILE" exec -uroot php bash -lc "php -dmemory_limit=-1 $MAGENTOBIN \"\$@\"" bash "$@"
     elif [ "$1" = "-T" ] ; then
         shift 1
-        docker-compose -f $DOCKERCOMPOSEFILE exec -T php bash -c "php -dmemory_limit=-1 $MAGENTOBIN $*"
+        docker-compose -f "$DOCKERCOMPOSEFILE" exec -T php bash -lc "php -dmemory_limit=-1 $MAGENTOBIN \"\$@\"" bash "$@"
     else
 
-        docker-compose -f $DOCKERCOMPOSEFILE exec php bash -c "php -dmemory_limit=-1 $MAGENTOBIN $*"
+        docker-compose -f "$DOCKERCOMPOSEFILE" exec php bash -lc "php -dmemory_limit=-1 $MAGENTOBIN \"\$@\"" bash "$@"
     fi
 }
 
@@ -99,7 +100,7 @@ function magento_command_tools()
         exit 0;
     fi;
 
-    if [ $(warp_check_is_running) = false ]; then
+    if [ "$(warp_check_is_running)" = false ]; then
         warp_message_error "The containers are not running"
         warp_message_error "please, first run warp start"
 
@@ -118,7 +119,8 @@ function magento_command_tools()
 
     shift 1;
     
-    docker-compose -f $DOCKERCOMPOSEFILE exec php bash -c "[ -f $TOOLS_COMMAND ] && $TOOLS_COMMAND $* || echo \"not found binary $TOOLS_COMMAND\""
+    # Execute ece tool with the same argument boundaries passed by the caller.
+    docker-compose -f "$DOCKERCOMPOSEFILE" exec php bash -lc "[ -f \"$TOOLS_COMMAND\" ] && \"$TOOLS_COMMAND\" \"\$@\" || echo \"not found binary $TOOLS_COMMAND\"" bash "$@"
 }
 
 function magento_install()
@@ -240,13 +242,12 @@ function magento_install_only()
 
     warp_message "Install Magento.."
 
-    # check extra-parameters
-    if [ $# -eq 1 ] ; then
-        EXTRA_PARAMS=""
-    else 
+    # Check extra parameters preserving original argument boundaries.
+    EXTRA_PARAMS=()
+    if [ $# -gt 1 ] ; then
         shift 1
-        EXTRA_PARAMS=$*        
-    fi;
+        EXTRA_PARAMS=("$@")
+    fi
 
     warp magento setup:install \
         --backend-frontname=admin \
@@ -263,7 +264,7 @@ function magento_install_only()
         --language=es_AR \
         --currency=ARS \
         --timezone=America/Argentina/Buenos_Aires \
-        --use-rewrites=1 $EXTRA_PARAMS
+        --use-rewrites=1 "${EXTRA_PARAMS[@]}"
 
     # setting values
     for i in "$@"
@@ -403,11 +404,11 @@ function magento_main()
     case "$1" in
         magento)
             shift 1
-            magento_command $*
+            magento_command "$@"
         ;;
 
         ece-tools|ece-patches)
-            magento_command_tools $*
+            magento_command_tools "$@"
         ;;
 
         -h | --help)
