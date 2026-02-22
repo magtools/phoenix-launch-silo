@@ -171,6 +171,7 @@ deploy_load_config() {
 deploy_cmd_run() {
     _label="$1"
     shift
+    # Deploy recipes are stored as shell snippets and executed via eval below.
     _cmd="$*"
 
     if [ "$DEPLOY_DRY_RUN" = "1" ]; then
