@@ -54,16 +54,24 @@ Reglas actuales del proceso de update runtime:
   - `dist/sha256sum.md`
   - `dist/warp`
 - Directorio temporal: `./var/warp-update`.
+- Estado persistente de aviso: `./var/warp-update/.pending-update`.
 - Validación obligatoria de checksum SHA-256 antes de reemplazar `./warp`.
 - La actualización de `.warp` debe extraer payload en temporal y copiar al proyecto **sin tocar** `.warp/docker/config`.
 - `warp update` no debe ejecutar wizard ni `init`, ni procesos de setup que modifiquen `config`.
 - Al finalizar, limpiar contenido temporal de update (la carpeta `var` puede quedar).
+- Si `warp` queda actualizado, `.pending-update` debe quedar vacío.
+- Si hay versión más nueva, `.pending-update` debe contener mensaje visible de update pendiente.
+- Si falla la lectura remota, `.pending-update` debe contener mensaje de error de conexión.
 
 Reglas de chequeo automático de versión:
 
 - Frecuencia: cada 7 días (archivo `.self-update-warp`).
+- Si el check remoto falla: reintento en 1 día (no en 7).
 - Excluir comandos: `mysql`, `start`, `stop`.
-- El chequeo automático informa versión nueva disponible; no debe disparar setup.
+- El chequeo automático se ejecuta al final del comando (no al inicio), para no perder visibilidad.
+- El chequeo automático informa versión nueva disponible; no debe disparar setup ni update automático.
+- La salida pendiente/error debe mostrarse al final de cada comando (excepto exclusiones) leyendo `.pending-update`.
+- No debe existir ningún path de update que dispare `warp_setup --force`, `warp_setup update` o `--self-update`.
 
 ## 5) Reglas para cambios de código
 

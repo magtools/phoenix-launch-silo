@@ -8,6 +8,7 @@ main () {
     # SCRIPTNAME contains the name
     # of the current script (e.g. "server")
     SCRIPTNAME="bin/$(basename $0)"
+    ORIGINAL_COMMAND="$1"
 
     # Check availability of docker
     hash docker 2>/dev/null || { echo >&2 "warp framework requires \"docker\""; exit 1; }
@@ -35,36 +36,9 @@ main () {
     # check if binary was updated
     warp_check_binary_was_updated
 
-    ## Generate file to check self-update
-    # check if the variables are not empty
-    if [[ ! -z "$CHECK_UPDATE_FILE" ]] && [[ ! -z "$CHECK_FREQUENCY_DAYS" ]]
-    then
-        case "$(uname -s)" in
-            Darwin)
-            # autodetect docker in OSX
-            DATE_OSX_LINUX=$(date -v +${CHECK_FREQUENCY_DAYS}d +%Y%m%d)
-            ;;
-            Linux)
-            DATE_OSX_LINUX=$(date -d "+${CHECK_FREQUENCY_DAYS} days" +%Y%m%d)
-            ;;
-        esac
-
-        if [[ -f "$CHECK_UPDATE_FILE" ]]
-        then
-            _NEXT_CHECK=$(cat "$CHECK_UPDATE_FILE")
-            _TODAY=$(date +%Y%m%d)
-
-            if [[ $_TODAY -ge $_NEXT_CHECK ]] && ! warp_should_skip_update_check "$1"
-            then
-                warp_check_latest_version
-                # update next check
-                echo $DATE_OSX_LINUX > "$CHECK_UPDATE_FILE" 2> /dev/null
-            fi    
-        else
-            touch "$CHECK_UPDATE_FILE" 2> /dev/null
-            # save next check
-            echo $DATE_OSX_LINUX > "$CHECK_UPDATE_FILE" 2> /dev/null
-        fi
+    # Run update check at command end, so output remains visible.
+    if [ -d $PROJECTPATH/.warp/lib ]; then
+        trap 'warp_post_command_hook "$ORIGINAL_COMMAND"' EXIT
     fi
 
     case "$1" in
@@ -229,7 +203,6 @@ main () {
 
         *)
         help
-        warp_check_latest_version
         ;;
     esac
 
@@ -347,6 +320,80 @@ warp_should_skip_update_check() {
     esac
 }
 
+warp_pending_update_file() {
+    echo "$PROJECTPATH/var/warp-update/.pending-update"
+}
+
+warp_pending_update_write() {
+    mkdir -p "$PROJECTPATH/var/warp-update" 2>/dev/null
+    cat > "$(warp_pending_update_file)"
+}
+
+warp_pending_update_box_border() {
+    printf '+%58s+\n' '' | tr ' ' '-'
+}
+
+warp_pending_update_box_line() {
+    # 60 columns total: "| " + 56 chars + " |"
+    printf '| %-56.56s |\n' "$1"
+}
+
+warp_pending_update_clear() {
+    mkdir -p "$PROJECTPATH/var/warp-update" 2>/dev/null
+    : > "$(warp_pending_update_file)"
+}
+
+warp_pending_update_show() {
+    pending_file="$(warp_pending_update_file)"
+    [ -s "$pending_file" ] || return
+    echo ""
+    cat "$pending_file"
+    echo ""
+}
+
+warp_date_plus_days_yyyymmdd() {
+    days_to_add="$1"
+    case "$(uname -s)" in
+        Darwin)
+            date -v +"${days_to_add}"d +%Y%m%d
+        ;;
+        Linux)
+            date -d "+${days_to_add} days" +%Y%m%d
+        ;;
+        *)
+            date +%Y%m%d
+        ;;
+    esac
+}
+
+warp_post_command_hook() {
+    _cmd="$1"
+
+    # keep stdout clean for these commands (e.g. mysql dump/pipe usage)
+    if warp_should_skip_update_check "$_cmd"; then
+        return
+    fi
+
+    # check version if needed and persist pending status
+    if [[ ! -z "$CHECK_UPDATE_FILE" ]] && [[ ! -z "$CHECK_FREQUENCY_DAYS" ]]; then
+        _today=$(date +%Y%m%d)
+        _next_check=0
+        [ -f "$CHECK_UPDATE_FILE" ] && _next_check=$(cat "$CHECK_UPDATE_FILE")
+
+        if [[ "$_today" -ge "$_next_check" ]]; then
+            if warp_check_latest_version; then
+                warp_date_plus_days_yyyymmdd "$CHECK_FREQUENCY_DAYS" > "$CHECK_UPDATE_FILE" 2>/dev/null
+            else
+                # If remote check fails, retry next day.
+                warp_date_plus_days_yyyymmdd "1" > "$CHECK_UPDATE_FILE" 2>/dev/null
+            fi
+        fi
+    fi
+
+    # show pending/error box at command end
+    warp_pending_update_show
+}
+
 warp_update_version_to_int() {
     echo "$1" | tr -d '.'
 }
@@ -367,7 +414,15 @@ warp_checksum_file_sha256() {
 
 warp_fetch_latest_version() {
     warp_remote_base_url="https://raw.githubusercontent.com/magtools/warp-engine/refs/heads/master/dist"
-    curl --silent --show-error --fail --location "${warp_remote_base_url}/version.md" 2>/dev/null | tr -d '\r\n'
+    _fetch_output=$(curl --silent --show-error --fail --location "${warp_remote_base_url}/version.md" 2>&1)
+    _fetch_status=$?
+
+    if [ $_fetch_status -ne 0 ]; then
+        WARP_LAST_CHECK_ERROR="$_fetch_output"
+        return 1
+    fi
+
+    echo "$_fetch_output" | tr -d '\r\n'
 }
 
 warp_check_latest_version() {
@@ -381,10 +436,19 @@ warp_check_latest_version() {
         return
     fi
 
+    WARP_LAST_CHECK_ERROR=""
     WARP_VERSION_LATEST=$(warp_fetch_latest_version)
-    if [ -z "$WARP_VERSION_LATEST" ]; then
-        warp_message_warn "unable to check latest Warp version"
-        return
+    if [ $? -ne 0 ] || [ -z "$WARP_VERSION_LATEST" ]; then
+        {
+            warp_pending_update_box_border
+            warp_pending_update_box_line "WARP UPDATE CHECK ERROR"
+            warp_pending_update_box_line "Ultima version estable: No se pudo leer"
+            warp_pending_update_box_line "el origen remoto (GitHub/raw)."
+            warp_pending_update_box_line "Detalle: ${WARP_LAST_CHECK_ERROR:-error desconocido}"
+            warp_pending_update_box_line "Reintento automatico: 1 dia"
+            warp_pending_update_box_border
+        } | warp_pending_update_write
+        return 1
     fi
 
     WARP_VERSION_LOCAL_INT=$(warp_update_version_to_int "$WARP_VERSION")
@@ -392,14 +456,32 @@ warp_check_latest_version() {
 
     if [[ "$WARP_VERSION_LOCAL_INT" =~ ^[0-9]+$ ]] && [[ "$WARP_VERSION_LATEST_INT" =~ ^[0-9]+$ ]]; then
         if [ "$WARP_VERSION_LOCAL_INT" -lt "$WARP_VERSION_LATEST_INT" ]; then
-            warp_message_warn "current version $WARP_VERSION, new version available $WARP_VERSION_LATEST"
-            warp_message_warn "run ./warp update to apply"
+            {
+                warp_pending_update_box_border
+                warp_pending_update_box_line "WARP UPDATE PENDIENTE"
+                warp_pending_update_box_line "Buscando actualizaciones..."
+                warp_pending_update_box_line "Ultima version estable: $WARP_VERSION_LATEST"
+                warp_pending_update_box_line "Estado: desactualizado"
+                warp_pending_update_box_line "Ejecutar: ./warp update"
+                warp_pending_update_box_border
+            } | warp_pending_update_write
         else
-            echo "Version $WARP_VERSION"
+            warp_pending_update_clear
         fi
     else
-        warp_message_warn "invalid version format (local: $WARP_VERSION, remote: $WARP_VERSION_LATEST)"
+        {
+            warp_pending_update_box_border
+            warp_pending_update_box_line "WARP UPDATE CHECK ERROR"
+            warp_pending_update_box_line "Version local/remota con formato invalido."
+            warp_pending_update_box_line "Local: $WARP_VERSION"
+            warp_pending_update_box_line "Remota: $WARP_VERSION_LATEST"
+            warp_pending_update_box_line "Reintento automatico: 1 dia"
+            warp_pending_update_box_border
+        } | warp_pending_update_write
+        return 1
     fi
+
+    return 0
 }
 
 warp_message_not_install_yet() {
@@ -439,10 +521,11 @@ warp_update() {
         exit 0;
     fi
 
+    warp_message_info "Buscando actualizaciones..."
     rm -rf "$WARP_TMP_DIR" 2>/dev/null
     mkdir -p "$WARP_TMP_EXTRACT_DIR" || { warp_message_error "unable to create $WARP_TMP_EXTRACT_DIR"; exit 1; }
 
-    trap 'rm -rf "$WARP_TMP_DIR" 2>/dev/null' EXIT
+    trap 'rm -rf "$WARP_TMP_DIR" 2>/dev/null' RETURN
 
     curl --silent --show-error --fail --location "${WARP_REMOTE_BASE_URL}/version.md" -o "$WARP_TMP_VERSION" || { warp_message_error "unable to download version.md"; exit 1; }
     WARP_VERSION_LATEST=$(cat "$WARP_TMP_VERSION" | tr -d '\r\n')
@@ -452,6 +535,7 @@ warp_update() {
         exit 1
     fi
 
+    warp_message_info "Ultima version estable: $WARP_VERSION_LATEST"
     . "$PROJECTPATH/.warp/lib/version.sh"
     WARP_VERSION_LOCAL_INT=$(warp_update_version_to_int "$WARP_VERSION")
     WARP_VERSION_LATEST_INT=$(warp_update_version_to_int "$WARP_VERSION_LATEST")
@@ -462,13 +546,17 @@ warp_update() {
     fi
 
     if [ "$WARP_FORCE_UPDATE" -ne 1 ] && [ "$WARP_VERSION_LOCAL_INT" -ge "$WARP_VERSION_LATEST_INT" ]; then
+        warp_message_info "Estado: actualizado"
         warp_message_info2 "warp is up to date ($WARP_VERSION)"
+        warp_pending_update_clear
         exit 0
     fi
 
+    warp_message_warn "Estado: Actualizando a ultima version..."
     curl --silent --show-error --fail --location "${WARP_REMOTE_BASE_URL}/sha256sum.md" -o "$WARP_TMP_SHA256" || { warp_message_error "unable to download sha256sum.md"; exit 1; }
     curl --silent --show-error --fail --location "${WARP_REMOTE_BASE_URL}/warp" -o "$WARP_TMP_WARP" || { warp_message_error "unable to download warp"; exit 1; }
 
+    warp_message_info "Chequeando suma de comprobacion"
     WARP_EXPECTED_SHA256=$(awk 'NR==1 {print $1}' "$WARP_TMP_SHA256" | tr -d '\r\n')
     [ -z "$WARP_EXPECTED_SHA256" ] && warp_message_error "sha256sum.md is empty" && exit 1
 
@@ -486,12 +574,14 @@ warp_update() {
     tail -n+${ARCHIVE} "$WARP_TMP_WARP" | tar xpJ -C "$WARP_TMP_EXTRACT_DIR" || { warp_message_error "unable to extract downloaded payload"; exit 1; }
     [ ! -d "$WARP_TMP_EXTRACT_DIR/.warp" ] && warp_message_error "downloaded payload does not contain .warp" && exit 1
 
+    warp_message_info "Aplicando cambios"
     # Update .warp without touching .warp/docker/config
     mkdir -p "$PROJECTPATH/.warp" 2>/dev/null
     tar -C "$WARP_TMP_EXTRACT_DIR/.warp" --exclude='./docker/config' --exclude='./docker/config/*' -cf - . | tar -C "$PROJECTPATH/.warp" -xf - || { warp_message_error "unable to update .warp"; exit 1; }
 
     cp "$WARP_TMP_WARP" "$WARP_TARGET_FILE" || { warp_message_error "unable to update warp binary"; exit 1; }
     chmod 755 "$WARP_TARGET_FILE" || { warp_message_error "unable to set executable permissions on warp"; exit 1; }
+    warp_pending_update_clear
 
     warp_message_info2 "warp updated successfully to $WARP_VERSION_LATEST"
     warp_message_warn "run ./warp to use the new binary"
