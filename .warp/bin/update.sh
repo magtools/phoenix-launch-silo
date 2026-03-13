@@ -13,11 +13,11 @@ function update_command() {
   elif [ "$1" = "--images" ] ; then
 
       warp_message_warn "checking if there are images available to update"
-      docker-compose -f $DOCKERCOMPOSEFILE pull
+      docker-compose -f "$DOCKERCOMPOSEFILE" pull
   else
       # Delegate to the safe updater implemented in warp.sh.
       # This avoids legacy setup-based update paths that may overwrite config.
-      warp_update $*
+      warp_update "$@"
   fi;
 }
 
@@ -26,7 +26,7 @@ function update_main()
     case "$1" in
         update)
           shift 1
-          update_command $*
+          update_command "$@"
         ;;
 
         *)
