@@ -30,6 +30,8 @@ Comportamiento:
 2. Si falta `.deploy`, `run` ejecuta `set` antes de continuar.
 3. `--dry-run` imprime pasos sin ejecutar comandos.
 4. `--yes` omite confirmación interactiva de `prod`.
+5. `--dry-run` y `--yes` funcionan antes o después de `run`.
+6. `--dry-run` imprime la receta de pasos y termina sin ejecutar `doctor` ni comandos de deploy.
 
 ## 3) Archivo `.deploy`
 
@@ -86,6 +88,10 @@ Secuencia:
 13. si activó maintenance: `maintenance:disable`.
 
 Todas las etapas fallan en corto circuito: si una falla, corta el deploy.
+
+Formato de salida en `run`:
+
+- cada paso se imprime con título entre dos líneas de 80 caracteres `=`.
 
 ## 6) Variables principales soportadas
 

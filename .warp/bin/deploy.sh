@@ -6,6 +6,7 @@ DEPLOY_FILE="$PROJECTPATH/.deploy"
 DEPLOY_LOG_DIR="$PROJECTPATH/var/log/warp-deploy"
 DEPLOY_DRY_RUN=0
 DEPLOY_ASSUME_YES=0
+DEPLOY_BORDER_WIDTH=80
 
 deploy_warp_exec() {
     if [ -x "$PROJECTPATH/warp" ]; then
@@ -172,12 +173,15 @@ deploy_cmd_run() {
     _cmd="$*"
 
     if [ "$DEPLOY_DRY_RUN" = "1" ]; then
-        warp_message "* [DRY-RUN] $_label"
-        warp_message "  $_cmd"
+        warp_message "  - $_label"
         return 0
     fi
 
-    warp_message "* $_label"
+    _border=$(printf '%*s' "$DEPLOY_BORDER_WIDTH" '' | tr ' ' '=')
+    echo "$_border"
+    echo "   $_label"
+    echo "$_border"
+
     eval "$_cmd"
     _status=$?
     if [ $_status -ne 0 ]; then
@@ -277,7 +281,83 @@ deploy_run_frontend_prod() {
 }
 
 deploy_run_main() {
+    # Accept run flags in both forms:
+    # - warp deploy --dry-run run
+    # - warp deploy run --dry-run
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --dry-run)
+                DEPLOY_DRY_RUN=1
+            ;;
+            --yes)
+                DEPLOY_ASSUME_YES=1
+            ;;
+        esac
+        shift
+    done
+
     deploy_load_config
+
+    # In dry-run mode print only the recipe (no execution, no doctor gates).
+    if [ "$DEPLOY_DRY_RUN" = "1" ]; then
+        _env="${ENV:-local}"
+        _auto_start=$(deploy_bool "${AUTO_START:-1}")
+        _use_maintenance=$(deploy_bool "${USE_MAINTENANCE:-0}")
+        _run_setup_upgrade=$(deploy_bool "${RUN_SETUP_UPGRADE:-1}")
+        _run_di_compile=$(deploy_bool "${RUN_DI_COMPILE:-1}")
+        _run_reindex=$(deploy_bool "${RUN_REINDEX:-0}")
+        _run_cache_flush=$(deploy_bool "${RUN_CACHE_FLUSH:-1}")
+        _run_search_flush=$(deploy_bool "${RUN_SEARCH_FLUSH:-0}")
+        _run_grunt=$(deploy_bool "${RUN_GRUNT:-0}")
+        _run_hyva=$(deploy_bool "${RUN_HYVA:-0}")
+        _hyva_prepare=$(deploy_bool "${HYVA_PREPARE:-1}")
+        _hyva_build=$(deploy_bool "${HYVA_BUILD:-1}")
+        _run_static_admin=$(deploy_bool "${RUN_STATIC_ADMIN:-1}")
+        _run_static_front=$(deploy_bool "${RUN_STATIC_FRONT:-1}")
+
+        warp_message ""
+        warp_message_info "Deploy recipe (dry-run)"
+
+        if [ "$_auto_start" = "1" ] && [ "$(warp_check_is_running)" = false ]; then
+            deploy_cmd_run "start containers" ":"
+        fi
+
+        if [ "$_env" = "prod" ] && [ "$_use_maintenance" = "1" ]; then
+            deploy_cmd_run "enable maintenance mode" ":"
+        fi
+
+        deploy_cmd_run "composer install" ":"
+        [ "$_run_setup_upgrade" = "1" ] && deploy_cmd_run "setup:upgrade" ":"
+        [ "$_run_di_compile" = "1" ] && deploy_cmd_run "setup:di:compile" ":"
+
+        if [ "$_env" = "local" ]; then
+            if [ "$_run_grunt" = "1" ] && deploy_has_grunt_cfg; then
+                deploy_cmd_run "grunt exec" ":"
+                deploy_cmd_run "grunt less" ":"
+            fi
+            if [ "$_run_hyva" = "1" ] && deploy_has_hyva_cfg; then
+                [ "$_hyva_prepare" = "1" ] && deploy_cmd_run "hyva prepare" ":"
+                [ "$_hyva_build" = "1" ] && deploy_cmd_run "hyva build" ":"
+            fi
+        else
+            if [ "$_run_hyva" = "1" ] && [ "$_hyva_build" = "1" ] && deploy_has_hyva_cfg; then
+                deploy_cmd_run "hyva build" ":"
+            fi
+            [ "$_run_static_admin" = "1" ] && deploy_cmd_run "static content deploy (admin)" ":"
+            [ "$_run_static_front" = "1" ] && deploy_cmd_run "static content deploy (frontend)" ":"
+        fi
+
+        [ "$_run_search_flush" = "1" ] && deploy_cmd_run "search flush" ":"
+        [ "$_run_reindex" = "1" ] && deploy_cmd_run "indexer:reindex" ":"
+        [ "$_run_cache_flush" = "1" ] && deploy_cmd_run "cache:flush" ":"
+
+        if [ "$_env" = "prod" ] && [ "$_use_maintenance" = "1" ]; then
+            deploy_cmd_run "disable maintenance mode" ":"
+        fi
+
+        warp_message_ok "dry-run recipe completed"
+        return 0
+    fi
 
     if ! deploy_doctor; then
         exit 1
