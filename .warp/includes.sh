@@ -32,6 +32,7 @@
 . "$WARPFOLDER/bin/grunt.sh"
 . "$WARPFOLDER/bin/hyva.sh"
 . "$WARPFOLDER/bin/memory.sh"
+. "$WARPFOLDER/bin/deploy.sh"
 . "$WARPFOLDER/bin/crontab.sh"
 . "$WARPFOLDER/bin/fix.sh"
 . "$WARPFOLDER/bin/mailhog.sh"

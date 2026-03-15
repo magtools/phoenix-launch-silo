@@ -135,6 +135,11 @@ main () {
         hyva_main $*
         ;;
 
+        deploy)
+        shift 1
+        deploy_main $*
+        ;;
+
         memory)
         shift 1
         memory_main $*
