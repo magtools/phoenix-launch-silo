@@ -113,10 +113,11 @@ mysql_devdump_render_ignore_args() {
 mysql_devdump_pick_profile_file() {
     _app="$1"
     _files="$2"
+    MYSQL_DEVDUMP_PICKED_PROFILE=""
     _count=$(echo "$_files" | sed '/^$/d' | wc -l | awk '{print $1}')
 
     if [ "$_count" -le 1 ]; then
-        echo "$_files" | sed '/^$/d' | head -n1
+        MYSQL_DEVDUMP_PICKED_PROFILE=$(echo "$_files" | sed '/^$/d' | head -n1)
         return 0
     fi
 
@@ -137,7 +138,7 @@ mysql_devdump_pick_profile_file() {
     _default="1"
     _pick=$(warp_question_ask_default "Select profile number (0 for all): " "$_default")
     if [ "$_pick" = "0" ]; then
-        echo "__ALL__"
+        MYSQL_DEVDUMP_PICKED_PROFILE="__ALL__"
         return 0
     fi
 
@@ -151,7 +152,7 @@ mysql_devdump_pick_profile_file() {
         warp_message_warn "Invalid option. Using profile 1."
         _sel=$(echo "$_files" | sed '/^$/d' | head -n1)
     fi
-    echo "$_sel"
+    MYSQL_DEVDUMP_PICKED_PROFILE="$_sel"
 }
 
 mysql_devdump_dump_structure() {
@@ -186,7 +187,8 @@ mysql_devdump_run() {
 
     mysql_devdump_prepare_context "$_app" || return 1
 
-    _picked=$(mysql_devdump_pick_profile_file "$_app" "$_files")
+    mysql_devdump_pick_profile_file "$_app" "$_files" || return 1
+    _picked="$MYSQL_DEVDUMP_PICKED_PROFILE"
     if [ "$_picked" = "__ALL__" ]; then
         _combined="$OUT_DIR/.${_app}_all_profiles_${TS}.tmp"
         > "$_combined"

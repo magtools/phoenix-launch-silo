@@ -779,10 +779,18 @@ function mysql_tuner()
 
     _tuner_show_logs=0
     _tuner_has_server_log=0
+    _tuner_has_nocolor=0
+    _tuner_has_color=0
     for _arg in "$@"; do
         case "$_arg" in
             --server-log|--server-log=*)
                 _tuner_has_server_log=1
+            ;;
+            --nocolor)
+                _tuner_has_nocolor=1
+            ;;
+            --color)
+                _tuner_has_color=1
             ;;
         esac
 
@@ -791,18 +799,33 @@ function mysql_tuner()
         fi
     done
 
-    _tuner_args=("$@")
-    if [ "$_tuner_show_logs" -eq 0 ] && [ "$_tuner_has_server_log" -eq 0 ]; then
-        _tuner_args=(--server-log=/dev/null "${_tuner_args[@]}")
+    if [ "$_tuner_has_color" -eq 0 ] && [ "$_tuner_has_nocolor" -eq 0 ]; then
+        set -- --color "$@"
     fi
+
+    if [ "$_tuner_show_logs" -eq 0 ] && [ "$_tuner_has_server_log" -eq 0 ]; then
+        set -- --server-log=/dev/null "$@"
+    fi
+
+    _tmp_out=$(mktemp /tmp/warp-mysqltuner.XXXXXX 2>/dev/null || echo "/tmp/warp-mysqltuner.$$.out")
 
     if [ "$TUNER_MODE" = "local" ] && [ "$TUNER_PORT" = "3306" ]; then
         warp_message_info2 "Running MySQLTuner against localhost (port 3306)"
-        perl "$_target" --host localhost --user "$TUNER_USER" --pass "$TUNER_PASS" "${_tuner_args[@]}"
+        perl "$_target" --host localhost --user "$TUNER_USER" --pass "$TUNER_PASS" "$@" >"$_tmp_out" 2>&1
     else
         warp_message_info2 "Running MySQLTuner against $TUNER_HOST:$TUNER_PORT"
-        perl "$_target" --host "$TUNER_HOST" --port "$TUNER_PORT" --user "$TUNER_USER" --pass "$TUNER_PASS" "${_tuner_args[@]}"
+        perl "$_target" --host "$TUNER_HOST" --port "$TUNER_PORT" --user "$TUNER_USER" --pass "$TUNER_PASS" "$@" >"$_tmp_out" 2>&1
     fi
+    _rc=$?
+
+    if [ "$_tuner_show_logs" -eq 0 ]; then
+        sed -E '/^[0-9]{4}-[0-9]{2}-[0-9]{2}[[:space:]].*\[(Note|Warning|Warn|Error)\]/d; /^create_uring failed:/d' "$_tmp_out"
+    else
+        cat "$_tmp_out"
+    fi
+
+    rm -f "$_tmp_out" 2>/dev/null || true
+    return "$_rc"
 }
 
 function mysql_main()

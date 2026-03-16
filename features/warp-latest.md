@@ -148,7 +148,8 @@ Comportamiento de conexión:
 - entorno local con contenedor DB: usa `localhost` y puerto mapeado (`DATABASE_BINDED_PORT` o `docker-compose port`).
 - si el puerto efectivo es `3306`, conecta a `localhost` sin forzar `--port`.
 - entorno externo (`MYSQL_VERSION=rds`): usa `DATABASE_HOST`, `DATABASE_BINDED_PORT`, `DATABASE_USER`, `DATABASE_PASSWORD`.
-- salida de logs del servidor ocultada por defecto para reducir ruido; usar `warp mysql tuner -vvv` para incluirla.
+- salida de logs del servidor filtrada por defecto para reducir ruido; usar `warp mysql tuner -vvv` para incluirla completa.
+- color habilitado por defecto (salvo `--nocolor`).
 
 Comando:
 
@@ -207,6 +208,23 @@ Comandos:
 - `warp grunt exec`: republica symlinks/artefactos frontend.
 - `warp grunt less`: compila LESS/CSS.
 - `WARP_GRUNT_PHP_CONTAINER=<container> warp grunt ...`: ejecuta contra un contenedor PHP específico.
+
+## Compatibilidad de plataforma y versiones (Magento/OpenSearch)
+
+Durante el último año también se incorporaron ajustes de compatibilidad para reducir fricción en upgrades y arranque de entornos.
+
+Qué aporta al equipo:
+
+- mejor soporte operativo para proyectos Magento en ramas recientes (incluyendo ajustes para 2.4.7/2.4.8),
+- correcciones en setup de OpenSearch/Elasticsearch y variables asociadas,
+- alineación de defaults de setup para PHP/MySQL y componentes auxiliares,
+- menor riesgo de fallos de bootstrap por combinaciones de versión.
+
+Impacto funcional:
+
+- inicializaciones más estables con `warp init`,
+- menos correcciones manuales post-setup,
+- mayor consistencia entre proyectos al migrar versiones de stack.
 
 ## Resultado global para el equipo
 

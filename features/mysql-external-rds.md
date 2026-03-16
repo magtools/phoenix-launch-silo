@@ -89,6 +89,8 @@ Motor preferido según `.env`:
 1. local (contenedor DB): host `localhost` y puerto mapeado (`DATABASE_BINDED_PORT` o `docker-compose port`),
 2. si el puerto efectivo es `3306`, usa `localhost` sin forzar `--port`,
 3. `rds`: usa `DATABASE_HOST`, `DATABASE_BINDED_PORT`, `DATABASE_USER`, `DATABASE_PASSWORD`.
+4. salida normal con logs de servidor filtrados para reducir ruido y color habilitado por defecto.
+5. `-vvv` muestra salida completa (incluyendo logs de servidor).
 
 ## 4) Alcance de cambios
 

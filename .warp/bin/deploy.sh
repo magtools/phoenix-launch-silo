@@ -7,6 +7,7 @@ DEPLOY_LOG_DIR="$PROJECTPATH/var/log/warp-deploy"
 DEPLOY_DRY_RUN=0
 DEPLOY_ASSUME_YES=0
 DEPLOY_BORDER_WIDTH=80
+DEPLOY_COLOR=1
 
 deploy_warp_exec() {
     if [ -x "$PROJECTPATH/warp" ]; then
@@ -182,7 +183,11 @@ deploy_cmd_run() {
     echo "   $_label"
     echo "$_border"
 
-    eval "$_cmd"
+    if [ "$DEPLOY_COLOR" = "1" ] && [ -t 1 ]; then
+        FORCE_COLOR=1 CLICOLOR_FORCE=1 TERM="${TERM:-xterm-256color}" eval "$_cmd"
+    else
+        eval "$_cmd"
+    fi
     _status=$?
     if [ $_status -ne 0 ]; then
         warp_message_error "failed step: $_label"
@@ -388,19 +393,19 @@ deploy_run_main() {
     fi
 
     if [ "$_env" = "prod" ] && [ "$_use_maintenance" = "1" ]; then
-        deploy_cmd_run "enable maintenance mode" "$_warp_exec magento maintenance:enable"
+        deploy_cmd_run "enable maintenance mode" "$_warp_exec magento maintenance:enable --ansi"
         _maintenance_enabled=1
     fi
 
     _composer_flags="${COMPOSER_FLAGS:-}"
-    deploy_cmd_run "composer install" "$_warp_exec composer install $_composer_flags"
+    deploy_cmd_run "composer install" "$_warp_exec composer install $_composer_flags --ansi"
 
     if [ "$_run_setup_upgrade" = "1" ]; then
-        deploy_cmd_run "setup:upgrade" "$_warp_exec magento setup:upgrade"
+        deploy_cmd_run "setup:upgrade" "$_warp_exec magento setup:upgrade --ansi"
     fi
 
     if [ "$_run_di_compile" = "1" ]; then
-        deploy_cmd_run "setup:di:compile" "$_warp_exec magento setup:di:compile"
+        deploy_cmd_run "setup:di:compile" "$_warp_exec magento setup:di:compile --ansi"
     fi
 
     if [ "$_env" = "local" ]; then
@@ -415,15 +420,15 @@ deploy_run_main() {
     fi
 
     if [ "$_run_reindex" = "1" ]; then
-        deploy_cmd_run "indexer:reindex" "$_warp_exec magento indexer:reindex"
+        deploy_cmd_run "indexer:reindex" "$_warp_exec magento indexer:reindex --ansi"
     fi
 
     if [ "$_run_cache_flush" = "1" ]; then
-        deploy_cmd_run "cache:flush" "$_warp_exec magento cache:flush"
+        deploy_cmd_run "cache:flush" "$_warp_exec magento cache:flush --ansi"
     fi
 
     if [ "$_maintenance_enabled" = "1" ]; then
-        deploy_cmd_run "disable maintenance mode" "$_warp_exec magento maintenance:disable"
+        deploy_cmd_run "disable maintenance mode" "$_warp_exec magento maintenance:disable --ansi"
     fi
 
     warp_message_ok "deploy finished"
