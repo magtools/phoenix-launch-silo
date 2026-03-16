@@ -8,7 +8,7 @@ Active development has moved to:
 
     Out there... thataway.   https://github.com/magtools/phoenix-launch-silo
 
-<img src="release/landing/img/first-contact.png" alt="First Contact" style="max-width: 500px; width: 100%;" />
+<img src="./release/landing/img/first-contact.png" alt="First Contact" width="500" style="max-width: 500px; width: 500px;" />
 
 
 Warp started as a tool to simplify development environments. The project is now evolving into a warp-powered shipyard of networks for productive development and deployment, with built-in analysis tooling.
