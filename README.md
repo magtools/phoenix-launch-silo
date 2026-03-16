@@ -108,7 +108,7 @@ See [LICENSE](LICENSE) for the full license text.
 
 ## Author Information
 
-This project was started by [Matias Anoniz](https://github.com/yosoyfunes/) and [Sebastian Arrubia](https://github.com/sarrubia/)
+The warp-engine project was started by [Matias Anoniz](https://github.com/yosoyfunes/) and [Sebastian Arrubia](https://github.com/sarrubia/)
 
 ![Matias Anoniz](https://github.com/yosoyfunes.png?size=150)
 ![Sebastian Arrubia](https://github.com/sarrubia.png?size=150)
