@@ -104,7 +104,7 @@ See [LICENSE](LICENSE) for the full license text.
 
 ## Maintainer Information
 
-This project main repository was abandoned in 2021, this fork has been maintained by [Martin Gonzalez](https://github.com/magtools/) since then. 
+Phoenix Launch Silo is an independent evolution of the Warp lineage. It is no longer the original Warp tool, and it now focuses on production-ready orchestration, deployment, and built-in analysis workflows.
 
 ![Martin Gonzalez](https://github.com/magtools.png?size=300)
 
