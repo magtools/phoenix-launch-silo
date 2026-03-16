@@ -429,6 +429,67 @@ deploy_run_main() {
     warp_message_ok "deploy finished"
 }
 
+deploy_static_main() {
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --dry-run)
+                DEPLOY_DRY_RUN=1
+            ;;
+            --yes)
+                DEPLOY_ASSUME_YES=1
+            ;;
+        esac
+        shift
+    done
+
+    deploy_load_config
+
+    _env="${ENV:-local}"
+    _run_grunt=$(deploy_bool "${RUN_GRUNT:-0}")
+    _run_hyva=$(deploy_bool "${RUN_HYVA:-0}")
+    _hyva_prepare=$(deploy_bool "${HYVA_PREPARE:-1}")
+    _hyva_build=$(deploy_bool "${HYVA_BUILD:-1}")
+    _run_static_admin=$(deploy_bool "${RUN_STATIC_ADMIN:-1}")
+    _run_static_front=$(deploy_bool "${RUN_STATIC_FRONT:-1}")
+
+    if [ "$DEPLOY_DRY_RUN" = "1" ]; then
+        warp_message ""
+        warp_message_info "Deploy static recipe (dry-run)"
+
+        if [ "$_env" = "local" ]; then
+            if [ "$_run_grunt" = "1" ] && deploy_has_grunt_cfg; then
+                deploy_cmd_run "grunt exec" ":"
+                deploy_cmd_run "grunt less" ":"
+            fi
+            if [ "$_run_hyva" = "1" ] && deploy_has_hyva_cfg; then
+                [ "$_hyva_prepare" = "1" ] && deploy_cmd_run "hyva prepare" ":"
+                [ "$_hyva_build" = "1" ] && deploy_cmd_run "hyva build" ":"
+            fi
+        else
+            if [ "$_run_hyva" = "1" ] && [ "$_hyva_build" = "1" ] && deploy_has_hyva_cfg; then
+                deploy_cmd_run "hyva build" ":"
+            fi
+            [ "$_run_static_admin" = "1" ] && deploy_cmd_run "static content deploy (admin)" ":"
+            [ "$_run_static_front" = "1" ] && deploy_cmd_run "static content deploy (frontend)" ":"
+        fi
+
+        warp_message_ok "dry-run static recipe completed"
+        return 0
+    fi
+
+    if ! deploy_doctor; then
+        exit 1
+    fi
+
+    if [ "$_env" = "local" ]; then
+        deploy_run_frontend_local
+    else
+        deploy_run_frontend_prod
+    fi
+
+    warp_message_ok "deploy static finished"
+}
+
 deploy_parse_global_options() {
     while [ $# -gt 0 ]; do
         case "$1" in
@@ -454,9 +515,16 @@ deploy_main() {
     set -- $_args
 
     case "$1" in
-        ""|run)
-            [ "$1" = "run" ] && shift
+        run)
+            shift
             deploy_run_main "$@"
+        ;;
+        static)
+            shift
+            deploy_static_main "$@"
+        ;;
+        "")
+            deploy_help_usage
         ;;
         set)
             shift

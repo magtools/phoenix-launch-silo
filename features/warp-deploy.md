@@ -16,6 +16,7 @@ Agregar un orquestador de deploy para `local` y `prod` que:
 ```bash
 warp deploy
 warp deploy run
+warp deploy static
 warp deploy set
 warp deploy show
 warp deploy doctor
@@ -26,12 +27,14 @@ warp deploy run --yes
 
 Comportamiento:
 
-1. `warp deploy` y `warp deploy run` son equivalentes.
-2. Si falta `.deploy`, `run` ejecuta `set` antes de continuar.
-3. `--dry-run` imprime pasos sin ejecutar comandos.
-4. `--yes` omite confirmación interactiva de `prod`.
-5. `--dry-run` y `--yes` funcionan antes o después de `run`.
-6. `--dry-run` imprime la receta de pasos y termina sin ejecutar `doctor` ni comandos de deploy.
+1. `warp deploy` muestra ayuda.
+2. `warp deploy run` ejecuta deploy completo.
+3. `warp deploy static` ejecuta solo frontend/estáticos según `ENV`.
+4. Si falta `.deploy`, `run`/`static` ejecutan `set` antes de continuar.
+5. `--dry-run` imprime pasos sin ejecutar comandos.
+6. `--yes` omite confirmación interactiva de `prod`.
+7. `--dry-run` y `--yes` funcionan antes o después de `run`.
+8. `--dry-run` imprime la receta de pasos y termina sin ejecutar `doctor` ni comandos de deploy.
 
 ## 3) Archivo `.deploy`
 
@@ -92,6 +95,17 @@ Todas las etapas fallan en corto circuito: si una falla, corta el deploy.
 Formato de salida en `run`:
 
 - cada paso se imprime con título entre dos líneas de 80 caracteres `=`.
+
+## 5.3 `deploy static`
+
+Ejecuta solo pasos de frontend/estáticos:
+
+1. `ENV=local`:
+   - `grunt exec` + `grunt less` si `RUN_GRUNT=1`,
+   - `hyva prepare/build` según flags (`RUN_HYVA`, `HYVA_PREPARE`, `HYVA_BUILD`).
+2. `ENV=prod`:
+   - `hyva build` si aplica,
+   - `setup:static-content:deploy` admin/frontend según flags (`RUN_STATIC_ADMIN`, `RUN_STATIC_FRONT`).
 
 ## 6) Variables principales soportadas
 
