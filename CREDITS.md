@@ -8,8 +8,11 @@ That original repository was later abandoned, and this fork continued its mainte
 
 ## Stewardship Timeline
 
-- Summa Solutions maintained the original Warp project until April 2021.
-- Fork maintenance and ongoing development have been led by Martin Gonzalez since 2021.
+Order: newest to oldest.
+
+- 2021-2026: Martin Gonzalez — fork maintainer of `magtools/warp-engine`.
+- Before 2021-04: Martin Gonzalez — contributor in the Warp project lineage.
+- Until 2021-04: Summa Solutions — stewardship of the original Warp project.
 
 Initial project authors:
 
