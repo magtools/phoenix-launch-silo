@@ -115,6 +115,6 @@ This project was started by [Matias Anoniz](https://github.com/yosoyfunes/) and 
 
 ## Maintainer Information
 
-This project main repository was deleted in 2021, this fork has been maintained by [Martin Gonzalez](https://github.com/magtools/) since then. 
+This project main repository was abandoned in 2021, this fork has been maintained by [Martin Gonzalez](https://github.com/magtools/) since then. 
 
 ![Martin Gonzalez](https://github.com/magtools.png?size=300)
