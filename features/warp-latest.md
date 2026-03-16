@@ -19,7 +19,7 @@ Qué aporta al equipo:
 
 Comandos:
 
-- `warp deploy`: muestra ayuda de deploy.
+- `warp deploy`: muestra ayuda de deploy (entrada informativa).
 - `warp deploy run`: ejecuta deploy completo según `.deploy`.
 - `warp deploy static`: ejecuta solo pasos de estáticos/frontend.
 - `warp deploy set`: crea o actualiza `.deploy`.
@@ -62,19 +62,32 @@ Se incorporó un reporte de memoria orientado a análisis:
 
 - uso de memoria por servicios clave (`php`, `mysql`, `elasticsearch`, `redis-*`),
 - lectura de configuración actual (si existe),
-- sugerencias automáticas de umbrales según RAM del host.
+- sugerencias automáticas de umbrales según RAM y consumo real.
+
+Evolución funcional reciente:
+
+- Redis y Elasticsearch ahora se recomiendan usando `used_memory` como base.
+- Se agrega guardrail por `used_memory_peak` para proponer un “mínimo de seguridad”.
+- Se incorporan alertas operativas por presión de memoria:
+  - `>=75%` warning
+  - `>=90%` crítico
+- PHP-FPM pasó a extrapolación por RAM con redondeo optimista para `pm.max_children`
+  (incluye ajuste adicional en servidores medianos/grandes).
 
 Qué aporta al equipo:
 
 - decisiones de capacity/tuning basadas en datos,
 - visibilidad rápida de desalineaciones entre uso real y configuración,
-- salida en texto y JSON para troubleshooting y documentación.
+- separación clara entre uso de contenedor y uso interno de servicio,
+- salida en texto y JSON para troubleshooting y documentación,
+- mejores señales para prevenir saturación antes de impacto al negocio.
 
 Comandos:
 
 - `warp memory report`: reporte funcional de uso/configuración/sugerencias.
 - `warp memory report --no-suggest`: muestra uso + config actual sin recomendaciones.
 - `warp memory report --json`: salida estructurada para automatización.
+- `warp memory guide`: guía rápida de dónde configurar memoria por servicio (Redis, Search, PHP-FPM) y referencia MySQL/MariaDB con MySQLTuner.
 
 ## Redis más configurable por entorno
 
@@ -118,6 +131,61 @@ Comandos:
 - `warp update`: actualiza binario/framework de Warp.
 - `warp update --images`: actualiza imágenes Docker del proyecto.
 - `warp update self`: aplica self-update local para flujo de desarrollo.
+
+## Diagnóstico rápido de MySQL con MySQLTuner (`warp mysql tuner`)
+
+Se agregó un atajo operativo para ejecutar MySQLTuner sobre el servicio DB del proyecto.
+
+Qué aporta al equipo:
+
+- evita pasos manuales para descargar el script,
+- usa carpeta de trabajo estándar (`./var` o `/tmp`),
+- detecta si falta Perl e intenta instalación por distro conocida con confirmación previa,
+- ejecuta MySQLTuner con conexión alineada al `.env` del proyecto (local o externa).
+
+Comportamiento de conexión:
+
+- entorno local con contenedor DB: usa `localhost` y puerto mapeado (`DATABASE_BINDED_PORT` o `docker-compose port`).
+- si el puerto efectivo es `3306`, conecta a `localhost` sin forzar `--port`.
+- entorno externo (`MYSQL_VERSION=rds`): usa `DATABASE_HOST`, `DATABASE_BINDED_PORT`, `DATABASE_USER`, `DATABASE_PASSWORD`.
+- salida de logs del servidor ocultada por defecto para reducir ruido; usar `warp mysql tuner -vvv` para incluirla.
+
+Comando:
+
+- `warp mysql tuner`: descarga/valida dependencias y ejecuta MySQLTuner.
+
+## Dev dumps por aplicación (`warp mysql devdump`)
+
+Se incorporó un flujo de dumps livianos para desarrollo basado en perfiles de exclusión por app.
+
+Qué aporta al equipo:
+
+- evita mantener scripts ad-hoc por proyecto,
+- permite generar dumps más pequeños sin datos sensibles/voluminosos,
+- habilita extensión simple agregando archivos de perfiles (sin tocar el core),
+- soporta selección de perfil o combinación de todos para la misma app.
+
+Comandos:
+
+- `warp mysql devdump`: helper con descripción y apps disponibles.
+- `warp mysql devdump:magento`: ejecuta devdump Magento con selección de perfiles.
+
+## Soporte de base externa para `warp mysql` (modo `rds`)
+
+Los comandos de MySQL ahora contemplan escenarios donde no hay servicio `mysql` en Docker y la base es externa.
+
+Qué aporta al equipo:
+
+- evita fallos ambiguos cuando el servicio `mysql` no está en `docker-compose-warp.yml`,
+- permite pasar a modo externo con confirmación del operador,
+- autocompleta credenciales desde `app/etc/env.php` cuando existe,
+- usa cliente local para `connect` y `dump`, con instalación asistida si falta.
+
+Comandos afectados:
+
+- `warp mysql connect`: en `rds` conecta a host externo.
+- `warp mysql dump <db>`: en `rds` dumpea contra host externo.
+- `warp mysql import <db>`: en `rds` no importa; imprime comando sugerido y password.
 
 ## Setup de Grunt más guiado (`warp grunt setup`)
 

@@ -18,10 +18,13 @@ function mysql_help_usage()
 
     warp_message_info   " info               $(warp_message 'display info available')"
     warp_message_info   " dump               $(warp_message 'allows to make a database dump')"
+    warp_message_info   " devdump            $(warp_message 'helper for lightweight development dumps by app profile')"
+    warp_message_info   " devdump:<app>      $(warp_message 'run lightweight development dump for app profile (example: devdump:magento)')"
     warp_message_info   " connect            $(warp_message 'connect to mysql command line (shell)')"
     warp_message_info   " import             $(warp_message 'allows to restore a database')"
     warp_message_info   " ssh                $(warp_message 'connect to mysql by ssh')"
     warp_message_info   " switch             $(warp_message 'allows to change the MySQL version')"
+    warp_message_info   " tuner              $(warp_message 'download/run MySQLTuner against the current db service')"
 
     warp_message ""
     warp_message_info "Help:"
@@ -29,6 +32,27 @@ function mysql_help_usage()
 
     warp_message ""
 
+}
+
+function mysql_tuner_help()
+{
+    warp_message ""
+    warp_message_info "Usage:"
+    warp_message      " warp mysql tuner [mysqltuner options]"
+    warp_message ""
+
+    warp_message ""
+    warp_message_info "Help:"
+    warp_message " Download mysqltuner.pl to ./var (or /tmp) if needed, ensure perl is available,"
+    warp_message " and run MySQLTuner using current project database connection."
+    warp_message " By default log scan output is hidden. Use -vvv to include log details."
+    warp_message ""
+
+    warp_message_info "Examples:"
+    warp_message " warp mysql tuner"
+    warp_message " warp mysql tuner --skipsize --nocolor"
+    warp_message " warp mysql tuner -vvv"
+    warp_message ""
 }
 
 function mysql_import_help()

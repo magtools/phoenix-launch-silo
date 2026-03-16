@@ -1,212 +1,156 @@
-# Feature: `warp memory report` (implementado)
+# Feature: `warp memory report` (estado actual)
 
-Fecha: 2026-03-15
+Fecha: 2026-03-16
 
-## 1) Objetivo
+## 1) Objetivo funcional
 
-Agregar un comando de diagnóstico no destructivo que muestre:
+`warp memory report` ayuda a operar y dimensionar servicios clave del stack:
 
-1. RAM total del host.
-2. Uso actual por servicio clave:
-   - `php-fpm` (contenedor `php`)
-   - `mysql`
-   - `elasticsearch`
-   - `redis-cache`, `redis-fpc`, `redis-session`
-3. Valores configurados (si existen) en `.env` y/o config efectiva.
-4. Valores sugeridos calculados según RAM instalada y reglas mínimas.
+1. muestra consumo actual de memoria por servicio,
+2. muestra configuración actual detectada,
+3. calcula sugerencias de sizing para Elasticsearch, Redis y PHP-FPM,
+4. marca alertas de presión de memoria sobre límites asignados.
 
-Salida esperada: reporte corto, legible y orientado a acción.
+Es un comando de solo lectura: no escribe `.env` ni modifica configs.
 
-## 2) Contrato CLI
-
-Comando principal:
+## 2) Comandos
 
 ```bash
 warp memory report
+warp memory report --no-suggest
+warp memory report --json
+warp memory guide
 ```
 
-Alias implementado:
+Alias:
 
 ```bash
 warp memory
 ```
 
-Opciones:
+`warp memory guide` imprime una guía breve de referencia (archivo + parámetros) para ubicar rápidamente qué tocar en:
 
-```bash
-warp memory report --json
-warp memory report --no-suggest
-```
+1. `.env`
+2. `docker-compose-warp.yml`
+3. `php-fpm.conf`
+4. `redis.conf`
+5. recomendación de tuning MySQL/MariaDB vía `warp mysql tuner` (MySQLTuner).
 
-Regla del comando:
-
-- Solo lectura y sugerencias.
-- No modifica `.env` ni archivos de configuración.
-
-## 3) Qué mide hoy
+## 3) Datos que muestra
 
 ## 3.1 Host
 
-- `RAM total` (MB/GB).
+1. RAM total.
+2. Cores detectados.
 
-Nota:
+## 3.2 Uso por servicios
 
-- En la implementación actual no se muestra `RAM disponible`; solo `RAM total`.
+1. uso de contenedor (`docker stats`) para:
+   - `php`
+   - `mysql`
+   - `elasticsearch`
+   - `redis-cache`
+   - `redis-fpc`
+   - `redis-session`
+2. uso interno (cuando aplica):
+   - Redis: `used_memory`, `used_memory_peak`, `maxmemory` (INFO memory).
+   - Elasticsearch/OpenSearch: `heap_used_in_bytes`, `heap_max_in_bytes` (nodes stats).
+   - Fallback ES/OpenSearch si no se puede leer heap API:
+     - `used`: aproximado desde `docker stats` del contenedor.
+     - `assigned`: `ES_MEMORY` (si está seteado).
 
-## 3.2 Docker por contenedor
+## 3.3 Configuración actual detectada
 
-Uso real actual de memoria:
+1. `ES_MEMORY`.
+2. `REDIS_*_MAXMEMORY` y `REDIS_*_MAXMEMORY_POLICY`.
+3. parámetros `pm.*` de PHP-FPM (`php-fpm.conf`).
 
-- `php`
-- `mysql`
-- `elasticsearch`
-- `redis-cache`
-- `redis-fpc`
-- `redis-session`
+## 4) Reglas de alertas (operación)
 
-Fuente actual:
+Se evalúa uso vs memoria asignada:
 
-- `docker stats --no-stream` (o equivalente ya usado por Warp).
+1. `>=75%` -> `WARNING`
+2. `>=90%` -> `CRITICO`
 
-## 3.3 Configuración efectiva
+Aplicación:
 
-Mostrar configuraciones detectadas:
+1. Redis: sobre `used_memory / maxmemory` (si `maxmemory` existe y es >0).
+2. Elasticsearch/OpenSearch: sobre `heap_used / heap_assigned` (heap detectado o `ES_MEMORY`).
 
-1. Elasticsearch:
-   - `ES_MEMORY` desde `.env` (si existe).
-2. Redis:
-   - `REDIS_CACHE_MAXMEMORY`
-   - `REDIS_FPC_MAXMEMORY`
-   - `REDIS_SESSION_MAXMEMORY`
-   - políticas (`*_MAXMEMORY_POLICY`)
-3. PHP-FPM:
-   - `pm`
-   - `pm.max_children`
-   - `pm.start_servers`
-   - `pm.min_spare_servers`
-   - `pm.max_spare_servers`
-   - `pm.max_requests`
-   (leyendo `php-fpm.conf`/pool config efectiva en contenedor o archivo montado).
+Si no hay límite asignado detectable, el reporte lo informa explícitamente.
 
-## 4) Reglas de sugerencia (implementadas)
+## 5) Reglas de sugerencia implementadas
 
-## 4.1 Elasticsearch
+## 5.1 Redis (por instancia)
 
-Sugerir:
+Base calculada con `used_memory`:
 
-- `max(1024MB, 13% de RAM total)`
+1. `<1GB`: +100% (`used * 2.0`)
+2. `>=1GB`: +60% (`used * 1.6`)
 
-Salida:
+Guardrail por pico (`used_memory_peak`):
 
-- valor actual (si existe),
-- valor sugerido,
-- diferencia.
+1. `peak/base >=75%` -> sugerencia de seguridad mínima `max(base, peak*1.15)`.
+2. `peak/base >=90%` -> sugerencia de seguridad mínima `max(base, peak*1.30)`.
 
-## 4.2 Redis
+Políticas sugeridas:
 
-Sugerir mínimos por instancia:
+1. `redis-cache`: `allkeys-lru`
+2. `redis-fpc`: `allkeys-lru`
+3. `redis-session`: `noeviction`
 
-1. Cache:
-   - `max(512MB, 6% RAM total)`
-2. FPC:
-   - `max(512MB, 6% RAM total)`
-3. Session:
-   - `max(128MB, 1.5% RAM total)`
+## 5.2 Elasticsearch
 
-Nota:
+Base calculada con `used_memory` (heap usado; o aproximación de contenedor si falla heap API):
 
-- Mantener sugerencia de política:
-  - cache/fpc: `allkeys-lru`
-  - session: `noeviction`
+1. `<1GB`: +70% (`used * 1.7`)
+2. `>=1GB`: +50% (`used * 1.5`)
 
-## 4.3 PHP-FPM (perfiles probados)
+Guardrail por pico:
 
-Perfiles base declarados:
+1. `peak/base >=75%` -> seguridad mínima `max(base, peak*1.15)`.
+2. `peak/base >=90%` -> seguridad mínima `max(base, peak*1.30)`.
 
-1. 7-8GB RAM:
-   - `pm = dynamic`
-   - `pm.max_children = 15`
-   - `pm.start_servers = 5`
-   - `pm.min_spare_servers = 5`
-   - `pm.max_spare_servers = 5`
-   - `pm.max_requests = 1000`
-2. 15-16GB RAM:
-   - `pm = dynamic`
-   - `pm.max_children = 30`
-   - `pm.start_servers = 5`
-   - `pm.min_spare_servers = 5`
-   - `pm.max_spare_servers = 10`
-   - `pm.max_requests = 2000`
-3. 30-33GB RAM:
-   - `pm = dynamic`
-   - `pm.max_children = 70`
-   - `pm.start_servers = 10`
-   - `pm.min_spare_servers = 10`
-   - `pm.max_spare_servers = 20`
-   - `pm.max_requests = 3000`
+## 5.3 Redondeo (Redis/ES)
 
-Regla implementada:
+1. redondeo siempre hacia arriba a múltiplos de `64MB`.
+2. mínimo absoluto: `64MB`.
 
-- Mapear por rango de RAM al perfil más cercano.
-- No se aplica interpolación: se elige uno de los 3 perfiles probados.
+## 5.4 PHP-FPM
 
-## 5) Formato de salida
+`pm.max_children` se extrapola por RAM con anclas:
 
-```text
-WARP Memory Report
-Host RAM total: 15.4 GB
+1. `7.5GB -> 15`
+2. `15.5GB -> 30`
+3. `31.5GB -> 70`
 
-[USO ACTUAL]
-php            1.2 GB
-mysql          0.9 GB
-elasticsearch  0.8 GB
-redis-cache    0.17 GB
-redis-fpc      0.03 GB
-redis-session  0.003 GB
+Regla de redondeo para `pm.max_children`:
 
-[CONFIG ACTUAL]
-ES_MEMORY=512m
-REDIS_CACHE_MAXMEMORY=0 (no seteado)
-REDIS_FPC_MAXMEMORY=0 (no seteado)
-REDIS_SESSION_MAXMEMORY=0 (no seteado)
-PHP-FPM pm.max_children=20 ...
+1. si resultado `<20`: `ceil(valor) + 1` (optimista).
+2. si resultado `>=20`: `ceil(valor) + 2`.
 
-[SUGERIDO]
-ES_MEMORY=2048m
-REDIS_CACHE_MAXMEMORY=512mb
-REDIS_FPC_MAXMEMORY=512mb
-REDIS_SESSION_MAXMEMORY=128mb
-PHP-FPM profile: 15-16GB
-  pm.max_children=30
-  pm.start_servers=5
-  pm.min_spare_servers=5
-  pm.max_spare_servers=10
-  pm.max_requests=2000
-```
+Resto de parámetros:
 
-## 6) Estado de implementación
+1. `pm=dynamic`
+2. `pm.start_servers`: `ceil(max_children*0.20)` con tope `15`.
+3. `pm.min_spare_servers`: `ceil(max_children*0.20)` con tope `15`.
+4. `pm.max_spare_servers`: `ceil(max_children*0.40)` con tope `30`.
+5. `pm.max_requests`: escalado por RAM, tope `5000`.
 
-1. Implementado en:
-   - `.warp/bin/memory.sh`
-   - `.warp/bin/memory_help.sh`
-2. Integrado en:
-   - `.warp/includes.sh`
-   - `warp.sh` (dispatch `memory`)
-3. Soporta salida:
-   - texto
-   - JSON (`--json`)
-4. Si un contenedor no existe o no está corriendo:
-   - muestra `N/A` o `stopped`.
+## 6) Salida para operador
 
-## 7) Validación mínima
+El reporte incluye notas explícitas para facilitar interpretación:
 
-1. `./warp memory --help`
-2. `./warp memory report`
-3. `./warp memory report --json`
-4. Smoke en host con y sin servicios Redis/ES activos.
+1. qué métricas se usaron (`used` como base y `peak` como guardrail),
+2. cuándo conviene tomar “seguridad mínima” en lugar de base,
+3. advertencias cuando no hay límites configurados.
 
-## 8) Notas operativas
+## 7) JSON
 
-1. Si un servicio no existe en el compose actual, mostrar `N/A` y continuar.
-2. Si falta una variable en `.env`, indicarlo como `no seteado`.
-3. El comando debe ser seguro para productivo: solo lectura.
+`--json` expone:
+
+1. host (`ram_total`, `cores`),
+2. uso de contenedores + métricas internas Redis/ES,
+3. alertas por servicio,
+4. configuración actual detectada,
+5. sugerencias base y de seguridad mínima.

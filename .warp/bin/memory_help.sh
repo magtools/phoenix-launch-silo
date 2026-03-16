@@ -3,7 +3,7 @@
 memory_help_usage() {
     warp_message ""
     warp_message_info "Usage:"
-    warp_message " warp memory [report] [options]"
+    warp_message " warp memory [report|guide] [options]"
     warp_message ""
 
     warp_message ""
@@ -17,9 +17,10 @@ memory_help_usage() {
     warp_message " warp memory report"
     warp_message " warp memory report --json"
     warp_message " warp memory report --no-suggest"
+    warp_message " warp memory guide"
     warp_message ""
 }
 
 memory_help() {
-    warp_message_info " memory             $(warp_message 'memory usage report and threshold suggestions')"
+    warp_message_info " memory             $(warp_message 'report, suggestions and configuration guide for memory-related settings')"
 }
