@@ -7,7 +7,7 @@
     <!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
     <title>WARP Engine Download Page</title>
 
-    <link rel="shortcut icon" href="https://s3.amazonaws.com/ct.summasolutions.net/favicon.ico" type="image/x-icon" />
+    <link rel="shortcut icon" href="./img/favicon.ico" type="image/x-icon" />
 
     <!-- Latest compiled and minified CSS -->
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
@@ -199,7 +199,7 @@ table.table thead tr th.download-icon {
 
     <div class="container">
         <div class="header clearfix">
-          <a href="https://www.summasolutions.net" title="Summa Solutions SRL" target="_blank">
+          <a href="https://github.com/magtools/phoenix-launch-silo" title="Phoenix Launch Silo" target="_blank">
             <img src="https://s3.amazonaws.com/summa-core-team/images/summa_logo_horizontal_rgb.jpg" width="120">
           </a>
         </div>
@@ -213,11 +213,11 @@ table.table thead tr th.download-icon {
           <p>&nbsp;</p>
           <h4>Command line install</h4>
           <h5 style="text-align: left;">Run the following command in your root project folder:</h5>
-        <pre>curl -L -o warp http://ct.summasolutions.net/warp-engine/warp && chmod 755 warp</pre>
+        <pre>curl -L -o warp https://raw.githubusercontent.com/magtools/phoenix-launch-silo/refs/heads/master/dist/warp && chmod 755 warp</pre>
         <p>&nbsp;</p>
         <h4>Command line update</h4>
         <h5 style="text-align: left;">Run the following command in your root project folder:</h5>
-        <pre>curl -L -o warp http://ct.summasolutions.net/warp-engine/warp && chmod 755 warp && ./warp update</pre>
+        <pre>curl -L -o warp https://raw.githubusercontent.com/magtools/phoenix-launch-silo/refs/heads/master/dist/warp && chmod 755 warp && ./warp update</pre>
         </div>
         <h2>Getting started</h2>
         <div>
@@ -453,7 +453,7 @@ docker0: flags=4099<UP,BROADCAST,MULTICAST>  mtu 1500
                 <p>1- Create the alias</p>
                 <pre>sudo ifconfig lo0 alias 10.254.254.254</pre>
                 <p>2- Add the network configuration to OS X launch daemons, to create the alias automatically on system boot process. </p>
-                <pre>sudo curl -o /Library/LaunchDaemons/net.summasolutions.docker_10254_alias.plist http://ct.summasolutions.net/warp-engine/osx/net.summasolutions.docker_10254_alias.plist</pre>
+                <pre>sudo curl -o /Library/LaunchDaemons/net.summasolutions.docker_10254_alias.plist https://raw.githubusercontent.com/magtools/phoenix-launch-silo/refs/heads/master/release/landing/osx/net.summasolutions.docker_10254_alias.plist</pre>
               </div>
             </div>
           </div>
@@ -554,11 +554,11 @@ warp npm install</pre>
 
         <div>
           <h2 id="anchorDocs">Documentation</h2>
-          <p>All the information, tutorials and best practises are provided in the <a href="https://summasolutions.github.io/warp-engine/">Documentation</a></p>
+          <p>All the information, tutorials and best practises are provided in the <a href="https://github.com/magtools/phoenix-launch-silo">Documentation</a></p>
         </div>        
 
         <footer class="footer">
-          <p>&copy; 2018 <a href="https://www.summasolutions.net" title="Summa Solutions SRL">Summa Solutions SRL.</a></p>
+          <p>Legacy project attributions are listed in <a href="../../CREDITS.md" title="Legacy Credits">CREDITS.md</a>.</p>
         </footer>
       </div> <!-- /container -->
 

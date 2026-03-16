@@ -8,11 +8,11 @@
 # Project information
 site_name: Warp Framework
 site_description: Speeding up! your development infraestructure
-site_author: Summa Solutions
-site_url: https://summasolutions.github.io/warp-engine/
+site_author: Warp Community
+site_url: https://github.com/magtools/phoenix-launch-silo
 
-repo_name: 'summasolutions/warp-engine'
-repo_url: 'https://github.com/SummaSolutions/warp-engine/'
+repo_name: 'magtools/phoenix-launch-silo'
+repo_url: 'https://github.com/magtools/phoenix-launch-silo'
 edit_uri: 'tree/master/wiki_docs'
 
 # Main menu
@@ -55,7 +55,7 @@ docs_dir: wiki_docs
 #-------------------------------
 
 # Copyright
-copyright: 'Copyright &copy; 2019 Summa Solutions'
+copyright: 'Legacy attributions are listed in CREDITS.md'
 
 theme:
   name: material
@@ -86,4 +86,3 @@ markdown_extensions:
         linenums: true
 
 ## mkdocs build --site-dir docs
-

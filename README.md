@@ -1,10 +1,7 @@
 # 🚀 Phoenix-Launch-Silo
 > *Making **First Contact** with production-ready **Docker** environments.*
 
-## Repository Migration Notice
-
-This fork is now maintained as a compatibility bridge and historical reference.
-Active development has moved to:
+## "Warp Drive initialized: Transcending development to full-scale orchestration"
 
     Out there... thataway.   https://github.com/magtools/phoenix-launch-silo
 
@@ -101,20 +98,14 @@ This repo comes with some useful bash command:
 See [LICENSE](LICENSE) for the full license text.
 
 
-
 ## Changelog
 
 ### See what has changed: [changes](CHANGES.md)
-
-## Author Information
-
-The warp-engine project was started by [Matias Anoniz](https://github.com/yosoyfunes/) and [Sebastian Arrubia](https://github.com/sarrubia/)
-
-![Matias Anoniz](https://github.com/yosoyfunes.png?size=150)
-![Sebastian Arrubia](https://github.com/sarrubia.png?size=150)
 
 ## Maintainer Information
 
 This project main repository was abandoned in 2021, this fork has been maintained by [Martin Gonzalez](https://github.com/magtools/) since then. 
 
 ![Martin Gonzalez](https://github.com/magtools.png?size=300)
+
+Legacy credits from the old Warp project: [CREDITS.md](CREDITS.md)

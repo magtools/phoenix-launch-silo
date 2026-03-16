@@ -44,7 +44,7 @@
 Run the following command in your root project folder:
 
 ```
-curl -L -o warp http://ct.summasolutions.net/warp-engine/warp && chmod 755 warp
+curl -L -o warp https://raw.githubusercontent.com/magtools/phoenix-launch-silo/refs/heads/master/dist/warp && chmod 755 warp
 ```
 
 ## Command line update
@@ -52,7 +52,7 @@ curl -L -o warp http://ct.summasolutions.net/warp-engine/warp && chmod 755 warp
 Run the following command in your root project folder:
 
 ```
-curl -L -o warp http://ct.summasolutions.net/warp-engine/warp && chmod 755 warp && ./warp update
+curl -L -o warp https://raw.githubusercontent.com/magtools/phoenix-launch-silo/refs/heads/master/dist/warp && chmod 755 warp && ./warp update
 ```
 
 ## Getting started
@@ -80,5 +80,4 @@ This repo comes with some useful bash command:
 
 ## Changelog
 
-### See what has changed: [changes](https://github.com/SummaSolutions/warp-engine/blob/master/CHANGES.md)
-
+### See what has changed: [changes](https://github.com/magtools/phoenix-launch-silo/blob/master/CHANGES.md)

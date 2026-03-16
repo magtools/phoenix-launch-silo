@@ -1,4 +1,5 @@
-Copyright 2018 Summa Solutions S.R.L
+Copyright 2018-2021 Summa Solutions S.R.L
+Copyright 2021-Present Martin Gonzalez
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -13,5 +14,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
 
 DISCLAIMER
-This project is a community-maintained fork of github.com/ArturoI/warp-engine,
-which is no longer actively maintained by its original author.
+As of 2026-03-16, the repository (`magtools/warp-engine`) is the historical
+fork where maintenance continued after upstream inactivity. Active derived work
+now continues at `https://github.com/magtools/phoenix-launch-silo`.
+
+`magtools/warp-engine` is a GitHub fork of:
+`https://github.com/ArturoI/warp-engine` (GitHub `parent` metadata).
+
+As of 2026-03-16, `ArturoI/warp-engine` is marked on GitHub as `fork: false`
+and its latest upstream push date shown by GitHub is 2019-04-08.
+
+Historical references in this project point to Summa infrastructure/repository
+(`ct.summasolutions.net` and `SummaSolutions/warp-engine`), while the public
+`SummaSolutions/warp-engine` repository endpoint is currently not available
+on GitHub (HTTP 404 as of 2026-03-16).

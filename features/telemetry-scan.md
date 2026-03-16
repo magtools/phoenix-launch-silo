@@ -1,10 +1,10 @@
-# Feature: `warp memory report` (estado actual)
+# Feature: `warp telemetry scan` (estado actual)
 
 Fecha: 2026-03-16
 
 ## 1) Objetivo funcional
 
-`warp memory report` ayuda a operar y dimensionar servicios clave del stack:
+`warp telemetry scan` ayuda a operar y dimensionar servicios clave del stack:
 
 1. muestra consumo actual de memoria por servicio,
 2. muestra configuración actual detectada,
@@ -16,19 +16,14 @@ Es un comando de solo lectura: no escribe `.env` ni modifica configs.
 ## 2) Comandos
 
 ```bash
-warp memory report
-warp memory report --no-suggest
-warp memory report --json
-warp memory guide
+warp telemetry
+warp telemetry scan
+warp telemetry scan --no-suggest
+warp telemetry scan --json
+warp telemetry config
 ```
 
-Alias:
-
-```bash
-warp memory
-```
-
-`warp memory guide` imprime una guía breve de referencia (archivo + parámetros) para ubicar rápidamente qué tocar en:
+`warp telemetry config` imprime una guía breve de referencia (archivo + parámetros) para ubicar rápidamente qué tocar en:
 
 1. `.env`
 2. `docker-compose-warp.yml`

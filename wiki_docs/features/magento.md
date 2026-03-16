@@ -10,7 +10,7 @@ mkdir magento_demo
 ## Download WARP
 
 ```
-curl -L -o warp http://ct.summasolutions.net/warp-engine/warp && chmod 755 warp
+curl -L -o warp https://raw.githubusercontent.com/magtools/phoenix-launch-silo/refs/heads/master/dist/warp && chmod 755 warp
 ```
 
 ## Configure services

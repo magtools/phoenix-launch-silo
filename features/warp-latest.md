@@ -61,7 +61,7 @@ Comandos:
 - `warp hyva watch[:theme]`: modo watch para desarrollo.
 - `warp hyva list`: muestra themes detectados.
 
-## Diagnóstico de memoria y sugerencias (`warp memory report`)
+## Diagnóstico de memoria y sugerencias (`warp telemetry scan`)
 
 Se incorporó un reporte de memoria orientado a análisis:
 
@@ -89,10 +89,10 @@ Qué aporta al equipo:
 
 Comandos:
 
-- `warp memory report`: reporte funcional de uso/configuración/sugerencias.
-- `warp memory report --no-suggest`: muestra uso + config actual sin recomendaciones.
-- `warp memory report --json`: salida estructurada para automatización.
-- `warp memory guide`: guía rápida de dónde configurar memoria por servicio (Redis, Search, PHP-FPM) y referencia MySQL/MariaDB con MySQLTuner.
+- `warp telemetry` / `warp telemetry scan`: reporte funcional de uso/configuración/sugerencias.
+- `warp telemetry scan --no-suggest`: muestra uso + config actual sin recomendaciones.
+- `warp telemetry scan --json`: salida estructurada para automatización.
+- `warp telemetry config`: guía rápida de dónde configurar memoria por servicio (Redis, Search, PHP-FPM) y referencia MySQL/MariaDB con MySQLTuner.
 
 ## Redis más configurable por entorno
 

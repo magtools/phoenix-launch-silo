@@ -1035,18 +1035,18 @@ memory_guide() {
     memory_print ""
 
     memory_print_info "Nota rápida"
-    memory_print " - 'warp memory report' mide uso actual y sugiere valores."
-    memory_print " - 'warp memory guide' sólo indica dónde tocar cada parámetro."
+    memory_print " - 'warp telemetry scan' mide uso actual y sugiere valores."
+    memory_print " - 'warp telemetry config' sólo indica dónde tocar cada parámetro."
     memory_print ""
 }
 
-memory_main() {
+telemetry_main() {
     case "$1" in
-        ""|report)
-            [ "$1" = "report" ] && shift
+        ""|scan)
+            [ "$1" = "scan" ] && shift
             memory_report "$@"
         ;;
-        guide)
+        config)
             shift
             memory_guide "$@"
         ;;

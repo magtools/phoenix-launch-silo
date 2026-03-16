@@ -120,7 +120,7 @@ sudo ifconfig lo0 alias 10.254.254.254
 2- Add the network configuration to OS X launch daemons, to create the alias automatically on system boot process.
 
 ```bash
-sudo curl -o /Library/LaunchDaemons/net.summasolutions.docker_10254_alias.plist http://ct.summasolutions.net/warp-engine/osx/net.summasolutions.docker_10254_alias.plist
+sudo curl -o /Library/LaunchDaemons/net.summasolutions.docker_10254_alias.plist https://raw.githubusercontent.com/magtools/phoenix-launch-silo/refs/heads/master/release/landing/osx/net.summasolutions.docker_10254_alias.plist
 ```
 
 ----------
@@ -161,5 +161,4 @@ Example:
 
 ## Installing and configuring Grunt
 
-[features/grunt.html](https://summasolutions.github.io/warp-engine/features/grunt.html)
-
+[features/grunt.md](../features/grunt.md)

@@ -3,7 +3,7 @@
 memory_help_usage() {
     warp_message ""
     warp_message_info "Usage:"
-    warp_message " warp memory [report|guide] [options]"
+    warp_message " warp telemetry [scan|config] [options]"
     warp_message ""
 
     warp_message ""
@@ -14,13 +14,14 @@ memory_help_usage() {
     warp_message ""
 
     warp_message_info "Examples:"
-    warp_message " warp memory report"
-    warp_message " warp memory report --json"
-    warp_message " warp memory report --no-suggest"
-    warp_message " warp memory guide"
+    warp_message " warp telemetry"
+    warp_message " warp telemetry scan"
+    warp_message " warp telemetry scan --json"
+    warp_message " warp telemetry scan --no-suggest"
+    warp_message " warp telemetry config"
     warp_message ""
 }
 
 memory_help() {
-    warp_message_info " memory             $(warp_message 'report, suggestions and configuration guide for memory-related settings')"
+    warp_message_info " telemetry          $(warp_message 'scan memory telemetry, suggestions and configuration guide')"
 }

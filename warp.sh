@@ -140,9 +140,9 @@ main () {
         deploy_main $*
         ;;
 
-        memory)
+        telemetry)
         shift 1
-        memory_main $*
+        telemetry_main $*
         ;;
 
         logs)
