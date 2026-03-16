@@ -6,9 +6,9 @@ Este documento resume los cambios implementados en el flujo de `warp update` y e
 
 `warp` usa como origen remoto:
 
-- `https://raw.githubusercontent.com/magtools/warp-engine/refs/heads/master/dist/version.md`
-- `https://raw.githubusercontent.com/magtools/warp-engine/refs/heads/master/dist/sha256sum.md`
-- `https://raw.githubusercontent.com/magtools/warp-engine/refs/heads/master/dist/warp`
+- `https://raw.githubusercontent.com/magtools/phoenix-launch-silo/refs/heads/master/dist/version.md`
+- `https://raw.githubusercontent.com/magtools/phoenix-launch-silo/refs/heads/master/dist/sha256sum.md`
+- `https://raw.githubusercontent.com/magtools/phoenix-launch-silo/refs/heads/master/dist/warp`
 
 ## 2) Directorio temporal y estado persistente
 

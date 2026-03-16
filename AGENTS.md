@@ -5,6 +5,11 @@
 Este repositorio **no es una aplicación Magento**.  
 Es un **framework/helper CLI en Bash** para crear y operar infraestructura Docker Compose para proyectos PHP (Magento, Oro o PHP genérico).
 
+Estado del repositorio:
+
+- este repo/fork se mantiene como puente de compatibilidad e histórico;
+- la continuidad activa del proyecto vive en `https://github.com/magtools/phoenix-launch-silo`.
+
 Objetivo principal del agente en este repo:
 
 - Mantener y mejorar el comando `warp`.
@@ -50,6 +55,7 @@ Reglas actuales del proceso de release:
 Reglas actuales del proceso de update runtime:
 
 - Fuente remota:
+  - base URL: `https://raw.githubusercontent.com/magtools/phoenix-launch-silo/refs/heads/master/dist`
   - `dist/version.md`
   - `dist/sha256sum.md`
   - `dist/warp`
@@ -121,6 +127,14 @@ Luego de cambios en core/setup/comandos, validar como mínimo:
 4. `./warp stop --help`
 5. `./warp info --help`
 
+Si este repo fuente no incluye binario `./warp`, usar fallback equivalente:
+
+1. `bash ./warp.sh --help`
+2. `bash ./warp.sh init --help`
+3. `bash ./warp.sh start --help`
+4. `bash ./warp.sh stop --help`
+5. `bash ./warp.sh info --help`
+
 Si el cambio toca comandos específicos, validar también su `--help` y un smoke básico del flujo afectado.
 
 ## 9) Fuentes de verdad internas
@@ -139,6 +153,7 @@ Notas sobre documentación:
 - `wiki_docs/` es la fuente editable de documentación.
 - `docs/` es output generado de MkDocs (no editar manualmente HTML/CSS generado salvo necesidad explícita de build/publicación).
 - Parte de la wiki es legacy (versiones/comandos históricos); validar siempre contra el código actual antes de implementar cambios.
+- `features/` contiene documentación funcional de Warp (estado/decisiones por feature); no es necesario cargarla al inicio, solo considerar que está disponible como referencia puntual.
 
 ## 10) Reglas operativas adicionales
 

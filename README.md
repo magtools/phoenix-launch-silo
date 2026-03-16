@@ -1,6 +1,17 @@
 # 🚀 Phoenix-Launch-Silo
 > *Making **First Contact** with production-ready **Docker** environments.*
 
+## Repository Migration Notice
+
+This fork is now maintained as a compatibility bridge and historical reference.
+Active development has moved to:
+
+    Out there... thataway.   https://github.com/magtools/phoenix-launch-silo
+
+<img src="https://github.com/magtools/phoenix-launch-silo/release/landing/img/first-contact.png" alt="First Contact" style="max-width: 500px; width: 100%;" />
+
+
+Warp started as a tool to simplify development environments. The project is now evolving into a warp-powered shipyard of networks for productive development and deployment, with built-in analysis tooling.
 
 ## Warp Engine Overview
 
@@ -49,7 +60,7 @@
 Run the following command in your root project folder:
 
 ```
-  curl -L -o warp http://ct.summasolutions.net/warp-engine/warp && chmod 755 warp
+  curl -L -o warp https://raw.githubusercontent.com/magtools/phoenix-launch-silo/refs/heads/master/dist/warp && chmod 755 warp
 ```
 
 ## Command line update
@@ -57,7 +68,7 @@ Run the following command in your root project folder:
 Run the following command in your root project folder:
 
 ```
-  curl -L -o warp http://ct.summasolutions.net/warp-engine/warp && chmod 755 warp && ./warp update
+  curl -L -o warp https://raw.githubusercontent.com/magtools/phoenix-launch-silo/refs/heads/master/dist/warp && chmod 755 warp && ./warp update
 ```
 
 ## Getting started

@@ -18,9 +18,9 @@ function update_help_usage()
     warp_message ""
     warp_message_info "Help:"
     warp_message " To update the framework you must enter the following link and download the latest version"
-    warp_message " http://ct.summasolutions.net/warp-engine/"
+    warp_message " https://github.com/magtools/phoenix-launch-silo"
     warp_message " also can run the following command"
-    warp_message " curl -L -o warp http://ct.summasolutions.net/warp-engine/warp && chmod 755 warp && ./warp update"
+    warp_message " curl -L -o warp https://raw.githubusercontent.com/magtools/phoenix-launch-silo/refs/heads/master/dist/warp && chmod 755 warp && ./warp update"
 
     # TODO translate to English
 

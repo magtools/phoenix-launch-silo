@@ -440,7 +440,7 @@ warp_checksum_file_sha256() {
 }
 
 warp_fetch_latest_version() {
-    warp_remote_base_url="https://raw.githubusercontent.com/magtools/warp-engine/refs/heads/master/dist"
+    warp_remote_base_url="https://raw.githubusercontent.com/magtools/phoenix-launch-silo/refs/heads/master/dist"
     _fetch_output=$(curl --silent --show-error --fail --location "${warp_remote_base_url}/version.md" 2>&1)
     _fetch_status=$?
 
@@ -517,7 +517,7 @@ warp_message_not_install_yet() {
 }
 
 warp_update() {
-    WARP_REMOTE_BASE_URL="https://raw.githubusercontent.com/magtools/warp-engine/refs/heads/master/dist"
+    WARP_REMOTE_BASE_URL="https://raw.githubusercontent.com/magtools/phoenix-launch-silo/refs/heads/master/dist"
     WARP_TMP_DIR="$PROJECTPATH/var/warp-update"
     WARP_TMP_EXTRACT_DIR="$WARP_TMP_DIR/extracted"
     WARP_TMP_WARP="$WARP_TMP_DIR/warp"

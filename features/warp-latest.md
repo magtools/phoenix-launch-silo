@@ -4,6 +4,11 @@ Fecha: 2026-03-16
 
 Este documento resume las mejoras recientes de Warp desde una mirada funcional, orientada a uso diario del equipo.
 
+Nota de continuidad de repositorio:
+
+- este fork se mantiene como puente de compatibilidad e histórico,
+- la evolución activa del proyecto continúa en `https://github.com/magtools/phoenix-launch-silo`.
+
 ## Deploy unificado por entorno (`warp deploy`)
 
 Warp ahora incluye un flujo de deploy nativo para `local` y `prod`, con configuración por proyecto en `.deploy`.
@@ -119,6 +124,12 @@ Se fortaleció el flujo de actualización del framework:
 - control de estado de update pendiente,
 - chequeo automático de versión sin interrumpir comandos críticos,
 - separación clara entre actualización de Warp e imágenes Docker.
+
+Origen remoto actual del update runtime:
+
+- `https://raw.githubusercontent.com/magtools/phoenix-launch-silo/refs/heads/master/dist/version.md`
+- `https://raw.githubusercontent.com/magtools/phoenix-launch-silo/refs/heads/master/dist/sha256sum.md`
+- `https://raw.githubusercontent.com/magtools/phoenix-launch-silo/refs/heads/master/dist/warp`
 
 Qué aporta al equipo:
 
