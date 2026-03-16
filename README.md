@@ -1,7 +1,7 @@
 # 🚀 Phoenix-Launch-Silo
 > *Making **First Contact** with production-ready **Docker** environments.*
 
-## "Warp Drive initialized: Transcending development to full-scale orchestration"
+### Warp Drive initialized: Transcending development to full-scale orchestration
 
     Out there... thataway.   https://github.com/magtools/phoenix-launch-silo
 
