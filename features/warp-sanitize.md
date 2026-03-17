@@ -355,3 +355,46 @@ Nota: en esta etapa D la capability canonica es `search` (no `cache`).
 2. escritura: solo canonico.
 3. excepcion transitoria: `warp init` escribe canonico y legacy.
 4. `features/legacy.md` define cuando retirar la excepcion.
+
+## 16) Etapa A-setup (inventario minimo)
+
+Archivos de setup a incluir en la migracion de variables:
+
+1. `.warp/setup/mysql/tpl/database.env`
+2. `.warp/setup/redis/tpl/redis.env`
+3. `.warp/setup/elasticsearch/tpl/elasticsearch.env`
+4. `.warp/setup/*/*.sh` que escriben variables (`echo \"VAR=...\" >> .env.sample`)
+
+Objetivo A-setup:
+
+1. mantener generacion legacy actual,
+2. agregar generacion canonica en paralelo (`DB_*`, `CACHE_*`, `SEARCH_*`),
+3. evitar drift entre runtime y `warp init`.
+
+## 17) Estado de avance (Etapa A)
+
+Implementado:
+
+1. librerias base: `.warp/lib/fallback.sh`, `.warp/lib/service_context.sh`.
+2. inclusion en runtime: `.warp/includes.sh`.
+3. dual-write en setup principal:
+   - `.warp/setup/mysql/database.sh`
+   - `.warp/setup/redis/redis.sh`
+   - `.warp/setup/elasticsearch/elasticsearch.sh`
+4. dual-write en setup alterno:
+   - `.warp/setup/init/gandalf.sh`
+   - `.warp/setup/sandbox/sandbox-m2.sh`
+5. defaults canonicos en templates:
+   - `.warp/setup/mysql/tpl/database.env`
+   - `.warp/setup/redis/tpl/redis.env`
+   - `.warp/setup/elasticsearch/tpl/elasticsearch.env`
+
+Validacion ejecutada:
+
+1. `bash -n` en archivos modificados: OK.
+2. smoke help:
+   - `./warp --help`: 0
+   - `./warp init --help`: 0
+   - `./warp start --help`: 1 (imprime help, comportamiento actual)
+   - `./warp stop --help`: 1 (imprime help, comportamiento actual)
+   - `./warp info --help`: 0
