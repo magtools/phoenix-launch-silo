@@ -3,7 +3,7 @@
 function elasticsearch_help_usage() {
     warp_message ""
     warp_message_info "Usage:"
-    warp_message      " warp elasticsearch [options]"
+    warp_message      " warp search [options]"
     warp_message ""
 
     warp_message ""
@@ -27,13 +27,15 @@ function elasticsearch_help_usage() {
 
 function elasticsearch_help()
 {
-    warp_message_info   " elasticsearch      $(warp_message 'service of elasticsearch')"
+    warp_message_info   " search             $(warp_message 'service of search (elasticsearch/opensearch)')"
+    warp_message_info   " elasticsearch      $(warp_message 'alias of search (legacy compatibility)')"
+    warp_message_info   " opensearch         $(warp_message 'alias of search (engine compatibility)')"
 }
 
 elasticsearch_ssh_help() {
     warp_message ""
     warp_message_info "Usage:"
-    warp_message      " warp elasticsearch ssh [options]"
+    warp_message      " warp search ssh [options]"
     warp_message ""
 
     warp_message ""
@@ -49,17 +51,17 @@ elasticsearch_ssh_help() {
     warp_message ""
 
     warp_message_info "Example:"
-    warp_message " warp elasticsearch ssh"
-    warp_message " warp elasticsearch ssh --root"
-    warp_message " warp elasticsearch ssh -h"
-    warp_message " warp elasticsearch ssh --help"
+    warp_message " warp search ssh"
+    warp_message " warp search ssh --root"
+    warp_message " warp search ssh -h"
+    warp_message " warp search ssh --help"
     warp_message ""
 }
 
 elasticsearch_flush_help() {
     warp_message ""
     warp_message_info "Usage:"
-    warp_message      " warp elasticsearch flush"
+    warp_message      " warp search flush"
     warp_message ""
 
     warp_message ""
@@ -69,8 +71,8 @@ elasticsearch_flush_help() {
     warp_message ""
 
     warp_message_info "Example:"
-    warp_message " warp elasticsearch flush"
-    warp_message " warp elasticsearch flush -h"
+    warp_message " warp search flush"
+    warp_message " warp search flush -h"
     warp_message ""
 }
 
@@ -92,8 +94,8 @@ elasticsearch_switch_help () {
     warp_message ""
 
     warp_message_info "Example:"
-    warp_message " warp elasticsearch switch 7.6.2"
-    warp_message " warp elasticsearch switch 5.6.8"
-    warp_message " warp elasticsearch switch 6.4.2"
+    warp_message " warp search switch 7.6.2"
+    warp_message " warp search switch 5.6.8"
+    warp_message " warp search switch 6.4.2"
     warp_message ""    
 }

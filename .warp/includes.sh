@@ -14,6 +14,7 @@
 
 # INCLUDE COMMANDS
 . "$WARPFOLDER/bin/mysql.sh"
+. "$WARPFOLDER/bin/db.sh"
 . "$WARPFOLDER/bin/start.sh"
 . "$WARPFOLDER/bin/stop.sh"
 . "$WARPFOLDER/bin/composer.sh"
@@ -24,10 +25,12 @@
 . "$WARPFOLDER/bin/oro.sh"
 . "$WARPFOLDER/bin/logs.sh"
 . "$WARPFOLDER/bin/elasticsearch.sh"
+. "$WARPFOLDER/bin/search.sh"
 . "$WARPFOLDER/bin/selenium.sh"
 . "$WARPFOLDER/bin/restart.sh"
 . "$WARPFOLDER/bin/init.sh"
 . "$WARPFOLDER/bin/redis.sh"
+. "$WARPFOLDER/bin/cache.sh"
 . "$WARPFOLDER/bin/rabbit.sh"
 . "$WARPFOLDER/bin/webserver.sh"
 . "$WARPFOLDER/bin/npm.sh"
