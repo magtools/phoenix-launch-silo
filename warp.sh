@@ -9,12 +9,13 @@ main () {
     # of the current script (e.g. "server")
     SCRIPTNAME="bin/$(basename "$0")"
     ORIGINAL_COMMAND="$1"
+    BOOT_RUNTIME_MODE=$(warp_runtime_mode_resolve_boot "$ORIGINAL_COMMAND")
 
-    # Check availability of docker
-    hash docker 2>/dev/null || { echo >&2 "warp framework requires \"docker\""; exit 1; }
-
-    # Check availability of docker-compose
-    hash docker-compose 2>/dev/null || { echo >&2 "warp framework requires \"docker-compose\""; exit 1; }
+    # Check docker tooling only when runtime mode requires docker.
+    if [ "$BOOT_RUNTIME_MODE" = "docker" ]; then
+        hash docker 2>/dev/null || { echo >&2 "warp framework requires \"docker\""; exit 1; }
+        hash docker-compose 2>/dev/null || { echo >&2 "warp framework requires \"docker-compose\""; exit 1; }
+    fi
 
     # Check availability of ed
     hash ed 2>/dev/null || { echo >&2 "warp framework requires \"ed command\". On debian install it running \"sudo apt-get install ed\""; exit 1; }
@@ -28,7 +29,7 @@ main () {
         include_warp_framework
     fi;
 
-    if [ -d "$PROJECTPATH/.warp/lib" ]; then
+    if [ -d "$PROJECTPATH/.warp/lib" ] && [ "$BOOT_RUNTIME_MODE" = "docker" ]; then
         # Check minimum versions
         warp_check_docker_version
     fi;
@@ -222,6 +223,50 @@ main () {
     esac
 
     exit 0
+}
+
+warp_runtime_mode_read_raw_from_env() {
+    _env_file="$PROJECTPATH/.env"
+    [ -f "$_env_file" ] || { echo ""; return 0; }
+    _mode=$(grep -m1 '^WARP_RUNTIME_MODE=' "$_env_file" | cut -d '=' -f2- | tr '[:upper:]' '[:lower:]')
+    case "$_mode" in
+        host|docker|auto) echo "$_mode" ;;
+        *) echo "" ;;
+    esac
+}
+
+warp_command_supports_host_runtime() {
+    _cmd="$1"
+    case "$_cmd" in
+        ""|-h|--help|help|init|db|mysql|cache|redis|valkey|search|elasticsearch|opensearch|php|magento|ece-tools|ece-patches|telemetry|info|composer)
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+warp_runtime_mode_resolve_boot() {
+    _cmd="$1"
+    _mode=$(warp_runtime_mode_read_raw_from_env)
+    case "$_mode" in
+        host|docker)
+            echo "$_mode"
+            return 0
+            ;;
+    esac
+
+    if [ -f "$PROJECTPATH/docker-compose-warp.yml" ]; then
+        echo "docker"
+        return 0
+    fi
+
+    if warp_command_supports_host_runtime "$_cmd"; then
+        echo "host"
+    else
+        echo "docker"
+    fi
 }
 
 include_warp_framework() {

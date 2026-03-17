@@ -259,6 +259,86 @@ warp_fallback_require_running_or_external() {
     return 14
 }
 
+warp_runtime_mode_env_raw() {
+    _mode=$(warp_fallback_env_get WARP_RUNTIME_MODE | tr '[:upper:]' '[:lower:]')
+    case "$_mode" in
+        host|docker|auto) echo "$_mode" ;;
+        *) echo "" ;;
+    esac
+}
+
+warp_runtime_command_supports_host() {
+    _cmd="$1"
+    case "$_cmd" in
+        composer|php|magento|ece-tools|ece-patches|telemetry|db|mysql|cache|redis|valkey|search|elasticsearch|opensearch|info)
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+warp_runtime_mode_set() {
+    _mode="$1"
+    case "$_mode" in
+        host|docker|auto) ;;
+        *) return 1 ;;
+    esac
+    warp_fallback_env_set WARP_RUNTIME_MODE "$_mode"
+}
+
+warp_runtime_mode_prompt_if_needed() {
+    _cmd="$1"
+    [ -f "$DOCKERCOMPOSEFILE" ] && return 0
+
+    _mode=$(warp_runtime_mode_env_raw)
+    [ -n "$_mode" ] && [ "$_mode" != "auto" ] && return 0
+
+    warp_runtime_command_supports_host "$_cmd" || return 0
+
+    [ -t 0 ] || return 0
+    [ -t 1 ] || return 0
+    [ -n "$CI" ] && return 0
+
+    _answer=$(warp_question_ask_default "docker-compose-warp.yml not found. Does this project run in host mode? $(warp_message_info [Y/n]) " "Y")
+    case "$_answer" in
+        Y|y)
+            warp_runtime_mode_set host >/dev/null 2>&1 || true
+            ;;
+        N|n)
+            warp_runtime_mode_set docker >/dev/null 2>&1 || true
+            ;;
+        *)
+            # Keep auto/default when answer is invalid.
+            ;;
+    esac
+}
+
+warp_runtime_mode_resolve() {
+    _cmd="$1"
+    warp_runtime_mode_prompt_if_needed "$_cmd"
+
+    _mode=$(warp_runtime_mode_env_raw)
+    case "$_mode" in
+        host|docker)
+            echo "$_mode"
+            return 0
+            ;;
+    esac
+
+    if [ -f "$DOCKERCOMPOSEFILE" ]; then
+        echo "docker"
+        return 0
+    fi
+
+    if warp_runtime_command_supports_host "$_cmd"; then
+        echo "host"
+    else
+        echo "docker"
+    fi
+}
+
 warp_fallback_confirm_explicit_yes() {
     _prompt="$1"
     _ans=$(warp_question_ask "$_prompt")

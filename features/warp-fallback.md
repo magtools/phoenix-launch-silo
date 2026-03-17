@@ -1,7 +1,7 @@
 # Warp Fallback (propuesta de estandarizacion)
 
 Fecha: 2026-03-17
-Estado: runtime fallback en progreso
+Estado: runtime fallback en progreso (incluye modo host sin compose para comandos seleccionados)
 
 ## 1) Contexto operativo
 
@@ -49,6 +49,21 @@ No existe fallback estandar a Redis/Valkey externo.
 No existe fallback estandar a OpenSearch/Elasticsearch externo.
 
 Nota: el naming canónico ya migro a `search`, pero la logica operativa sigue en backend local (`.warp/bin/elasticsearch.sh`), sin fallback external aplicado todavia.
+
+## 2.4 PHP/Magento/Telemetry en modo host
+
+Estado actual:
+
+1. si `docker-compose-warp.yml` no existe, `warp` ya no fuerza precheck global de `docker`/`docker-compose` para comandos compatibles con fallback (`db|cache|search|php|magento|telemetry|info`),
+2. `warp magento` y `warp ece-tools|ece-patches` ejecutan en host usando `php` local cuando falta compose,
+3. `warp telemetry` puede correr en modo host y reportar recursos del host aunque no haya contenedores,
+4. `warp php ssh` queda limitado a modo docker (sin compose informa error claro).
+
+Flag de control:
+
+1. `WARP_RUNTIME_MODE=auto|docker|host` (en `.env`),
+2. `auto` usa deteccion por presencia de compose y capacidad de fallback del comando,
+3. si falta compose y el contexto es ambiguo, comandos con fallback pueden preguntar y persistir modo en `.env`.
 
 ## 3) Problema a resolver
 
@@ -157,6 +172,7 @@ Conexion:
 3. Si falta servicio local pero hay modo externo valido, no bloquear comando por `warp_check_is_running` para ese servicio.
 4. Si un servicio no existe en `docker-compose-warp.yml`, `warp init/start/stop/restart` no debe fallar ni sugerir accion para agregarlo.
 5. El acceso/operacion de ese servicio queda encapsulado en su comando canónico (`warp db|cache|search ...`) y su fallback.
+6. Ausencia de `docker-compose-warp.yml` puede representar modo host: no debe bloquear comandos con fallback explícito.
 
 ## 8) Roadmap sugerido (iterativo y reversible)
 

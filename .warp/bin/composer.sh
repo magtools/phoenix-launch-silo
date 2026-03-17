@@ -33,6 +33,38 @@ function composer() {
       exit 0;
   fi
 
+  _runtime_mode="docker"
+  if command -v warp_runtime_mode_resolve >/dev/null 2>&1; then
+    _runtime_mode=$(warp_runtime_mode_resolve "composer")
+  elif [ ! -f "$DOCKERCOMPOSEFILE" ]; then
+    _runtime_mode="host"
+  fi
+
+  if [ "$_runtime_mode" = "host" ]; then
+    if [ "$1" = "--credential" ] ; then
+      warp_message_warn "--credential is docker-only; host composer uses your local ~/.ssh directly"
+      return 0
+    fi
+
+    if ! command -v composer >/dev/null 2>&1; then
+      warp_message_error "composer not found in host"
+      exit 1
+    fi
+
+    if [ "$1" = "-T" ]; then
+      shift 1
+    fi
+
+    COMPOSER_MEMORY_LIMIT=-1 composer "$@"
+    return $?
+  fi
+
+  if [ ! -f "$DOCKERCOMPOSEFILE" ]; then
+    warp_message_error "docker-compose-warp.yml not found"
+    warp_message_warn "run ./warp init or set WARP_RUNTIME_MODE=host in .env"
+    exit 1
+  fi
+
   if [ "$(warp_check_is_running)" = false ]; then
     warp_message_error "The containers are not running"
     warp_message_error "please, first run warp start"
@@ -40,11 +72,10 @@ function composer() {
     exit 1;
   fi
 
-  
   if [ "$1" = "--credential" ] ; then
-      warp_message "copying credentials"
-      copy_ssh_id "$@"
-      warp_message "Done!"
+    warp_message "copying credentials"
+    copy_ssh_id "$@"
+    warp_message "Done!"
   else
 
     if [ "$1" = "-T" ]; then
