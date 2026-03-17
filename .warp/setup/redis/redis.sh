@@ -5,6 +5,10 @@ warp_message_info "Configuring the Redis Service"
 
 PATH_CONFIG_REDIS='./.warp/docker/config/redis'
 MSJ_REDIS_VERSION_HUB=1 # True
+REDIS_SERVICE_SELECTED=0
+CACHE_CANON_SCOPE=""
+CACHE_CANON_HOST=""
+CACHE_CANON_PORT="6379"
 
 while : ; do
     respuesta_redis_cache=$( warp_question_ask_default "Do you want to add a service for Redis Cache? $(warp_message_info [Y/n]) " "Y" )
@@ -38,6 +42,10 @@ then
     echo "REDIS_CACHE_MAXMEMORY=512mb" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "REDIS_CACHE_MAXMEMORY_POLICY=allkeys-lru" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    REDIS_SERVICE_SELECTED=1
+    [ -n "$CACHE_CANON_SCOPE" ] || CACHE_CANON_SCOPE="cache"
+    [ -n "$CACHE_CANON_HOST" ] || CACHE_CANON_HOST="redis-cache"
+    [ -n "$CACHE_CANON_PORT" ] || CACHE_CANON_PORT="6379"
 
     # Control will enter here if $PATH_CONFIG_REDIS doesn't exist.
     if [ ! -d "$PATH_CONFIG_REDIS" ]; then
@@ -78,6 +86,12 @@ then
     echo "REDIS_SESSION_MAXMEMORY=256mb" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "REDIS_SESSION_MAXMEMORY_POLICY=noeviction" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    REDIS_SERVICE_SELECTED=1
+    if [ -z "$CACHE_CANON_SCOPE" ]; then
+        CACHE_CANON_SCOPE="session"
+        CACHE_CANON_HOST="redis-session"
+        CACHE_CANON_PORT="6379"
+    fi
 
     # Control will enter here if $PATH_CONFIG_REDIS doesn't exist.
     if [ ! -d "$PATH_CONFIG_REDIS" ]; then
@@ -118,6 +132,12 @@ then
     echo "REDIS_FPC_MAXMEMORY=512mb" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "REDIS_FPC_MAXMEMORY_POLICY=allkeys-lru" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    REDIS_SERVICE_SELECTED=1
+    if [ -z "$CACHE_CANON_SCOPE" ]; then
+        CACHE_CANON_SCOPE="fpc"
+        CACHE_CANON_HOST="redis-fpc"
+        CACHE_CANON_PORT="6379"
+    fi
 
     # Control will enter here if $PATH_CONFIG_REDIS doesn't exist.
     if [ ! -d "$PATH_CONFIG_REDIS" ]; then
@@ -125,3 +145,14 @@ then
     fi
     warp_message ""
 fi; 
+
+if [ "$REDIS_SERVICE_SELECTED" = "1" ]
+then
+    echo "# Canonical CACHE Configuration" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "CACHE_MODE=local" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "CACHE_ENGINE=redis" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "CACHE_SCOPE=${CACHE_CANON_SCOPE:-cache}" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "CACHE_HOST=${CACHE_CANON_HOST:-redis-cache}" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "CACHE_PORT=${CACHE_CANON_PORT:-6379}" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "" >> $ENVIRONMENTVARIABLESFILESAMPLE
+fi

@@ -118,6 +118,23 @@ then
     echo "DATABASE_USER=$mysql_user_database" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "DATABASE_PASSWORD=$mysql_password_database" >> $ENVIRONMENTVARIABLESFILESAMPLE
 
+    db_engine="mysql"
+    case "$mysql_docker_image" in
+        mariadb:*|*/mariadb:*|*mariadb*)
+            db_engine="mariadb"
+            ;;
+    esac
+
+    echo "# Canonical DB Configuration" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "DB_MODE=local" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "DB_ENGINE=$db_engine" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "DB_HOST=mysql" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "DB_PORT=$mysql_binded_port" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "DB_NAME=$mysql_name_database" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "DB_USER=$mysql_user_database" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "DB_PASSWORD=$mysql_password_database" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "" >> $ENVIRONMENTVARIABLESFILESAMPLE
+
     if [ "$mysql_use_project_specific" = "Y" ] || [ "$mysql_use_project_specific" = "y" ]; then
         cat $PROJECTPATH/.warp/setup/mysql/tpl/database_volumes_networks_custom.yml >> $DOCKERCOMPOSEFILESAMPLE
     else
@@ -127,4 +144,3 @@ then
 
     cp -R $PROJECTPATH/.warp/setup/mysql/config/ $PROJECTPATH/.warp/docker/config/mysql/
 fi; 
-

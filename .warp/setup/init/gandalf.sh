@@ -361,6 +361,20 @@ then
     echo "DATABASE_NAME=$mysql_name_database" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "DATABASE_USER=$mysql_user_database" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "DATABASE_PASSWORD=$mysql_password_database" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    db_engine="mysql"
+    case "$mysql_docker_image" in
+        mariadb:*|*/mariadb:*|*mariadb*)
+            db_engine="mariadb"
+            ;;
+    esac
+    echo "# Canonical DB Configuration" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "DB_MODE=local" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "DB_ENGINE=$db_engine" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "DB_HOST=mysql" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "DB_PORT=$mysql_binded_port" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "DB_NAME=$mysql_name_database" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "DB_USER=$mysql_user_database" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "DB_PASSWORD=$mysql_password_database" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo ""  >> $ENVIRONMENTVARIABLESFILESAMPLE
 
     if [ "$mysql_use_project_specific" = "Y" ] || [ "$mysql_use_project_specific" = "y" ]; then
@@ -423,6 +437,12 @@ then
     echo "# Elasticsearch" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "ES_VERSION=$elasticsearch_version" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "ES_MEMORY=$elasticsearch_memory" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "# Canonical SEARCH Configuration" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "SEARCH_MODE=local" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "SEARCH_ENGINE=opensearch" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "SEARCH_SCHEME=http" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "SEARCH_HOST=elasticsearch" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "SEARCH_PORT=9200" >> $ENVIRONMENTVARIABLESFILESAMPLE
 fi
 
 ############### REDIS
@@ -465,6 +485,12 @@ then
     echo "REDIS_FPC_CONF=$cache_config_file_fpc" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "REDIS_FPC_MAXMEMORY=512mb" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "REDIS_FPC_MAXMEMORY_POLICY=allkeys-lru" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "# Canonical CACHE Configuration" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "CACHE_MODE=local" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "CACHE_ENGINE=redis" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "CACHE_SCOPE=cache" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "CACHE_HOST=redis-cache" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "CACHE_PORT=6379" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "" >> $ENVIRONMENTVARIABLESFILESAMPLE
 
     # Control will enter here if $PATH_CONFIG_REDIS doesn't exist.
