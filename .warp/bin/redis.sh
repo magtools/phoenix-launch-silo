@@ -15,11 +15,11 @@ function redis_info()
     REDIS_CACHE_VERSION=$(warp_env_read_var REDIS_CACHE_VERSION)
     REDIS_CACHE_CONF=$(warp_env_read_var REDIS_CACHE_CONF)
 
-    REDIS_SESSION_VERSION=$(warp_env_read_var REDIS_CACHE_VERSION)
-    REDIS_SESSION_CONF=$(warp_env_read_var REDIS_CACHE_CONF)
+    REDIS_SESSION_VERSION=$(warp_env_read_var REDIS_SESSION_VERSION)
+    REDIS_SESSION_CONF=$(warp_env_read_var REDIS_SESSION_CONF)
 
-    REDIS_FPC_VERSION=$(warp_env_read_var REDIS_CACHE_VERSION)
-    REDIS_FPC_CONF=$(warp_env_read_var REDIS_CACHE_CONF)
+    REDIS_FPC_VERSION=$(warp_env_read_var REDIS_FPC_VERSION)
+    REDIS_FPC_CONF=$(warp_env_read_var REDIS_FPC_CONF)
 
     if [ ! -z "$REDIS_CACHE_VERSION" ]
     then

@@ -82,6 +82,7 @@ warp_service_context_load_cache() {
 
     _host=$(warp_fallback_env_get CACHE_HOST)
     _port=$(warp_fallback_env_get CACHE_PORT)
+    _user=$(warp_fallback_env_get CACHE_USER)
     _password=$(warp_fallback_env_get CACHE_PASSWORD)
 
     if [ "$_mode" = "local" ]; then
@@ -110,7 +111,7 @@ warp_service_context_load_cache() {
     WARP_CTX_SCOPE="$_scope"
     WARP_CTX_HOST="$_host"
     WARP_CTX_PORT="$_port"
-    WARP_CTX_USER=""
+    WARP_CTX_USER="$_user"
     WARP_CTX_PASSWORD="$_password"
     WARP_CTX_DBNAME=""
     WARP_CTX_SCHEME=""

@@ -258,3 +258,9 @@ warp_fallback_require_running_or_external() {
     [ "$(warp_check_is_running)" = "true" ] && return 0
     return 14
 }
+
+warp_fallback_confirm_explicit_yes() {
+    _prompt="$1"
+    _ans=$(warp_question_ask "$_prompt")
+    [ "$_ans" = "y" ] || [ "$_ans" = "Y" ]
+}

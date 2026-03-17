@@ -341,6 +341,7 @@ warp_message_info "Configuring the Redis Service"
     echo "CACHE_SCOPE=cache" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "CACHE_HOST=redis-cache" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "CACHE_PORT=6379" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "CACHE_USER=" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "" >> $ENVIRONMENTVARIABLESFILESAMPLE
 
     # Control will enter here if $PATH_CONFIG_REDIS doesn't exist.

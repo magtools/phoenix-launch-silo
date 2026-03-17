@@ -32,7 +32,7 @@ Objetivo: separar semantica funcional de implementacion tecnica para reducir deu
 Variables de conexion por capability:
 
 1. DB: `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`
-2. CACHE: `CACHE_HOST`, `CACHE_PORT`, `CACHE_PASSWORD`
+2. CACHE: `CACHE_HOST`, `CACHE_PORT`, `CACHE_USER`, `CACHE_PASSWORD`
 3. SEARCH: `SEARCH_SCHEME`, `SEARCH_HOST`, `SEARCH_PORT`, `SEARCH_USER`, `SEARCH_PASSWORD`
 
 ## 3.2 Compatibilidad backward
@@ -285,7 +285,7 @@ Nota: en esta etapa D la capability canonica es `search` (no `cache`).
 
 ## 14.6 Variables CACHE
 
-1. Canonicas nuevas: `CACHE_MODE`, `CACHE_ENGINE`, `CACHE_SCOPE`, `CACHE_HOST`, `CACHE_PORT`, `CACHE_PASSWORD`.
+1. Canonicas nuevas: `CACHE_MODE`, `CACHE_ENGINE`, `CACHE_SCOPE`, `CACHE_HOST`, `CACHE_PORT`, `CACHE_USER`, `CACHE_PASSWORD`.
 2. Legacy leidas en compat (local): `REDIS_CACHE_VERSION`, `REDIS_SESSION_VERSION`, `REDIS_FPC_VERSION`.
 3. Legacy leidas en compat (local): `REDIS_CACHE_CONF`, `REDIS_SESSION_CONF`, `REDIS_FPC_CONF`.
 4. Legacy leidas en compat (local): `REDIS_CACHE_BINDED_PORT`, `REDIS_SESSION_BINDED_PORT`, `REDIS_FPC_BINDED_PORT`.

@@ -41,6 +41,7 @@ elasticsearch_ssh_help() {
     warp_message ""
     warp_message_info "Options:"
     warp_message_info   " -h, --help         $(warp_message 'display this help message')"
+    warp_message_info   " --search           $(warp_message 'inside container search as elasticsearch user (canonical)')"
     warp_message_info   " --elasticsearch    $(warp_message 'inside container elasticsearch as elasticsearch user')"
     warp_message_info   " --root             $(warp_message 'inside container elasticsearch as root user')"
     warp_message ""
@@ -79,7 +80,7 @@ elasticsearch_flush_help() {
 elasticsearch_switch_help () {
     warp_message ""
     warp_message_info "Usage:"
-    warp_message      " warp elascticsearch switch [options]"
+    warp_message      " warp search switch [options]"
     warp_message ""
 
     warp_message ""

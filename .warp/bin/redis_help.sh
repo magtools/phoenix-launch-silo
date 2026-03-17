@@ -120,7 +120,7 @@ redis_ssh_help() {
     warp_message ""
     warp_message_info "Options:"
     warp_message_info   " --cache            $(warp_message 'inside container redis as cache user')"
-    warp_message_info   " --redis            $(warp_message 'inside container redis as redis user')"
+    warp_message_info   " --redis            $(warp_message 'inside container redis as redis user (legacy alias)')"
     warp_message_info   " --root             $(warp_message 'inside container redis as root user')"
     warp_message ""
 

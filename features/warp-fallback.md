@@ -1,7 +1,7 @@
 # Warp Fallback (propuesta de estandarizacion)
 
 Fecha: 2026-03-17
-Estado: analisis / iteracion 1
+Estado: runtime fallback en progreso
 
 ## 1) Contexto operativo
 
@@ -14,11 +14,11 @@ Distribucion esperada de proyectos productivos:
 
 Conclusión: Warp esta en el 100% de los proyectos, aunque algunos comandos deban operar sin contenedores para ciertos servicios.
 
-## 2) Estado actual del codigo (baseline)
+## 2) Estado actual del codigo (post-sanitize)
 
 ## 2.1 MySQL
 
-`warp mysql` ya tiene pre-check/fallback externo para RDS:
+`warp db` (alias `warp mysql`) ya tiene pre-check/fallback externo para RDS:
 
 1. detecta si falta servicio `mysql` en compose,
 2. pregunta confirmacion de modo externo,
@@ -26,11 +26,11 @@ Conclusión: Warp esta en el 100% de los proyectos, aunque algunos comandos deba
 4. persiste en `.env` (`MYSQL_VERSION=rds`, host/port/user/pass/db),
 5. usa cliente local (`mysql|mariadb|mysqldump|mariadb-dump`) cuando aplica.
 
-Esto esta implementado en `.warp/bin/mysql.sh` y cubre `connect`, `dump`, `import`, `devdump`.
+Esto esta implementado en `.warp/bin/mysql.sh` (ruteado por `db_main`) y cubre `connect`, `dump`, `import`, `devdump`.
 
 ## 2.2 Redis
 
-`warp redis` hoy depende de:
+`warp cache` (alias `warp redis`/`warp valkey`) hoy depende de:
 
 1. servicio inicializado (via variables en `.env`),
 2. contenedores corriendo (`warp_check_is_running`),
@@ -40,7 +40,7 @@ No existe fallback estandar a Redis/Valkey externo.
 
 ## 2.3 Elasticsearch
 
-`warp elasticsearch` hoy depende de:
+`warp search` (alias `warp elasticsearch`/`warp opensearch`) hoy depende de:
 
 1. servicio en compose (`elasticsearch`),
 2. contenedores corriendo,
@@ -48,7 +48,7 @@ No existe fallback estandar a Redis/Valkey externo.
 
 No existe fallback estandar a OpenSearch/Elasticsearch externo.
 
-Nota: el setup actual ya usa imagen `opensearchproject/opensearch`, pero el comando y naming siguen centrados en `elasticsearch`.
+Nota: el naming canónico ya migro a `search`, pero la logica operativa sigue en backend local (`.warp/bin/elasticsearch.sh`), sin fallback external aplicado todavia.
 
 ## 3) Problema a resolver
 
@@ -68,59 +68,61 @@ Definir una capa comun de fallback que:
 2. no rompa proyectos `full warp`,
 3. habilite modo externo por servicio con convencion unica,
 4. permita que cada comando consuma helper compartido en lugar de reinventar pre-check.
-5. mantenga los comandos actuales `warp redis` y `warp elasticsearch` (sin crear comandos nuevos).
+5. use comandos canonicos `warp db|cache|search` con alias de compatibilidad.
 
 ## 5) Propuesta tecnica (helper comun)
 
-Crear `.warp/lib/fallback.sh` con API minima:
+La base ya existe en `.warp/lib/fallback.sh` y `.warp/lib/service_context.sh`:
 
-1. `warp_fallback_service_mode <service>`
-   - retorna `local|external|disabled|unknown` segun `.env` + compose.
-2. `warp_fallback_compose_has_service <service>`
+1. `warp_fallback_compose_has_service <service>`
    - chequea servicio en compose (canonico).
-3. `warp_fallback_bootstrap_if_needed <service>`
+2. `warp_fallback_autopopulate_mode_engine <capability>`
+   - intenta autocompletar `*_MODE` y `*_ENGINE` si faltan o estan vacios.
+3. `warp_service_context_load <capability>`
+   - resuelve contexto operativo (`mode`, `engine`, host/puerto/scope) para `db|cache|search`.
+4. `warp_fallback_bootstrap_if_needed <service>`
    - si falta servicio local, ofrece activar modo externo con prompt estandar.
-4. `warp_fallback_require_running_or_external <service>`
+5. `warp_fallback_require_running_or_external <service>`
    - gate comun para comandos operativos.
-5. `warp_fallback_env_set <KEY> <VALUE>`
+6. `warp_fallback_env_set <KEY> <VALUE>`
    - escritura segura y uniforme de `.env`.
-6. `warp_fallback_env_get <KEY>`
+7. `warp_fallback_env_get <KEY>`
    - lectura estandarizada de variables (wrapper de `warp_env_read_var`).
-7. `warp_fallback_autopopulate_mode_engine <service>`
-   - intenta autocompletar `*_MODE` y `*_ENGINE` si faltan o estan vacios, usando deteccion existente del servicio.
 8. `warp_fallback_require_vars <service> <var1> <var2> ...`
    - valida lista de variables requeridas y resuelve prompts/autopoblado cuando corresponda.
 
-Implementacion: el comando de servicio solo declara las variables a observar; el helper centraliza seteo, lectura, validacion y autopoblado.
+Estado: helper implementado y runtime ya integrado en comandos canonicos `cache`/`search` (pendientes mejoras puntuales).
 
 ## 6) Contrato de configuracion propuesto
 
 La estandarizacion se apoya en `SERVICE_MODE/SERVICE_ENGINE` por servicio, sin romper variables existentes.
 
-## 6.1 MySQL (migracion compatible)
+## 6.1 DB (migracion compatible)
 
-1. nuevo: `MYSQL_MODE=local|external`
-2. nuevo: `MYSQL_ENGINE=mysql|mariadb`
+1. canonico: `DB_MODE=local|external`
+2. canonico: `DB_ENGINE=mysql|mariadb`
 3. compatibilidad legacy: `MYSQL_VERSION=rds` sigue vigente como señal de externo.
-4. fallback: si `MYSQL_MODE` o `MYSQL_ENGINE` faltan, se autopueblan por deteccion actual:
+4. fallback: si `DB_MODE` o `DB_ENGINE` faltan, se autopueblan por deteccion actual:
    - externo/local por compose + `MYSQL_VERSION`,
    - engine por `MYSQL_DOCKER_IMAGE` y/o binarios disponibles.
-5. conserva `DATABASE_*` actual.
+5. mantiene read-compat con `DATABASE_*`/`MYSQL_*`.
 
 ## 6.2 Redis/Valkey (nuevo)
 
-Propuesta de bandera:
+Canonico:
 
-1. `REDIS_MODE=local|external`
-2. `REDIS_ENGINE=redis|valkey`
+1. `CACHE_MODE=local|external`
+2. `CACHE_ENGINE=redis|valkey`
+3. `CACHE_SCOPE=cache|session|fpc|remote`
 
 Conexion (scope inicial simple):
 
-1. `REDIS_HOST`
-2. `REDIS_PORT`
-3. `REDIS_PASSWORD` (opcional)
+1. `CACHE_HOST`
+2. `CACHE_PORT`
+3. `CACHE_USER` (opcional, ACL)
+4. `CACHE_PASSWORD` (opcional)
 
-Decision actual: para externo usar un unico endpoint (`REDIS_HOST/REDIS_PORT/REDIS_PASSWORD`), no 3 endpoints.
+Decision actual: para externo usar un unico endpoint (`CACHE_HOST/CACHE_PORT/CACHE_PASSWORD`), no 3 endpoints.
 
 ## 6.3 Elastic/OpenSearch (nuevo)
 
@@ -140,12 +142,13 @@ Conexion:
 ## 6.4 Alias de comandos (compatibilidad de naming)
 
 1. se mantienen comandos oficiales:
-   - `warp redis`
-   - `warp elasticsearch`
+   - `warp db`
+   - `warp cache`
+   - `warp search`
 2. se agregan alias:
-   - `warp valkey` -> ejecuta flujo de `warp redis`
-   - `warp opensearch` -> ejecuta flujo de `warp elasticsearch`
-3. no se crean archivos de comando nuevos para alias; solo dispatch hacia los comandos existentes.
+   - `warp mysql` -> `warp db`
+   - `warp redis` / `warp valkey` -> `warp cache`
+   - `warp elasticsearch` / `warp opensearch` -> `warp search`
 
 ## 7) Reglas de compatibilidad
 
@@ -153,39 +156,148 @@ Conexion:
 2. Si el modo es `local`, todo sigue igual que hoy.
 3. Si falta servicio local pero hay modo externo valido, no bloquear comando por `warp_check_is_running` para ese servicio.
 4. Si un servicio no existe en `docker-compose-warp.yml`, `warp init/start/stop/restart` no debe fallar ni sugerir accion para agregarlo.
-5. El acceso/operacion de ese servicio queda encapsulado en su comando directo (`warp mysql|redis|elasticsearch ...`) y su fallback.
+5. El acceso/operacion de ese servicio queda encapsulado en su comando canónico (`warp db|cache|search ...`) y su fallback.
 
 ## 8) Roadmap sugerido (iterativo y reversible)
 
-## Fase A (primera implementacion)
+## Fase A (base de arquitectura) - completada
 
-1. extraer helper comun en `.warp/lib/fallback.sh`,
-2. adaptar MySQL para usar helper sin cambiar UX,
-3. validar ayudas minimas:
+1. extraer helper comun en `.warp/lib/fallback.sh` + `.warp/lib/service_context.sh`,
+2. crear comandos canonicos `db|cache|search` con alias,
+3. dual-write de variables canonicas en setup,
+4. validar ayudas minimas:
    - `./warp --help`
-   - `./warp mysql --help`
+   - `./warp db --help`
    - `./warp info --help`
 
-## Fase B (Redis/Valkey)
+## Fase B (fallback runtime cache) - en progreso
 
-1. agregar modo externo en `warp redis` (`cli`, `flush`, `monitor` con alcance definido),
+1. agregar modo externo en `warp cache` (`cli`, `flush`, `monitor`) usando `warp_service_context_load cache`,
 2. mantener servicios `redis-cache|redis-session|redis-fpc` para modo local,
-3. resolver naming engine (`redis` vs `valkey`) en mensajes/clientes,
-4. agregar alias `warp valkey` al mismo comando.
+3. aplicar bloqueo de `flush` external con confirmacion explicita `y|Y` (sin `--force`).
 
-## Fase C (Elastic/OpenSearch)
+Estado actual:
 
-1. introducir modo externo en `warp elasticsearch`,
+1. `cache.sh` enruta external/local por contexto.
+2. `cache flush` external usa confirmacion explicita `y|Y`.
+3. `cache ssh` external se bloquea con mensaje de uso alternativo.
+
+## Fase C (fallback runtime search) - en progreso
+
+1. introducir modo externo en `warp search` usando `warp_service_context_load search`,
 2. compatibilizar naming y mensajes (`elasticsearch`/`opensearch`),
-3. adaptar comandos que hoy asumen contenedor local (`flush`, metricas, snapshots) con guardas claras,
-4. agregar alias `warp opensearch` al mismo comando.
+3. adaptar comandos que hoy asumen contenedor local (`flush`, metricas, snapshots) con guardas claras.
+
+Estado actual:
+
+1. `search.sh` enruta external/local por contexto.
+2. `search flush` external usa confirmacion explicita `y|Y` y bloquea `--force`.
+3. `search ssh` y `search switch` en external se bloquean por politica.
+
+## 11) Checklist tecnica siguiente iteracion
+
+1. `cache info` external: conectividad real (`PING`) y version de servidor ya implementadas.
+2. `cache cli/monitor` external: soporte de `CACHE_USER`/`CACHE_PASSWORD` implementado (compatibilidad ACL basica).
+3. `search info` external: health por `GET /` y `GET /_cluster/health` implementado.
+4. `search flush` external: parseo HTTP/errores JSON robusto implementado (incluye `index_not_found_exception`).
+5. mover gradualmente logica legacy de `redis.sh`/`elasticsearch.sh` al canónico para reducir duplicacion.
+6. agregar smoke de runtime external controlado (fixtures `.env` con `CACHE_MODE=external` y `SEARCH_MODE=external`).
+
+## 12) Apendice: Hallazgos y Propuestas
+
+## 12.1 Hallazgo: bloqueo `--force` incompleto en flush external
+
+Contexto:
+
+1. hoy se evalua `--force` en posiciones fijas (`$1`/`$2`),
+2. un orden alternativo de argumentos podria bypassar el bloqueo.
+
+Propuesta 1:
+
+1. iterar todos los argumentos (`for _arg in "$@"`) en `cache flush` y `search flush`,
+2. si aparece `--force` en cualquier posicion: error y abortar.
+
+## 12.2 Hallazgo: bug legacy en `redis_info` local
+
+Contexto:
+
+1. `REDIS_SESSION_VERSION` y `REDIS_FPC_VERSION` se leen desde `REDIS_CACHE_VERSION`,
+2. el output de info puede mostrar datos incorrectos para session/fpc.
+
+Propuesta 2:
+
+1. corregir lecturas en `.warp/bin/redis.sh`:
+   - `REDIS_SESSION_VERSION` <- `REDIS_SESSION_VERSION`
+   - `REDIS_FPC_VERSION` <- `REDIS_FPC_VERSION`
+2. aplicar mismo ajuste para `*_CONF` si corresponde.
+
+## 12.3 Hallazgo: dependencia `curl` no validada en search external
+
+Contexto:
+
+1. fallback search external usa `curl`,
+2. si falta binario, el mensaje de error no es explicito para el operador.
+
+Propuesta 3:
+
+1. agregar precheck `command -v curl` en ruta external de `search`,
+2. si no existe, abortar con guia clara de instalacion por distro.
+
+## 12.4 Hallazgo: `CACHE_USER` no reflejado en setup/templates
+
+Contexto:
+
+1. runtime soporta `CACHE_USER`,
+2. setup dual-write actual no genera variable canonica `CACHE_USER`.
+
+Propuesta 4:
+
+1. agregar `CACHE_USER=` (vacio por default) en templates/setup donde se escriben `CACHE_*`,
+2. documentar comportamiento ACL (cuando usar `CACHE_USER` + `CACHE_PASSWORD`).
+
+## 12.5 Hallazgo: desalineacion residual en ayudas/mensajes
+
+Contexto:
+
+1. existen textos legacy en opciones/ayudas (ej. `--elasticsearch`),
+2. aunque hay compatibilidad, puede confundir a usuarios nuevos.
+
+Propuesta 5:
+
+1. mantener aliases legacy funcionales,
+2. pero en help principal priorizar naming canonico y marcar legacy como alias explicitamente,
+3. unificar ejemplos a `warp db|cache|search`.
+
+## 12.6 Hallazgo: falta smoke externo automatizable
+
+Contexto:
+
+1. se validaron ayudas y sintaxis,
+2. no hay smoke reproducible para `MODE=external` sin infraestructura real.
+
+Propuesta 6:
+
+1. definir fixtures `.env` minimos para external (cache/search),
+2. agregar smoke no destructivo:
+   - `cache info` external (sin flush),
+   - `search info` external (sin flush),
+3. dejar `flush` external fuera de smoke automatico y probar manualmente con confirmacion.
+
+Implementacion inicial:
+
+1. fixture cache: `features/fixtures/fallback-cache-external.env.sample`
+2. fixture search: `features/fixtures/fallback-search-external.env.sample`
+3. smoke recomendado (manual, no destructivo):
+   - exportar variables del fixture al `.env` de prueba,
+   - ejecutar `./warp cache info`,
+   - ejecutar `./warp search info`.
 
 ## 9) Riesgos y decisiones acordadas
 
 1. `flush` en servicios externos: advertencia explicita + confirmacion obligatoria.
 2. Instalacion automatica de clientes locales: mantener opt-in con prompt (como MySQL).
 3. Redis externo: una sola conexion global (endpoint unico).
-4. Naming: mantener `warp redis`/`warp elasticsearch` y sumar alias `valkey`/`opensearch`.
+4. Naming: mantener canonicos `db|cache|search` y alias de compatibilidad.
 
 ## 10) Criterio de exito para la feature fallback
 
