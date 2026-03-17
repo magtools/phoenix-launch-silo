@@ -7,7 +7,7 @@ main () {
 
     # SCRIPTNAME contains the name
     # of the current script (e.g. "server")
-    SCRIPTNAME="bin/$(basename $0)"
+    SCRIPTNAME="bin/$(basename "$0")"
     ORIGINAL_COMMAND="$1"
 
     # Check availability of docker
@@ -24,11 +24,11 @@ main () {
 
     [[ $(pwd) =~ [[:space:]]+ ]] && { echo "this folder contains spaces, warp framework requires a folder without spaces"; exit 1; }
 
-    if [ -d $PROJECTPATH/.warp/lib ]; then
+    if [ -d "$PROJECTPATH/.warp/lib" ]; then
         include_warp_framework
     fi;
 
-    if [ -d $PROJECTPATH/.warp/lib ]; then
+    if [ -d "$PROJECTPATH/.warp/lib" ]; then
         # Check minimum versions
         warp_check_docker_version
     fi;
@@ -37,183 +37,183 @@ main () {
     warp_check_binary_was_updated
 
     # Run update check at command end, so output remains visible.
-    if [ -d $PROJECTPATH/.warp/lib ]; then
+    if [ -d "$PROJECTPATH/.warp/lib" ]; then
         trap 'warp_post_command_hook "$ORIGINAL_COMMAND"' EXIT
     fi
 
     case "$1" in
         init)
         shift 1
-        setup_main  $*
+        setup_main "$@"
         ;;
 
         mysql)
         shift 1
-        mysql_main $*
+        mysql_main "$@"
         ;;
 
         postgres)
         shift 1
-        postgres_main $*
+        postgres_main "$@"
         ;;
 
         php)
         shift 1
-        php_main $*
+        php_main "$@"
         ;;
 
         start)
-        start_main $*
+        start_main "$@"
         ;;
 
         fix)
-        fix_main $*
+        fix_main "$@"
         ;;
 
         xdebug)
         shift 1
-        xdebug_main $*
+        xdebug_main "$@"
         ;;
 
         volume)
         shift 1
-        volume_main $*
+        volume_main "$@"
         ;;
 
         ioncube)
         shift 1
-        ioncube_main $*
+        ioncube_main "$@"
         ;;
 
         restart)
-        restart_main $*
+        restart_main "$@"
         ;;
 
         stop)
-        stop_main $*
+        stop_main "$@"
         ;;
 
         ps)
-        ps_main $*
+        ps_main "$@"
         ;;
 
         info)
         shift 1
-        warp_info $*
+        warp_info "$@"
         ;;
 
         composer)
-        composer_main $*
+        composer_main "$@"
         ;;
 
         magento)
-        magento_main $*
+        magento_main "$@"
         ;;
 
         ece-tools|ece-patches)
-        magento_main $*
+        magento_main "$@"
         ;;
 
         oro)
-        oro_main $*
+        oro_main "$@"
         ;;
 
         crontab)
-        crontab_main $*
+        crontab_main "$@"
         ;;
 
         npm)
-        npm_main $*
+        npm_main "$@"
         ;;
 
         grunt)
-        grunt_main $*
+        grunt_main "$@"
         ;;
 
         hyva)
         shift 1
-        hyva_main $*
+        hyva_main "$@"
         ;;
 
         deploy)
         shift 1
-        deploy_main $*
+        deploy_main "$@"
         ;;
 
         telemetry)
         shift 1
-        telemetry_main $*
+        telemetry_main "$@"
         ;;
 
         logs)
-        logs_main $*
+        logs_main "$@"
         ;;
 
         docker)
-        docker_main $*
+        docker_main "$@"
         ;;
 
         build)
-        build_main $*
+        build_main "$@"
         ;;
 
         elasticsearch)
         shift 1
-        elasticsearch_main $*
+        elasticsearch_main "$@"
         ;;
 
         varnish)
         shift 1
-        varnish_main $*
+        varnish_main "$@"
         ;;
 
         redis)
         shift 1
-        redis_main $*
+        redis_main "$@"
         ;;
 
         sync)
         shift 1
-        sync_main $*
+        sync_main "$@"
         ;;
 
         rsync)
         shift 1
-        rsync_main $*
+        rsync_main "$@"
         ;;
 
         rabbit)
         shift 1
-        rabbit_main $*
+        rabbit_main "$@"
         ;;
 
         selenium)
         shift 1
-        selenium_main $*
+        selenium_main "$@"
         ;;
 
         mailhog)
         shift 1
-        mailhog_main $*
+        mailhog_main "$@"
         ;;
 
         sandbox | sb)
         shift 1
-        setup_sandbox_main $*
+        setup_sandbox_main "$@"
         ;;
 
         reset)
-        reset_main $*
+        reset_main "$@"
         ;;
 
         update)
         shift 1
-        warp_update $*
+        warp_update "$@"
         ;;
 
         nginx)
         shift
-        webserver_main $*
+        webserver_main "$@"
         ;;
 
         *)
@@ -236,7 +236,7 @@ setup_main() {
         setup_help_usage
         exit 0;
     elif [ "$1" = "-n" ] || [ "$1" = "--no-interaction" ] ; then
-        if [ ! -d $PROJECTPATH/.warp/setup ]; then
+        if [ ! -d "$PROJECTPATH/.warp/setup" ]; then
             warp_setup --no-interaction
             exit 0;
         fi;
@@ -244,15 +244,15 @@ setup_main() {
         init_main init --no-interaction        
         exit 1
     elif [ "$1" = "-mg" ] || [ "$1" = "--mode-gandalf" ] ; then
-        if [ ! -d $PROJECTPATH/.warp/setup ]; then
-            warp_setup --mode-gandalf $*
+        if [ ! -d "$PROJECTPATH/.warp/setup" ]; then
+            warp_setup --mode-gandalf "$@"
             exit 0;
         fi;
 
-        init_main init --mode-gandalf $*
+        init_main init --mode-gandalf "$@"
         exit 0;
     else
-        if [ ! -d $PROJECTPATH/.warp/setup ]; then
+        if [ ! -d "$PROJECTPATH/.warp/setup" ]; then
             warp_setup install
             exit 0;
         fi;
@@ -262,21 +262,21 @@ setup_main() {
 }
 
 setup_sandbox_main() {
-    if [ "$1" = "-h" ] || [ "$1" = "--help" ] && [ ! -d $PROJECTPATH/.warp/setup ] ; then
+    if [ "$1" = "-h" ] || [ "$1" = "--help" ] && [ ! -d "$PROJECTPATH/.warp/setup" ] ; then
         setup_help_usage
         exit 0;
     else
-        if [ ! -d $PROJECTPATH/.warp/setup ]; then
+        if [ ! -d "$PROJECTPATH/.warp/setup" ]; then
             warp_setup sandbox
             exit 0;
         fi;
 
-        sandbox_main $*
+        sandbox_main "$@"
     fi
 }
 
 setup_help_usage() {
-    if [ -d $PROJECTPATH/.warp/lib ]; then
+    if [ -d "$PROJECTPATH/.warp/lib" ]; then
         init_help_usage
         exit 0;
     else
@@ -305,16 +305,16 @@ setup_help_usage() {
 }
 
 help() {
-    if [ -d $PROJECTPATH/.warp/bin ]; then
+    if [ -d "$PROJECTPATH/.warp/bin" ]; then
         warp_banner
 
-        . $PROJECTPATH/.warp/bin/help.sh
+        . "$PROJECTPATH/.warp/bin/help.sh"
 
         help_main
 
         for filename in $PROJECTPATH/.warp/bin/*_help.sh; do
             . "$filename"
-            $(basename $filename .sh) # execute default function
+            "$(basename "$filename" .sh)" # execute default function
         done
 
         help_usage
@@ -531,7 +531,7 @@ warp_update() {
         WARP_FORCE_UPDATE=0
     fi;
 
-    if [ ! -d $PROJECTPATH/.warp/lib ]; then
+    if [ ! -d "$PROJECTPATH/.warp/lib" ]; then
         warp_message_not_install_yet
         exit 0;
     fi;
@@ -544,7 +544,7 @@ warp_update() {
 
     if [ "$1" = "--images" ] ; then
         echo "checking if there are images available to update"
-        docker-compose -f $DOCKERCOMPOSEFILE pull
+        docker-compose -f "$DOCKERCOMPOSEFILE" pull
         exit 0;
     fi
 
@@ -560,7 +560,7 @@ warp_update() {
         ARCHIVE=$(awk '/^__ARCHIVE__/ {print NR + 1; exit 0; }' "$WARP_TARGET_FILE")
         [ -z "$ARCHIVE" ] && warp_message_error "invalid current warp payload" && exit 1
 
-        tail -n+${ARCHIVE} "$WARP_TARGET_FILE" | tar xpJ -C "$WARP_TMP_EXTRACT_DIR" || { warp_message_error "unable to extract current payload"; exit 1; }
+        tail -n+"${ARCHIVE}" "$WARP_TARGET_FILE" | tar xpJ -C "$WARP_TMP_EXTRACT_DIR" || { warp_message_error "unable to extract current payload"; exit 1; }
         [ ! -d "$WARP_TMP_EXTRACT_DIR/.warp" ] && warp_message_error "current payload does not contain .warp" && exit 1
 
         warp_message_info "Aplicando cambios"
@@ -582,7 +582,7 @@ warp_update() {
     mkdir -p "$WARP_TMP_EXTRACT_DIR" || { warp_message_error "unable to create $WARP_TMP_EXTRACT_DIR"; exit 1; }
 
     curl --silent --show-error --fail --location "${WARP_REMOTE_BASE_URL}/version.md" -o "$WARP_TMP_VERSION" || { warp_message_error "unable to download version.md"; exit 1; }
-    WARP_VERSION_LATEST=$(cat "$WARP_TMP_VERSION" | tr -d '\r\n')
+    WARP_VERSION_LATEST=$(tr -d '\r\n' < "$WARP_TMP_VERSION")
 
     if [ -z "$WARP_VERSION_LATEST" ]; then
         warp_message_error "remote version is empty"
@@ -626,7 +626,7 @@ warp_update() {
     ARCHIVE=$(awk '/^__ARCHIVE__/ {print NR + 1; exit 0; }' "$WARP_TMP_WARP")
     [ -z "$ARCHIVE" ] && warp_message_error "invalid downloaded warp payload" && exit 1
 
-    tail -n+${ARCHIVE} "$WARP_TMP_WARP" | tar xpJ -C "$WARP_TMP_EXTRACT_DIR" || { warp_message_error "unable to extract downloaded payload"; exit 1; }
+    tail -n+"${ARCHIVE}" "$WARP_TMP_WARP" | tar xpJ -C "$WARP_TMP_EXTRACT_DIR" || { warp_message_error "unable to extract downloaded payload"; exit 1; }
     [ ! -d "$WARP_TMP_EXTRACT_DIR/.warp" ] && warp_message_error "downloaded payload does not contain .warp" && exit 1
 
     warp_message_info "Aplicando cambios"
@@ -674,14 +674,16 @@ function warp_info() {
     fi; 
 
     if [ "$1" = "--ip" ] ; then
-        if [ $(warp_check_is_running) = false ]; then
+        if [ "$(warp_check_is_running)" = false ]; then
             warp_message_error "The containers are not running"
             warp_message_error "please, first run warp start"
 
             exit 1;
         fi
 
-        docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}   {{.Name}}'   $(docker-compose -f  $DOCKERCOMPOSEFILE ps -q) | sed 's/ \// /'
+        containers_running=$(docker-compose -f "$DOCKERCOMPOSEFILE" ps -q)
+        [ -z "$containers_running" ] && exit 0
+        docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}   {{.Name}}' $containers_running | sed 's/ \// /'
     else
         mysql_main info   
         postgres_main info   
@@ -705,11 +707,11 @@ function warp_setup() {
     # Find __ARCHIVE__ maker, read archive content and decompress it
     ARCHIVE=$(awk '/^__ARCHIVE__/ {print NR + 1; exit 0; }' "${0}")
 
-    tail -n+${ARCHIVE} "${0}" | tar xpJ -C ${DESTINATION}
+    tail -n+"${ARCHIVE}" "${0}" | tar xpJ -C "$DESTINATION"
 
     if [ "$OPTION" = "sandbox" ]
     then
-        if [ -d $PROJECTPATH/.warp/lib ] && [ -d $PROJECTPATH/.warp/bin ] ; then    
+        if [ -d "$PROJECTPATH/.warp/lib" ] && [ -d "$PROJECTPATH/.warp/bin" ] ; then    
             echo "Installing Warp mode Sandbox, wait a few moments"
             sleep 1
             echo "Successful installation!, starting configurations.."
@@ -722,7 +724,7 @@ function warp_setup() {
 
     if [ "$OPTION" = "--no-interaction" ]
     then
-        if [ -d $PROJECTPATH/.warp/lib ] && [ -d $PROJECTPATH/.warp/bin ] ; then    
+        if [ -d "$PROJECTPATH/.warp/lib" ] && [ -d "$PROJECTPATH/.warp/bin" ] ; then    
             echo "Installing Warp mode --no-interaction, wait a few moments"
             sleep 1
             echo "Successful installation!, starting without wizard.."
@@ -735,14 +737,14 @@ function warp_setup() {
 
     if [ "$OPTION" = "--mode-gandalf" ]
     then
-        if [ -d $PROJECTPATH/.warp/lib ] && [ -d $PROJECTPATH/.warp/bin ] ; then    
+        if [ -d "$PROJECTPATH/.warp/lib" ] && [ -d "$PROJECTPATH/.warp/bin" ] ; then    
             echo "Installing Warp --mode-gandalf, wait a few moments"
             sleep 1
             echo "Successful installation!, starting without wizard.."
             sleep 1
             # Init Instalation
             include_warp_framework
-            init_main init --mode-gandalf $*
+            init_main init --mode-gandalf "$@"
         fi
     fi
 
@@ -775,7 +777,7 @@ function warp_setup() {
 
     if [ "$OPTION" = "install" ]
     then
-        if [ -d $PROJECTPATH/.warp/lib ] && [ -d $PROJECTPATH/.warp/bin ] ; then    
+        if [ -d "$PROJECTPATH/.warp/lib" ] && [ -d "$PROJECTPATH/.warp/bin" ] ; then    
             echo "Installing Warp, wait a few moments"
             sleep 1
             echo "Successful installation!, starting configurations.."
@@ -811,15 +813,15 @@ function warp_setup() {
 }
 
 function warp_check_binary_was_updated() {
-    if [ -f "$ENVIRONMENTVARIABLESFILE" ] && [ -f "$ENVIRONMENTVARIABLESFILESAMPLE" ] && [ -d $PROJECTPATH/.warp/lib ]
+    if [ -f "$ENVIRONMENTVARIABLESFILE" ] && [ -f "$ENVIRONMENTVARIABLESFILESAMPLE" ] && [ -d "$PROJECTPATH/.warp/lib" ]
     then
-        WARP_ENV_VERSION=$(grep "^WARP_VERSION" $ENVIRONMENTVARIABLESFILESAMPLE | cut -d '=' -f2)
-        _WARP_ENV_VERSION=$(echo $WARP_ENV_VERSION | tr -d ".")
+        WARP_ENV_VERSION=$(grep "^WARP_VERSION" "$ENVIRONMENTVARIABLESFILESAMPLE" | cut -d '=' -f2)
+        _WARP_ENV_VERSION=$(echo "$WARP_ENV_VERSION" | tr -d ".")
 
-        . $PROJECTPATH/.warp/lib/version.sh
-        _WARP_VERSION=$(echo $WARP_VERSION | tr -d ".")
+        . "$PROJECTPATH/.warp/lib/version.sh"
+        _WARP_VERSION=$(echo "$WARP_VERSION" | tr -d ".")
 
-        if [ ! -z "$WARP_ENV_VERSION" ]
+        if [ ! -z "$WARP_ENV_VERSION" ] && [[ "$_WARP_ENV_VERSION" =~ ^[0-9]+$ ]] && [[ "$_WARP_VERSION" =~ ^[0-9]+$ ]]
         then
             # .env.sample > version.sh and not equal
             if [ $_WARP_ENV_VERSION -gt $_WARP_VERSION ] && [ ! $_WARP_ENV_VERSION -eq $_WARP_VERSION ]
@@ -833,6 +835,6 @@ function warp_check_binary_was_updated() {
     fi
 }
 
-main $*
+main "$@"
 
 __ARCHIVE__
