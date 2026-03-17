@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# Kept as memory_help.sh for compatibility with the current help-loader pattern.
+# Public CLI command is `warp telemetry`.
 memory_help_usage() {
     warp_message ""
     warp_message_info "Usage:"

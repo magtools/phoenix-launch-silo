@@ -1040,6 +1040,8 @@ memory_guide() {
     memory_print ""
 }
 
+# Command contract renamed to `warp telemetry`.
+# The implementation remains in memory.sh to keep internal layout stable.
 telemetry_main() {
     case "$1" in
         ""|scan)
