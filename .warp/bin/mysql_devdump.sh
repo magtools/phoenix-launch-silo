@@ -19,8 +19,8 @@ mysql_devdump_list_profiles_for_app() {
 mysql_devdump_help() {
     warp_message ""
     warp_message_info "Usage:"
-    warp_message " warp mysql devdump"
-    warp_message " warp mysql devdump:<app>"
+    warp_message " warp db devdump"
+    warp_message " warp db devdump:<app>"
     warp_message ""
     warp_message_info "Help:"
     warp_message " Generate lightweight development dumps using exclusion profiles."
@@ -38,8 +38,8 @@ mysql_devdump_help() {
     fi
     warp_message ""
     warp_message_info "Examples:"
-    warp_message " warp mysql devdump"
-    warp_message " warp mysql devdump:magento"
+    warp_message " warp db devdump"
+    warp_message " warp db devdump:magento"
     warp_message ""
 }
 

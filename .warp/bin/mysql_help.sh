@@ -5,7 +5,7 @@ function mysql_help_usage()
 
     warp_message ""
     warp_message_info "Usage:"
-    warp_message      " warp mysql command [options] [arguments]"
+    warp_message      " warp db command [options] [arguments]"
     warp_message ""
 
     warp_message ""
@@ -28,7 +28,7 @@ function mysql_help_usage()
 
     warp_message ""
     warp_message_info "Help:"
-    warp_message " warp mysql dump --help"
+    warp_message " warp db dump --help"
 
     warp_message ""
 
@@ -38,7 +38,7 @@ function mysql_tuner_help()
 {
     warp_message ""
     warp_message_info "Usage:"
-    warp_message      " warp mysql tuner [mysqltuner options]"
+    warp_message      " warp db tuner [mysqltuner options]"
     warp_message ""
 
     warp_message ""
@@ -49,9 +49,9 @@ function mysql_tuner_help()
     warp_message ""
 
     warp_message_info "Examples:"
-    warp_message " warp mysql tuner"
-    warp_message " warp mysql tuner --skipsize --nocolor"
-    warp_message " warp mysql tuner -vvv"
+    warp_message " warp db tuner"
+    warp_message " warp db tuner --skipsize --nocolor"
+    warp_message " warp db tuner -vvv"
     warp_message ""
 }
 
@@ -60,7 +60,7 @@ function mysql_import_help()
 
     warp_message ""
     warp_message_info "Usage:"
-    warp_message      " warp mysql import [db_name] < [file]"
+    warp_message      " warp db import [db_name] < [file]"
     warp_message ""
 
     warp_message ""
@@ -69,9 +69,9 @@ function mysql_import_help()
     warp_message ""
 
     warp_message_info "Example:"
-    warp_message " warp mysql import warp_db < /path/to/restore/backup/warp_db.sql"
-    warp_message " gunzip < /path/to/restore/backup/warp_db.sql.gz | warp mysql import warp_db"
-    warp_message " gunzip < /path/to/restore/backup/warp_db.sql.gz | pv | warp mysql import warp_db"
+    warp_message " warp db import warp_db < /path/to/restore/backup/warp_db.sql"
+    warp_message " gunzip < /path/to/restore/backup/warp_db.sql.gz | warp db import warp_db"
+    warp_message " gunzip < /path/to/restore/backup/warp_db.sql.gz | pv | warp db import warp_db"
 
     warp_message ""
 
@@ -82,7 +82,7 @@ function mysql_dump_help()
 
     warp_message ""
     warp_message_info "Usage:"
-    warp_message      " warp mysql dump [db_name] > [file]"
+    warp_message      " warp db dump [db_name] > [file]"
     warp_message ""
 
     warp_message ""
@@ -92,10 +92,10 @@ function mysql_dump_help()
     warp_message ""
 
     warp_message_info "Example:"
-    warp_message " warp mysql dump warp_db | gzip > /path/to/save/backup/warp_db.sql.gz"
-    warp_message " warp mysql dump warp_db | sed -e 's/DEFINER[ ]*=[ ]*[^*]*\*/\*/' | gzip > /path/to/save/backup/warp_db.sql.gz"
-    warp_message " warp mysql dump warp_db | gzip | pv > /path/to/save/backup/warp_db.sql.gz"
-    warp_message " warp mysql dump warp_db > /path/to/save/backup/warp_db.sql"
+    warp_message " warp db dump warp_db | gzip > /path/to/save/backup/warp_db.sql.gz"
+    warp_message " warp db dump warp_db | sed -e 's/DEFINER[ ]*=[ ]*[^*]*\*/\*/' | gzip > /path/to/save/backup/warp_db.sql.gz"
+    warp_message " warp db dump warp_db | gzip | pv > /path/to/save/backup/warp_db.sql.gz"
+    warp_message " warp db dump warp_db > /path/to/save/backup/warp_db.sql"
     warp_message ""
 
 }
@@ -105,7 +105,7 @@ function mysql_connect_help()
 
     warp_message ""
     warp_message_info "Usage:"
-    warp_message      " warp mysql connect"
+    warp_message      " warp db connect"
     warp_message ""
 
     warp_message ""
@@ -114,7 +114,7 @@ function mysql_connect_help()
     warp_message ""
 
     warp_message_info "Example:"
-    warp_message " warp mysql connect"
+    warp_message " warp db connect"
     warp_message " mysql >> show databases;"
     warp_message ""
 }
@@ -124,7 +124,7 @@ function mysql_ssh_help()
 
     warp_message ""
     warp_message_info "Usage:"
-    warp_message      " warp mysql ssh"
+    warp_message      " warp db ssh"
     warp_message ""
 
     warp_message ""
@@ -133,7 +133,7 @@ function mysql_ssh_help()
     warp_message ""
 
     warp_message_info "Example:"
-    warp_message " warp mysql ssh"
+    warp_message " warp db ssh"
     warp_message ""
 }
 
@@ -141,7 +141,7 @@ function mysql_switch_help()
 {
     warp_message ""
     warp_message_info "Usage:"
-    warp_message      " warp mysql switch [options]"
+    warp_message      " warp db switch [options]"
     warp_message ""
 
     warp_message ""
@@ -156,12 +156,13 @@ function mysql_switch_help()
     warp_message ""
 
     warp_message_info "Example:"
-    warp_message " warp mysql switch 8.0"
+    warp_message " warp db switch 8.0"
     warp_message ""    
 }
 
 function mysql_help()
 {
-    warp_message_info   " mysql              $(warp_message 'utility for connect with mysql databases')"
+    warp_message_info   " db                 $(warp_message 'utility for connect with mysql/mariadb databases')"
+    warp_message_info   " mysql              $(warp_message 'alias of db (legacy compatibility)')"
 
 }

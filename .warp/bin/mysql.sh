@@ -466,10 +466,10 @@ function mysql_switch()
     if [ $MYSQL_VERSION_CURRENT = $1 ]
     then
         warp_message_info2 "the selected version is the same as the previous one, no changes will be made"
-        warp_message_warn "for help run: $(warp_message_bold './warp mysql switch --help')"
+        warp_message_warn "for help run: $(warp_message_bold './warp db switch --help')"
     else
         warp_message_warn "This command will destroy MySQL database"
-        warp_message "you can create a backup running: $(warp_message_bold './warp mysql dump --help')"
+        warp_message "you can create a backup running: $(warp_message_bold './warp db dump --help')"
         respuesta_switch_version_db=$( warp_question_ask_default "Do you want to continue? $(warp_message_info [Y/n]) " "Y" )
 
         if [ "$respuesta_switch_version_db" = "Y" ] || [ "$respuesta_switch_version_db" = "y" ]
@@ -519,7 +519,7 @@ function mysql_switch()
 
             warp_message_warn "* commit new changes"
             warp_message_warn "* at each environment run: $(warp_message_bold './warp reset')"
-            warp_message_warn "* after that run: $(warp_message_bold './warp mysql --update')"
+            warp_message_warn "* after that run: $(warp_message_bold './warp db --update')"
         else
             warp_message_warn "* aborting switch database"
         fi
@@ -593,7 +593,7 @@ function mysql_import()
         MYSQL_CLIENT_BIN=$(mysql_pick_external_client_bin)
         [ -z "$MYSQL_CLIENT_BIN" ] && MYSQL_CLIENT_BIN="mysql"
         warp_message_warn "External database mode detected (MYSQL_VERSION=rds)."
-        warp_message_warn "warp mysql import does not execute against external servers."
+        warp_message_warn "warp db import does not execute against external servers."
         warp_message ""
         warp_message_info "Run manually:"
         warp_message " $MYSQL_CLIENT_BIN -h$DB_HOST -P$DB_PORT -u$DB_USER -p $db < /path/to/file.sql"
