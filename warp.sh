@@ -47,9 +47,9 @@ main () {
         setup_main "$@"
         ;;
 
-        mysql)
+        db|mysql)
         shift 1
-        mysql_main "$@"
+        db_main "$@"
         ;;
 
         postgres)
@@ -157,9 +157,9 @@ main () {
         build_main "$@"
         ;;
 
-        elasticsearch)
+        search|elasticsearch|opensearch)
         shift 1
-        elasticsearch_main "$@"
+        search_main "$@"
         ;;
 
         varnish)
@@ -167,9 +167,9 @@ main () {
         varnish_main "$@"
         ;;
 
-        redis)
+        cache|redis|valkey)
         shift 1
-        redis_main "$@"
+        cache_main "$@"
         ;;
 
         sync)
@@ -326,7 +326,7 @@ help() {
 
 warp_should_skip_update_check() {
     case "$1" in
-        mysql|start|stop)
+        mysql|db|start|stop)
             return 0
         ;;
         *)

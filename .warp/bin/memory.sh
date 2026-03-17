@@ -1027,11 +1027,11 @@ memory_guide() {
     memory_print "configuracion y estado de MySQL/MariaDB y sugiere ajustes de performance/estabilidad."
     memory_print ""
     memory_print "Recomendado:"
-    memory_print "  warp mysql tuner"
+    memory_print "  warp db tuner"
     memory_print "  (descarga mysqltuner.pl en ./var o /tmp, valida perl e intenta instalarlo por distro)"
     memory_print ""
     memory_print "Ejemplo con opciones extra:"
-    memory_print "  warp mysql tuner --skipsize --nocolor"
+    memory_print "  warp db tuner --skipsize --nocolor"
     memory_print ""
 
     memory_print_info "Nota rápida"

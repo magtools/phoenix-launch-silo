@@ -114,7 +114,7 @@ RUN_HYVA=$_run_hyva
 HYVA_PREPARE=1
 HYVA_BUILD=1
 RUN_SEARCH_FLUSH=0
-SEARCH_FLUSH_CMD="$_warp_exec elasticsearch flush"
+SEARCH_FLUSH_CMD="$_warp_exec search flush"
 CONFIRM_PROD=1
 ALLOW_DIR_PERMS_FIX=0
 EOF
@@ -141,7 +141,7 @@ FRONT_I18N="$_front_i18n"
 THREADS=$_threads
 STATIC_EXTRA_FLAGS="-f"
 RUN_SEARCH_FLUSH=1
-SEARCH_FLUSH_CMD="$_warp_exec elasticsearch flush"
+SEARCH_FLUSH_CMD="$_warp_exec search flush"
 RUN_HYVA=$_run_hyva
 HYVA_BUILD=1
 CONFIRM_PROD=1
@@ -416,7 +416,7 @@ deploy_run_main() {
     fi
 
     if [ "$_run_search_flush" = "1" ]; then
-        _search_cmd="${SEARCH_FLUSH_CMD:-$_warp_exec elasticsearch flush}"
+        _search_cmd="${SEARCH_FLUSH_CMD:-$_warp_exec search flush}"
         deploy_cmd_run "search flush" "$_search_cmd"
     fi
 

@@ -398,3 +398,84 @@ Validacion ejecutada:
    - `./warp start --help`: 1 (imprime help, comportamiento actual)
    - `./warp stop --help`: 1 (imprime help, comportamiento actual)
    - `./warp info --help`: 0
+
+## 18) Estado de avance (Etapa B: mysql -> db)
+
+Implementado:
+
+1. comando canonico `db`:
+   - `.warp/bin/db.sh`
+   - `.warp/bin/db_help.sh`
+2. dispatch principal:
+   - `warp.sh`: `db|mysql` enrutan a `db_main`.
+3. include de comando:
+   - `.warp/includes.sh` ahora carga `db.sh`.
+4. help canonico:
+   - `.warp/bin/help.sh` referencia `warp db --help`.
+5. mensajes operativos migrados a `db`:
+   - `.warp/bin/mysql_help.sh`
+   - `.warp/bin/mysql_devdump.sh`
+   - `.warp/bin/mysql.sh` (mensajes/sugerencias)
+   - `.warp/bin/memory.sh` (recomendaciones de tuner)
+6. compatibilidad de update-check:
+   - `warp.sh` excluye `db` junto con `mysql|start|stop`.
+
+Validacion ejecutada:
+
+1. `./warp db --help`: 0.
+2. `./warp mysql --help`: 0 (alias activo).
+3. `./warp db dump --help`: 1 (imprime ayuda, comportamiento heredado de subhelp).
+4. `./warp db import --help`: 1 (imprime ayuda, comportamiento heredado de subhelp).
+5. `./warp db tuner --help`: 1 (imprime ayuda, comportamiento heredado de subhelp).
+6. `./warp db devdump --help`: 0.
+
+## 19) Estado de avance (Etapa C: redis -> cache)
+
+Implementado:
+
+1. comando canonico `cache`:
+   - `.warp/bin/cache.sh`
+   - `.warp/bin/cache_help.sh`
+2. dispatch principal:
+   - `warp.sh`: `cache|redis|valkey` enrutan a `cache_main`.
+3. include de comando:
+   - `.warp/includes.sh` ahora carga `cache.sh`.
+4. help canonico:
+   - `.warp/bin/redis_help.sh` migra ejemplos/uso a `warp cache`.
+5. compatibilidad de flags ssh:
+   - `--cache` agregado como alias de `--redis`.
+6. fix UX help:
+   - `cache ssh <service> --help` ahora responde ayuda antes de validar `.env`/servicio.
+
+Validacion ejecutada:
+
+1. `./warp cache --help`: 0.
+2. `./warp redis --help`: 0 (alias activo).
+3. `./warp valkey --help`: 0 (alias activo).
+4. `./warp cache cli --help`: 1 (imprime ayuda, comportamiento heredado de subhelp).
+5. `./warp cache ssh cache --help`: 0.
+
+## 20) Estado de avance (Etapa D: elasticsearch -> search)
+
+Implementado:
+
+1. comando canonico `search`:
+   - `.warp/bin/search.sh`
+   - `.warp/bin/search_help.sh`
+2. dispatch principal:
+   - `warp.sh`: `search|elasticsearch|opensearch` enrutan a `search_main`.
+3. include de comando:
+   - `.warp/includes.sh` ahora carga `search.sh`.
+4. help canonico:
+   - `.warp/bin/elasticsearch_help.sh` migra ejemplos/uso a `warp search`.
+5. referencias internas:
+   - `.warp/bin/deploy.sh` usa `warp search flush` como comando canonico.
+
+Validacion ejecutada:
+
+1. `./warp search --help`: 0.
+2. `./warp elasticsearch --help`: 0 (alias activo).
+3. `./warp opensearch --help`: 0 (alias activo).
+4. `./warp search flush -h`: 0.
+5. `./warp search ssh --help`: 0.
+6. `./warp search switch --help`: 1 (imprime ayuda, comportamiento heredado de subhelp).
