@@ -137,7 +137,7 @@ function sandbox_push() {
       exit 0;
   fi
 
-  if [ $(warp_check_is_running) = false ]; then
+  if [ "$(warp_check_is_running)" = false ]; then
     warp_message_error "The containers are not running"
     warp_message_error "please, first run warp start"
 
@@ -220,56 +220,56 @@ function sandbox_main()
 {
     case "$1" in
         init)
-          sandbox_command $*
+          sandbox_command "$@"
         ;;
 
         start)
-          sandbox_start $*
+          sandbox_start "$@"
         ;;
 
         stop)
           shift 1
-          sandbox_stop $*
+          sandbox_stop "$@"
         ;;
 
         restart)
           shift 1
-          sandbox_restart $*
+          sandbox_restart "$@"
         ;;
 
         push)
           shift 1
-          sandbox_push $*
+          sandbox_push "$@"
         ;;
 
         pull)
           shift 1
-          sandbox_pull $*
+          sandbox_pull "$@"
         ;;
 
         ssh)
           shift 1
-          sandbox_ssh $*
+          sandbox_ssh "$@"
         ;;
 
         remove | rm)
           shift 1
-          sandbox_remove $*
+          sandbox_remove "$@"
         ;;
 
         php71)
           shift 1
-          warp sandbox ssh php71 $*
+          warp sandbox ssh php71 "$@"
         ;;
 
         php72)
           shift 1
-          warp sandbox ssh php72 $*
+          warp sandbox ssh php72 "$@"
         ;;
 
         --install)
           shift 1
-          sandbox_install $*
+          sandbox_install "$@"
         ;;
 
         *)

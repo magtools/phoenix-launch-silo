@@ -11,7 +11,7 @@ function rsync_push_to_container() {
       exit 0;
   fi
 
-  if [ $(warp_check_is_running) = false ]; then
+  if [ "$(warp_check_is_running)" = false ]; then
     warp_message_error "The containers are not running"
     warp_message_error "please, first run warp start"
 
@@ -23,7 +23,7 @@ function rsync_push_to_container() {
   warp_check_rsync_version
 
   [ -z "$1" ] && warp_message_error "Please specify a directory or file to copy to container (ex. vendor, --all)" && exit
-  CONTAINER_APPDATA_PORT=$(docker inspect --format='{{(index (index .NetworkSettings.Ports "873/tcp") 0).HostPort}}' $(warp docker ps -q appdata))
+  CONTAINER_APPDATA_PORT=$(docker inspect --format='{{(index (index .NetworkSettings.Ports "873/tcp") 0).HostPort}}' "$(warp docker ps -q appdata)")
 
   if [ "$1" == "--all" ]; then
     rsync -aogvEh * --chown=$(id -u):33 --chmod=ug+rw rsync://localhost:$CONTAINER_APPDATA_PORT/warp
@@ -33,8 +33,8 @@ function rsync_push_to_container() {
     
     for i in "$@"
     do
-      if [ -f $i ] || [ -d $i ] ; then
-        rsync -aogvEh $i --chown=$(id -u):33 --chmod=ug+rw rsync://localhost:$CONTAINER_APPDATA_PORT/warp
+      if [ -f "$i" ] || [ -d "$i" ] ; then
+        rsync -aogvEh "$i" --chown="$(id -u)":33 --chmod=ug+rw rsync://localhost:"$CONTAINER_APPDATA_PORT"/warp
         warp_message "Completed copying $i from host to container"  
       else
         warp_message_error "do not copy $i from host to container"  
@@ -50,7 +50,7 @@ function rsync_pull_from_container() {
       exit 0;
   fi
 
-  if [ $(warp_check_is_running) = false ]; then
+  if [ "$(warp_check_is_running)" = false ]; then
     warp_message_error "The containers are not running"
     warp_message_error "please, first run warp start"
 
@@ -62,7 +62,7 @@ function rsync_pull_from_container() {
   warp_check_rsync_version
 
   [ -z "$1" ] && warp_message_error "Please specify a directory or file to copy from container (ex. vendor, --all)" && exit
-  CONTAINER_APPDATA_PORT=$(docker inspect --format='{{(index (index .NetworkSettings.Ports "873/tcp") 0).HostPort}}' $(warp docker ps -q appdata))
+  CONTAINER_APPDATA_PORT=$(docker inspect --format='{{(index (index .NetworkSettings.Ports "873/tcp") 0).HostPort}}' "$(warp docker ps -q appdata)")
 
   if [ "$1" == "--all" ]; then
     rsync -aogvEh rsync://localhost:$CONTAINER_APPDATA_PORT/warp .
@@ -70,7 +70,7 @@ function rsync_pull_from_container() {
   else
     for i in "$@"
     do  
-        rsync -aogvEh rsync://localhost:$CONTAINER_APPDATA_PORT/warp/$i .
+        rsync -aogvEh rsync://localhost:"$CONTAINER_APPDATA_PORT"/warp/"$i" .
         warp_message "Completed copying $i from container to host"
     done;    
   fi  
@@ -81,12 +81,12 @@ function rsync_main()
     case "$1" in
         push)
 		      shift 1
-          rsync_push_to_container $*  
+          rsync_push_to_container "$@"  
         ;;
 
         pull)
 		      shift 1
-          rsync_pull_from_container $*  
+          rsync_pull_from_container "$@"  
         ;;
 
         -h | --help)

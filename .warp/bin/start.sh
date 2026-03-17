@@ -23,7 +23,7 @@
 #######################################
 function start() {
 
-  if [ $(warp_check_is_running) = true ]; then
+  if [ "$(warp_check_is_running)" = true ]; then
     warp_message_warn "the containers are running";
     warp_message_warn "for stop, please run: warp stop";
     exit 1;
@@ -48,7 +48,7 @@ function start() {
     warp_check_files
 
     if [ "$1" = "-f" ] || [ "$1" = "-F" ] ; then
-      [ ! -f $2 ] && warp_message_error "Custom yml file $2 not exist" && exit 1;
+      [ ! -f "$2" ] && warp_message_error "Custom yml file $2 not exist" && exit 1;
 
       CUSTOM_YML_FILE=$2;
     fi
@@ -65,7 +65,7 @@ function start() {
           docker-sync start
         fi
 
-        if [ ! -z $CUSTOM_YML_FILE ] ; then
+        if [ ! -z "$CUSTOM_YML_FILE" ] ; then
           check_ES_version
           # start docker with custom yml file
           docker-compose -f $DOCKERCOMPOSEFILE -f $DOCKERCOMPOSEFILEMAC -f $CUSTOM_YML_FILE up --remove-orphans -d
@@ -78,7 +78,7 @@ function start() {
         fi
       ;;
       Linux)
-        if [ ! -z $CUSTOM_YML_FILE ] ; then
+        if [ ! -z "$CUSTOM_YML_FILE" ] ; then
           check_ES_version
           # start docker with custom yml file
           docker-compose -f $DOCKERCOMPOSEFILE -f $CUSTOM_YML_FILE up --remove-orphans -d
@@ -92,7 +92,7 @@ function start() {
       ;;
     esac
 
-    if [ $(warp_check_php_is_running) = true ]
+    if [ "$(warp_check_php_is_running)" = true ]
     then
       # COPY ID_RSA ./ssh
       copy_ssh_id
@@ -113,7 +113,7 @@ function start_main()
     case "$1" in
         start)
           shift 1
-          start $*
+          start "$@"
         ;;
 
         *)

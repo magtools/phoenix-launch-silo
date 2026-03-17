@@ -842,7 +842,7 @@ function mysql_main()
 
         dump)
             shift 1
-            mysql_dump $*
+            mysql_dump "$@"
         ;;
 
         info)
@@ -851,27 +851,27 @@ function mysql_main()
 
         import)
             shift 1
-            mysql_import $*
+            mysql_import "$@"
         ;;
 
         connect)
             shift 1
-            mysql_connect $*
+            mysql_connect "$@"
         ;;
 
         ssh)
             shift 1
-            mysql_connect_ssh $*
+            mysql_connect_ssh "$@"
         ;;
 
         switch)
             shift 1
-            mysql_switch $*
+            mysql_switch "$@"
         ;;
 
         tuner)
             shift 1
-            mysql_tuner $*
+            mysql_tuner "$@"
         ;;
 
         --update)

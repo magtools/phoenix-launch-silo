@@ -24,8 +24,15 @@ function grunt_command()
         exit 1;
     fi
 
+    # Build shell-safe argv string for execution inside container shell.
+    _grunt_args=""
+    for _arg in "$@"; do
+        _escaped=$(printf '%q' "$_arg")
+        _grunt_args="${_grunt_args} ${_escaped}"
+    done
+
     # Prefer local CLI via npx when global grunt is not available.
-    grunt_php_exec "0" "command -v grunt >/dev/null 2>&1 && grunt $* || npx grunt $*"
+    grunt_php_exec "0" "command -v grunt >/dev/null 2>&1 && grunt${_grunt_args} || npx grunt${_grunt_args}"
 }
 
 grunt_runtime_is_available() {
@@ -52,9 +59,9 @@ grunt_php_exec() {
     fi
 
     if [ "$_as_root" = "1" ]; then
-        docker-compose -f $DOCKERCOMPOSEFILE exec -T -u root php bash -lc "$_cmd"
+        docker-compose -f "$DOCKERCOMPOSEFILE" exec -T -u root php bash -lc "$_cmd"
     else
-        docker-compose -f $DOCKERCOMPOSEFILE exec php bash -lc "$_cmd"
+        docker-compose -f "$DOCKERCOMPOSEFILE" exec php bash -lc "$_cmd"
     fi
 }
 
@@ -133,7 +140,7 @@ function grunt_main()
     case "$1" in
         setup)
             shift 1
-            grunt_setup $*
+            grunt_setup "$@"
         ;;
 
         -h|--help)
@@ -145,7 +152,7 @@ function grunt_main()
         ;;
 
         *)
-            grunt_command $*
+            grunt_command "$@"
         ;;
     esac
 }

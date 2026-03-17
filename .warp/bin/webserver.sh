@@ -46,7 +46,7 @@ function webserver_main() {
 
         ssh)
             shift
-            webserver_simil_ssh $*
+            webserver_simil_ssh "$@"
         ;;
 
         -h | --help)
@@ -73,21 +73,21 @@ webserver_simil_ssh() {
     else
         if [[ $1 == "--root" ]]; then
             # Check if warp is running:    
-            if [ $(warp_check_is_running) = false ]; then
+            if [ "$(warp_check_is_running)" = false ]; then
                 warp_message_error "The containers are not running"
                 warp_message_error "please, first run warp start"
                 exit 1
             fi
-            docker-compose -f $DOCKERCOMPOSEFILE exec -u root web bash
+            docker-compose -f "$DOCKERCOMPOSEFILE" exec -u root web bash
         elif [[ -z $1 || $1 == "--nginx" ]]; then
             # Check if warp is running:    
-            if [ $(warp_check_is_running) = false ]; then
+            if [ "$(warp_check_is_running)" = false ]; then
                 warp_message_error "The containers are not running"
                 warp_message_error "please, first run warp start"
                 exit 1
             fi
             # It is better if defines nginx user as default ######################
-            docker-compose -f $DOCKERCOMPOSEFILE exec -u nginx web bash
+            docker-compose -f "$DOCKERCOMPOSEFILE" exec -u nginx web bash
         elif [[ $1 == "-h" || $1 == "--help" ]]; then
             webserver_ssh_help
             exit 0
@@ -100,6 +100,6 @@ webserver_simil_ssh() {
 
 webserver_ssh_wrong_input() {
     warp_message_error "Wrong input."
-    webserver-ssh_help
+    webserver_ssh_help
     exit 1
 }

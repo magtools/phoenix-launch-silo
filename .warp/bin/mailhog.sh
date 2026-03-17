@@ -35,7 +35,7 @@ function mailhog_main()
 
         ssh)
             shift
-            mailhog_simil_ssh $*
+            mailhog_simil_ssh "$@"
         ;;
 
         -h | --help)
@@ -62,17 +62,17 @@ mailhog_simil_ssh() {
     else
         if [[ $1 == "--root" ]]; then
             # Check if warp is running:    
-            if [ $(warp_check_is_running) = false ]; then
+            if [ "$(warp_check_is_running)" = false ]; then
                 warp_message_error "The containers are not running"
                 warp_message_error "please, first run warp start"
                 exit 1
             fi
             # Mailhog latest image does not include bash shell. We could add it but it will
             #   include a new (not very usefull) layer.
-            docker-compose -f $DOCKERCOMPOSEFILE exec -u root mailhog sh
+            docker-compose -f "$DOCKERCOMPOSEFILE" exec -u root mailhog sh
         elif [[ -z $1 || $1 == "--mailhog" ]]; then
             # Check if warp is running:    
-            if [ $(warp_check_is_running) = false ]; then
+            if [ "$(warp_check_is_running)" = false ]; then
                 warp_message_error "The containers are not running"
                 warp_message_error "please, first run warp start"
                 exit 1
@@ -80,7 +80,7 @@ mailhog_simil_ssh() {
             # It is better if defines mailhog user as default ######################
             # Mailhog latest image does not include bash shell. We could add it but it will
             #   include a new (not very usefull) layer.
-            docker-compose -f $DOCKERCOMPOSEFILE exec -u mailhog mailhog sh
+            docker-compose -f "$DOCKERCOMPOSEFILE" exec -u mailhog mailhog sh
         elif [[ $1 == "-h" || $1 == "--help" ]]; then
             mailhog_ssh_help
             exit 0

@@ -83,7 +83,7 @@ function init_main()
     case "$1" in
         init)
           shift 1
-          init_command $*
+          init_command "$@"
         ;;
 
         *)

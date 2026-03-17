@@ -13,7 +13,7 @@
 ##
 warp_check_env_file()
 {
-    if [ -f $ENVIRONMENTVARIABLESFILE ]; then
+    if [ -f "$ENVIRONMENTVARIABLESFILE" ]; then
         return 0 #TRUE
     else
         return 1 #FALSE
@@ -34,7 +34,7 @@ warp_check_env_file()
 ##
 warp_check_yaml_file()
 {
-    if [ -f $DOCKERCOMPOSEFILE ]; then
+    if [ -f "$DOCKERCOMPOSEFILE" ]; then
         return 0 #TRUE
     else
         return 1 #FALSE
@@ -58,29 +58,29 @@ function warp_check_files()
     INFRA_FILES_ERROR="FALSE"
     INFRA_FILES_ERROR_MAC="FALSE"
 
-    if [ ! -f $DOCKERCOMPOSEFILE ]; then
+    if [ ! -f "$DOCKERCOMPOSEFILE" ]; then
         INFRA_FILES_ERROR="TRUE"
-        echo "* Checking file $(basename $DOCKERCOMPOSEFILE) $(warp_message_error [error])"
+        echo "* Checking file $(basename "$DOCKERCOMPOSEFILE") $(warp_message_error [error])"
     fi; 
     
-    if [ ! -f $ENVIRONMENTVARIABLESFILE ]; then
+    if [ ! -f "$ENVIRONMENTVARIABLESFILE" ]; then
         INFRA_FILES_ERROR="TRUE"
-        echo "* Checking file $(basename $ENVIRONMENTVARIABLESFILE) $(warp_message_error [error])"
+        echo "* Checking file $(basename "$ENVIRONMENTVARIABLESFILE") $(warp_message_error [error])"
     fi;
 
     case "$(uname -s)" in
         Darwin)
-        if [ ! -f $DOCKERSYNCMAC ]; then
+        if [ ! -f "$DOCKERSYNCMAC" ]; then
             INFRA_FILES_ERROR_MAC="TRUE"
-            echo "* Checking file $(basename $DOCKERSYNCMAC) $(warp_message_error [error])"
+            echo "* Checking file $(basename "$DOCKERSYNCMAC") $(warp_message_error [error])"
         fi;
         ;;
     esac    
 
-    if [ $INFRA_FILES_ERROR = "TRUE" ]; then
+    if [ "$INFRA_FILES_ERROR" = "TRUE" ]; then
         warp_message ""
-        warp_message_warn "-- These files: ($(basename $DOCKERCOMPOSEFILE) and $(basename $ENVIRONMENTVARIABLESFILE)) are necessary to initialize the containers.. $(warp_message_error [error])"
-        [ $INFRA_FILES_ERROR_MAC = "TRUE" ] && warp_message_warn "-- This files: $(basename $DOCKERSYNCMAC) is necessary in macOS.. $(warp_message_error [error])"
+        warp_message_warn "-- These files: ($(basename "$DOCKERCOMPOSEFILE") and $(basename "$ENVIRONMENTVARIABLESFILE")) are necessary to initialize the containers.. $(warp_message_error [error])"
+        [ "$INFRA_FILES_ERROR_MAC" = "TRUE" ] && warp_message_warn "-- This files: $(basename "$DOCKERSYNCMAC") is necessary in macOS.. $(warp_message_error [error])"
         warp_message_warn "-- To initialize the project please Run: $(warp_message_bold './warp init')"
         exit
     fi
@@ -109,10 +109,10 @@ warp_check_os_mac() {
 #   true|false
 #######################################
 warp_check_is_running() {
-    if [ -f $DOCKERCOMPOSEFILE ]
+    if [ -f "$DOCKERCOMPOSEFILE" ]
     then
         #dockerStatusOutput=$(docker-compose -f $DOCKERCOMPOSEFILE ps -q | xargs docker inspect --format='{{ .State.Status }}' | sed 's:^/::g' | grep -i running)
-        dockerStatusOutput=$(docker-compose -f $DOCKERCOMPOSEFILE ps --filter status=running --services)
+        dockerStatusOutput=$(docker-compose -f "$DOCKERCOMPOSEFILE" ps --filter status=running --services)
         outputSize=${#dockerStatusOutput}
         if [ "$outputSize" -gt 0 ]; then
             echo true
@@ -125,12 +125,12 @@ warp_check_is_running() {
 }
 
 warp_check_php_is_running() {
-    if [ -f $DOCKERCOMPOSEFILE ]
+    if [ -f "$DOCKERCOMPOSEFILE" ]
     then
         COUNT=0
         while : ; do
             #dockerStatusOutput=$(docker-compose -f $DOCKERCOMPOSEFILE ps -q php | xargs docker inspect --format='{{ .State.Status }}' | sed 's:^/::g' | grep -i running)
-            dockerStatusOutput=$(docker-compose -f $DOCKERCOMPOSEFILE ps -q php)
+            dockerStatusOutput=$(docker-compose -f "$DOCKERCOMPOSEFILE" ps -q php)
             outputSize=${#dockerStatusOutput}
             if [ "$outputSize" -gt 0 ]; then
                 echo true
@@ -138,7 +138,7 @@ warp_check_php_is_running() {
             else
                 sleep 1
                 let COUNT=$COUNT+1
-                [ $COUNT = 5 ] && echo false && break
+                [ "$COUNT" -eq 5 ] && echo false && break
             fi
         done        
     else
@@ -157,7 +157,7 @@ function warp_rsync_is_not_installed() {
 
 function warp_check_selenium_is_installed() {
 
-  if [ ! -f $DOCKERCOMPOSEFILESELENIUM ]
+  if [ ! -f "$DOCKERCOMPOSEFILESELENIUM" ]
   then
     warp_message_warn "selenium has not been installed yet, first run: warp selenium setup";
     exit 1;
@@ -165,9 +165,9 @@ function warp_check_selenium_is_installed() {
 }
 
 function warp_check_selenium_is_running() {
-    if [ -f $DOCKERCOMPOSEFILESELENIUM ]
+    if [ -f "$DOCKERCOMPOSEFILESELENIUM" ]
     then        
-        dockerStatusOutput=$(docker-compose -f $DOCKERCOMPOSEFILE -f $DOCKERCOMPOSEFILESELENIUM ps -q seleniumhub)
+        dockerStatusOutput=$(docker-compose -f "$DOCKERCOMPOSEFILE" -f "$DOCKERCOMPOSEFILESELENIUM" ps -q seleniumhub)
         outputSize=${#dockerStatusOutput}
         if [ "$outputSize" -gt 0 ] ; then
             echo true
@@ -182,38 +182,38 @@ function warp_check_selenium_is_running() {
 warp_check_gitignore()
 {
     #  CHECK IF GITIGNOREFILE CONTAINS FILES WARP TO IGNORE
-    [ -f $GITIGNOREFILE ] && cat $GITIGNOREFILE | grep --quiet -w "^# WARP FRAMEWORK"
+    [ -f "$GITIGNOREFILE" ] && grep --quiet -w "^# WARP FRAMEWORK" "$GITIGNOREFILE"
 
     # Exit status 0 means string was found
     # Exit status 1 means string was not found
-    if [ $? = 1 ] || [ ! -f $GITIGNOREFILE ]
+    if [ $? = 1 ] || [ ! -f "$GITIGNOREFILE" ]
     then
         warp_message "* Preparing files for .gitignore $(warp_message_ok [ok])"
         # FILES TO ADD GITIGNORE
-        echo ""                  >> $GITIGNOREFILE
-        echo "# WARP FRAMEWORK"  >> $GITIGNOREFILE
-        echo "!/warp"            >> $GITIGNOREFILE
-        echo "!/$(basename $WARPFOLDER)"                      >> $GITIGNOREFILE
-        echo "!/$(basename $WARPFOLDER)/**"                   >> $GITIGNOREFILE
-        echo "/$(basename  $ENVIRONMENTVARIABLESFILE)"        >> $GITIGNOREFILE
-        echo "/$(basename  $DOCKERCOMPOSEFILE)"               >> $GITIGNOREFILE
-        echo "/$(basename  $DOCKERCOMPOSEFILEMAC)"            >> $GITIGNOREFILE
-        echo "/$(basename  $DOCKERSYNCMAC)"                   >> $GITIGNOREFILE
-        echo "!/$(basename $ENVIRONMENTVARIABLESFILESAMPLE)"  >> $GITIGNOREFILE
-        echo "!/$(basename $DOCKERCOMPOSEFILESAMPLE)"         >> $GITIGNOREFILE
-        echo "!/$(basename $DOCKERCOMPOSEFILEMACSAMPLE)"      >> $GITIGNOREFILE
-        echo "!/$(basename $DOCKERSYNCMACSAMPLE)"             >> $GITIGNOREFILE
-        echo "/$(basename  $CHECK_UPDATE_FILE)"               >> $GITIGNOREFILE
-        echo "/.docker-sync"                            >> $GITIGNOREFILE        
-        echo "/.warp/docker/volumes"                    >> $GITIGNOREFILE
-        echo "/.warp/docker/dumps"                      >> $GITIGNOREFILE
-        echo "/.warp/setup"                             >> $GITIGNOREFILE
-        echo "/.warp/lib"                               >> $GITIGNOREFILE
-        echo "/.warp/bin"                               >> $GITIGNOREFILE
-        echo "/.warp/docker/config/php/ext-xdebug.ini"  >> $GITIGNOREFILE
-        echo "/.warp/docker/config/php/ext-ioncube.ini" >> $GITIGNOREFILE
-        echo "# FRAMEWORK WARP"                         >> $GITIGNOREFILE
-        echo ""                                         >> $GITIGNOREFILE
+        echo ""                  >> "$GITIGNOREFILE"
+        echo "# WARP FRAMEWORK"  >> "$GITIGNOREFILE"
+        echo "!/warp"            >> "$GITIGNOREFILE"
+        echo "!/$(basename "$WARPFOLDER")"                      >> "$GITIGNOREFILE"
+        echo "!/$(basename "$WARPFOLDER")/**"                   >> "$GITIGNOREFILE"
+        echo "/$(basename "$ENVIRONMENTVARIABLESFILE")"         >> "$GITIGNOREFILE"
+        echo "/$(basename "$DOCKERCOMPOSEFILE")"                >> "$GITIGNOREFILE"
+        echo "/$(basename "$DOCKERCOMPOSEFILEMAC")"             >> "$GITIGNOREFILE"
+        echo "/$(basename "$DOCKERSYNCMAC")"                    >> "$GITIGNOREFILE"
+        echo "!/$(basename "$ENVIRONMENTVARIABLESFILESAMPLE")"  >> "$GITIGNOREFILE"
+        echo "!/$(basename "$DOCKERCOMPOSEFILESAMPLE")"         >> "$GITIGNOREFILE"
+        echo "!/$(basename "$DOCKERCOMPOSEFILEMACSAMPLE")"      >> "$GITIGNOREFILE"
+        echo "!/$(basename "$DOCKERSYNCMACSAMPLE")"             >> "$GITIGNOREFILE"
+        echo "/$(basename "$CHECK_UPDATE_FILE")"                >> "$GITIGNOREFILE"
+        echo "/.docker-sync"                            >> "$GITIGNOREFILE"
+        echo "/.warp/docker/volumes"                    >> "$GITIGNOREFILE"
+        echo "/.warp/docker/dumps"                      >> "$GITIGNOREFILE"
+        echo "/.warp/setup"                             >> "$GITIGNOREFILE"
+        echo "/.warp/lib"                               >> "$GITIGNOREFILE"
+        echo "/.warp/bin"                               >> "$GITIGNOREFILE"
+        echo "/.warp/docker/config/php/ext-xdebug.ini"  >> "$GITIGNOREFILE"
+        echo "/.warp/docker/config/php/ext-ioncube.ini" >> "$GITIGNOREFILE"
+        echo "# FRAMEWORK WARP"                         >> "$GITIGNOREFILE"
+        echo ""                                         >> "$GITIGNOREFILE"
         
     fi
 
@@ -263,31 +263,31 @@ warp_mysql_check_files_yaml()
 
     if (( $(awk 'BEGIN {print ("'$MYSQL_ENV_VERSION'" >= "'$MYSQL_VERSION_CHANGE'")}') )); then
         # /etc/mysql/conf.d           /etc/mysql/mysql.conf.d/
-        cat $DOCKERCOMPOSEFILESAMPLE | sed -e "s/\/etc\/mysql\/conf.d/\/etc\/mysql\/mysql.conf.d/" > "$DOCKERCOMPOSEFILESAMPLE.warp_tmp"
-        mv "$DOCKERCOMPOSEFILESAMPLE.warp_tmp" $DOCKERCOMPOSEFILESAMPLE
+        sed -e "s/\/etc\/mysql\/conf.d/\/etc\/mysql\/mysql.conf.d/" "$DOCKERCOMPOSEFILESAMPLE" > "$DOCKERCOMPOSEFILESAMPLE.warp_tmp"
+        mv "$DOCKERCOMPOSEFILESAMPLE.warp_tmp" "$DOCKERCOMPOSEFILESAMPLE"
 
-        cat $DOCKERCOMPOSEFILE | sed -e "s/\/etc\/mysql\/conf.d/\/etc\/mysql\/mysql.conf.d/" > "$DOCKERCOMPOSEFILE.warp_tmp"
-        mv "$DOCKERCOMPOSEFILE.warp_tmp" $DOCKERCOMPOSEFILE
+        sed -e "s/\/etc\/mysql\/conf.d/\/etc\/mysql\/mysql.conf.d/" "$DOCKERCOMPOSEFILE" > "$DOCKERCOMPOSEFILE.warp_tmp"
+        mv "$DOCKERCOMPOSEFILE.warp_tmp" "$DOCKERCOMPOSEFILE"
 
         # /var/lib/mysql              /var/lib/mysql-files
-        cat $DOCKERCOMPOSEFILESAMPLE | sed -e "s/\/var\/lib\/mysql/\/var\/lib\/mysql-files/" > "$DOCKERCOMPOSEFILESAMPLE.warp_tmp"
-        mv "$DOCKERCOMPOSEFILESAMPLE.warp_tmp" $DOCKERCOMPOSEFILESAMPLE
+        sed -e "s/\/var\/lib\/mysql/\/var\/lib\/mysql-files/" "$DOCKERCOMPOSEFILESAMPLE" > "$DOCKERCOMPOSEFILESAMPLE.warp_tmp"
+        mv "$DOCKERCOMPOSEFILESAMPLE.warp_tmp" "$DOCKERCOMPOSEFILESAMPLE"
 
-        cat $DOCKERCOMPOSEFILE | sed -e "s/\/var\/lib\/mysql/\/var\/lib\/mysql-files/" > "$DOCKERCOMPOSEFILE.warp_tmp"
-        mv "$DOCKERCOMPOSEFILE.warp_tmp" $DOCKERCOMPOSEFILE
+        sed -e "s/\/var\/lib\/mysql/\/var\/lib\/mysql-files/" "$DOCKERCOMPOSEFILE" > "$DOCKERCOMPOSEFILE.warp_tmp"
+        mv "$DOCKERCOMPOSEFILE.warp_tmp" "$DOCKERCOMPOSEFILE"
     else
         # /etc/mysql/mysql.conf.d/    /etc/mysql/conf.d
-        cat $DOCKERCOMPOSEFILESAMPLE | sed -e "s/\/etc\/mysql\/mysql.conf.d/\/etc\/mysql\/conf.d/" > "$DOCKERCOMPOSEFILESAMPLE.warp_tmp"
-        mv "$DOCKERCOMPOSEFILESAMPLE.warp_tmp" $DOCKERCOMPOSEFILESAMPLE
+        sed -e "s/\/etc\/mysql\/mysql.conf.d/\/etc\/mysql\/conf.d/" "$DOCKERCOMPOSEFILESAMPLE" > "$DOCKERCOMPOSEFILESAMPLE.warp_tmp"
+        mv "$DOCKERCOMPOSEFILESAMPLE.warp_tmp" "$DOCKERCOMPOSEFILESAMPLE"
 
-        cat $DOCKERCOMPOSEFILE | sed -e "s/\/etc\/mysql\/mysql.conf.d/\/etc\/mysql\/conf.d/" > "$DOCKERCOMPOSEFILE.warp_tmp"
-        mv "$DOCKERCOMPOSEFILE.warp_tmp" $DOCKERCOMPOSEFILE
+        sed -e "s/\/etc\/mysql\/mysql.conf.d/\/etc\/mysql\/conf.d/" "$DOCKERCOMPOSEFILE" > "$DOCKERCOMPOSEFILE.warp_tmp"
+        mv "$DOCKERCOMPOSEFILE.warp_tmp" "$DOCKERCOMPOSEFILE"
 
         # /var/lib/mysql-files        /var/lib/mysql
-        cat $DOCKERCOMPOSEFILESAMPLE | sed -e "s/mysql-files/mysql/" > "$DOCKERCOMPOSEFILESAMPLE.warp_tmp"
-        mv "$DOCKERCOMPOSEFILESAMPLE.warp_tmp" $DOCKERCOMPOSEFILESAMPLE
+        sed -e "s/mysql-files/mysql/" "$DOCKERCOMPOSEFILESAMPLE" > "$DOCKERCOMPOSEFILESAMPLE.warp_tmp"
+        mv "$DOCKERCOMPOSEFILESAMPLE.warp_tmp" "$DOCKERCOMPOSEFILESAMPLE"
 
-        cat $DOCKERCOMPOSEFILE | sed -e "s/mysql-files/mysql/" > "$DOCKERCOMPOSEFILE.warp_tmp"
-        mv "$DOCKERCOMPOSEFILE.warp_tmp" $DOCKERCOMPOSEFILE
+        sed -e "s/mysql-files/mysql/" "$DOCKERCOMPOSEFILE" > "$DOCKERCOMPOSEFILE.warp_tmp"
+        mv "$DOCKERCOMPOSEFILE.warp_tmp" "$DOCKERCOMPOSEFILE"
     fi
 }

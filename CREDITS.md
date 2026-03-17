@@ -4,7 +4,7 @@
 
 The original `warp-engine` project was created to simplify local development environments for PHP applications.
 
-That original repository was later abandoned, and the magtools/warp-engine fork continued its maintenance before evolving into a broader orchestration direction.
+That original repository was later abandoned, and the `magtools/warp-engine` fork continued its maintenance before evolving into a broader orchestration direction.
 
 ## Stewardship Timeline
 

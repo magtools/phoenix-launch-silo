@@ -16,8 +16,8 @@
 ##
 function warp_env_read_var()
 {
-    [ -f $ENVIRONMENTVARIABLESFILE ] && _VAR=$(grep "^$1=" $ENVIRONMENTVARIABLESFILE | cut -d '=' -f2)
-    echo $_VAR
+    [ -f "$ENVIRONMENTVARIABLESFILE" ] && _VAR=$(grep "^$1=" "$ENVIRONMENTVARIABLESFILE" | cut -d '=' -f2)
+    echo "$_VAR"
 }
 
 # Generate RANDOM Password
@@ -32,11 +32,11 @@ function warp_env_random_password()
     set="abcdefghijklmonpqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789=+"
     n=$1
     rand=""
-    for i in `seq 1 $n`; do
+    for i in $(seq 1 "$n"); do
         char=${set:$RANDOM % ${#set}:1}
         rand+=$char
     done
-    echo $rand
+    echo "$rand"
 }
 
 function warp_env_random_name()
@@ -44,20 +44,20 @@ function warp_env_random_name()
     set="abcdefghijklmonpqrstuvwxyz"
     n=$1
     rand=""
-    for i in `seq 1 $n`; do
+    for i in $(seq 1 "$n"); do
         char=${set:$RANDOM % ${#set}:1}
         rand+=$char
     done
-    echo $rand
+    echo "$rand"
 }
 
 function warp_env_change_version_sample_file()
 {
-    WARP_ENV_VERSION=$(grep "^WARP_VERSION" $ENVIRONMENTVARIABLESFILESAMPLE | cut -d '=' -f2)
-    _WARP_ENV_VERSION=$(echo $WARP_ENV_VERSION | tr -d ".")
+    WARP_ENV_VERSION=$(grep "^WARP_VERSION" "$ENVIRONMENTVARIABLESFILESAMPLE" | cut -d '=' -f2)
+    _WARP_ENV_VERSION=$(echo "$WARP_ENV_VERSION" | tr -d ".")
 
-    . $PROJECTPATH/.warp/lib/version.sh
-    _WARP_VERSION=$(echo $WARP_VERSION | tr -d ".")
+    . "$PROJECTPATH/.warp/lib/version.sh"
+    _WARP_VERSION=$(echo "$WARP_VERSION" | tr -d ".")
 
     if [ ! -z "$WARP_ENV_VERSION" ]
     then        
@@ -65,10 +65,10 @@ function warp_env_change_version_sample_file()
         WARP_VERSION_OLD="WARP_VERSION=$WARP_ENV_VERSION"
         WARP_VERSION_NEW="WARP_VERSION=$WARP_VERSION"
 
-        if [ $_WARP_ENV_VERSION -lt $_WARP_VERSION ] && [ ! $_WARP_ENV_VERSION -eq $_WARP_VERSION ]
+        if [[ "$_WARP_ENV_VERSION" =~ ^[0-9]+$ ]] && [[ "$_WARP_VERSION" =~ ^[0-9]+$ ]] && [ "$_WARP_ENV_VERSION" -lt "$_WARP_VERSION" ] && [ ! "$_WARP_ENV_VERSION" -eq "$_WARP_VERSION" ]
         then
-            cat $ENVIRONMENTVARIABLESFILESAMPLE | sed -e "s/$WARP_VERSION_OLD/$WARP_VERSION_NEW/" > "$ENVIRONMENTVARIABLESFILESAMPLE.tmp"
-            mv "$ENVIRONMENTVARIABLESFILESAMPLE.tmp" $ENVIRONMENTVARIABLESFILESAMPLE
+            sed -e "s/$WARP_VERSION_OLD/$WARP_VERSION_NEW/" "$ENVIRONMENTVARIABLESFILESAMPLE" > "$ENVIRONMENTVARIABLESFILESAMPLE.tmp"
+            mv "$ENVIRONMENTVARIABLESFILESAMPLE.tmp" "$ENVIRONMENTVARIABLESFILESAMPLE"
         fi
     fi
 }

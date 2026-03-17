@@ -11,7 +11,7 @@ function push_to_container() {
       exit 0;
   fi
 
-  if [ $(warp_check_is_running) = false ]; then
+  if [ "$(warp_check_is_running)" = false ]; then
     warp_message_error "The containers are not running"
     warp_message_error "please, first run warp start"
 
@@ -31,18 +31,18 @@ function push_to_container() {
   esac
 
   [ -z "$1" ] && warp_message_error "Please specify a directory or file to copy to container (ex. vendor, --all)" && exit
-  CONTAINER_PHP_NAME=$(docker-compose -f $DOCKERCOMPOSEFILE ps -q php)
+  CONTAINER_PHP_NAME=$(docker-compose -f "$DOCKERCOMPOSEFILE" ps -q php)
 
   if [ "$1" == "--all" ]; then
-    docker cp ./ $CONTAINER_PHP_NAME:/var/www/html
+    docker cp ./ "$CONTAINER_PHP_NAME":/var/www/html
     warp_message "Completed copying all files from host to container"
     warp fix --owner
   else
     
     for i in "$@"
     do
-      if [ -f $i ] || [ -d $i ] ; then
-        docker cp ./$i $CONTAINER_PHP_NAME:/var/www/html
+      if [ -f "$i" ] || [ -d "$i" ] ; then
+        docker cp "./$i" "$CONTAINER_PHP_NAME":/var/www/html
         warp_message "Completed copying $i from host to container"  
       else
         warp_message_error "do not copy $i from host to container"  
@@ -51,7 +51,7 @@ function push_to_container() {
 
     # fix permissions
     if [ $# -eq 1 ] ; then
-      warp fix --owner $1
+      warp fix --owner "$1"
     else
       [ $# -ge 2 ] && warp fix --owner
     fi;     
@@ -65,7 +65,7 @@ function pull_from_container() {
       exit 0;
   fi
 
-  if [ $(warp_check_is_running) = false ]; then
+  if [ "$(warp_check_is_running)" = false ]; then
     warp_message_error "The containers are not running"
     warp_message_error "please, first run warp start"
 
@@ -85,15 +85,15 @@ function pull_from_container() {
   esac
 
   [ -z "$1" ] && warp_message_error "Please specify a directory or file to copy from container (ex. vendor, --all)" && exit
-  CONTAINER_PHP_NAME=$(docker-compose -f $DOCKERCOMPOSEFILE ps -q php)
+  CONTAINER_PHP_NAME=$(docker-compose -f "$DOCKERCOMPOSEFILE" ps -q php)
 
   if [ "$1" == "--all" ]; then
-    docker cp $CONTAINER_PHP_NAME:/var/www/html/./ ./
+    docker cp "$CONTAINER_PHP_NAME":/var/www/html/./ ./
     warp_message "Completed copying all files from container to host"
   else
     for i in "$@"
     do
-        docker cp $CONTAINER_PHP_NAME:/var/www/html/$i ./
+        docker cp "$CONTAINER_PHP_NAME":/var/www/html/"$i" ./
         warp_message "Completed copying $i from container to host"
     done;    
   fi  
@@ -126,16 +126,16 @@ function sync_main()
     case "$1" in
         push)
 		      shift 1
-          push_to_container $*  
+          push_to_container "$@"  
         ;;
 
         pull)
 		      shift 1
-          pull_from_container $*  
+          pull_from_container "$@"  
         ;;
 
         clean)
-          warp_clean_volume $*
+          warp_clean_volume "$@"
         ;;
 
         -h | --help)

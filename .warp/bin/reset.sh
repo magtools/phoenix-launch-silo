@@ -160,7 +160,7 @@ function reset_main()
     case "$1" in
         reset)
             shift 1
-            reset_project $*
+            reset_project "$@"
         ;;
 
         -h | --help)

@@ -31,7 +31,7 @@ function restart_main()
     case "$1" in
         restart)
           shift 1
-          restart_command $*
+          restart_command "$@"
         ;;
 
         *)

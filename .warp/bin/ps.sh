@@ -13,14 +13,14 @@ function ps_command()
         exit 1
     fi;
 
-    if [ $(warp_check_is_running) = false ]; then
+    if [ "$(warp_check_is_running)" = false ]; then
         warp_message_error "The containers are not running"
         warp_message_error "please, first run warp start"
 
         exit 1;
     fi
 
-    docker-compose -f $DOCKERCOMPOSEFILE ps
+    docker-compose -f "$DOCKERCOMPOSEFILE" ps
 }
 
 function ps_main()
@@ -28,7 +28,7 @@ function ps_main()
     case "$1" in
         ps)
             shift 1
-            ps_command $*
+            ps_command "$@"
         ;;
 
         -h | --help)

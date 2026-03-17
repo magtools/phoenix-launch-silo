@@ -13,14 +13,14 @@ function logs_command()
         exit 1
     fi;
 
-    if [ $(warp_check_is_running) = false ]; then
+    if [ "$(warp_check_is_running)" = false ]; then
         warp_message_error "The containers are not running"
         warp_message_error "please, first run warp start"
 
         exit 1;
     fi
 
-    docker-compose -f $DOCKERCOMPOSEFILE logs $*
+    docker-compose -f "$DOCKERCOMPOSEFILE" logs "$@"
 }
 
 function logs_main()
@@ -28,7 +28,7 @@ function logs_main()
     case "$1" in
         logs)
             shift 1
-            logs_command $*
+            logs_command "$@"
         ;;
 
         -h | --help)

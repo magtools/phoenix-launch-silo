@@ -133,7 +133,7 @@ function postgres_main()
     case "$1" in
         dump)
             shift 1
-            postgres_dump $*
+            postgres_dump "$@"
         ;;
 
         info)
@@ -142,17 +142,17 @@ function postgres_main()
 
         import)
             shift 1
-            postgres_import $*
+            postgres_import "$@"
         ;;
 
         connect)
             shift 1
-            postgres_connect $*
+            postgres_connect "$@"
         ;;
 
         ssh)
             shift 1
-            postgres_connect_ssh $*
+            postgres_connect_ssh "$@"
         ;;
 
         -h | --help)

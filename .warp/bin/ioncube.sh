@@ -13,7 +13,7 @@ function ioncube_command()
         exit 1
     fi;
 
-    if [ $(warp_check_is_running) = false ]; then
+    if [ "$(warp_check_is_running)" = false ]; then
         warp_message_error "The containers are not running"
         warp_message_error "please, first run warp start"
 
@@ -21,17 +21,17 @@ function ioncube_command()
     fi
 
     if [ "$1" == "--disable" ]; then
-        sed -i -e 's/^zend_extension/\;zend_extension/g' $PROJECTPATH/.warp/docker/config/php/ext-ioncube.ini
+        sed -i -e 's/^zend_extension/\;zend_extension/g' "$PROJECTPATH/.warp/docker/config/php/ext-ioncube.ini"
         warp docker stop php 
         warp docker start php 
         warp_message "ionCube has been disabled."    
     elif [ "$1" == "--enable" ]; then
-        sed -i -e 's/^\;zend_extension/zend_extension/g' $PROJECTPATH/.warp/docker/config/php/ext-ioncube.ini
+        sed -i -e 's/^\;zend_extension/zend_extension/g' "$PROJECTPATH/.warp/docker/config/php/ext-ioncube.ini"
         warp docker stop php 
         warp docker start php 
         warp_message "ionCube has been enabled."    
     elif [ "$1" == "--status" ]; then
-            [ -f $PROJECTPATH/.warp/docker/config/php/ext-ioncube.ini ] && cat $PROJECTPATH/.warp/docker/config/php/ext-ioncube.ini | grep --quiet -w "^;zend_extension"
+            [ -f "$PROJECTPATH/.warp/docker/config/php/ext-ioncube.ini" ] && grep --quiet -w "^;zend_extension" "$PROJECTPATH/.warp/docker/config/php/ext-ioncube.ini"
 
             # Exit status 0 means string was found
             # Exit status 1 means string was not found
@@ -49,15 +49,15 @@ function ioncube_main()
 {
     case "$1" in
         --enable)
-            ioncube_command $*
+            ioncube_command "$@"
         ;;
 
         --disable)
-            ioncube_command $*
+            ioncube_command "$@"
         ;;
 
         --status)
-            ioncube_command $*
+            ioncube_command "$@"
         ;;
 
         -h | --help)

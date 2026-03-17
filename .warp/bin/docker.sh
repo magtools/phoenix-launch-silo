@@ -13,13 +13,13 @@ function docker_command()
         exit 0;
     fi;
 
-    if [ ! -f $DOCKERCOMPOSEFILE ]
+    if [ ! -f "$DOCKERCOMPOSEFILE" ]
     then
         warp_message_error "$DOCKERCOMPOSEFILE not found"
         exit 1;
     fi
 
-    docker-compose -f $DOCKERCOMPOSEFILE $*
+    docker-compose -f "$DOCKERCOMPOSEFILE" "$@"
 }
 
 function docker_main()
@@ -27,7 +27,7 @@ function docker_main()
     case "$1" in
         docker)
             shift 1
-            docker_command $*
+            docker_command "$@"
         ;;
 
         -h | --help)

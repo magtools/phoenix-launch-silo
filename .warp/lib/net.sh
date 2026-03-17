@@ -60,7 +60,7 @@ function warp_net_port_in_use() {
     #     return 0 #Port is bussy
     # fi
 
-    nc -z 127.0.0.1 $port 2>/dev/null
+    nc -z 127.0.0.1 "$port" 2>/dev/null
     if [ $? -eq 0 ]; then
         return 0
     else
@@ -124,9 +124,9 @@ function warp_check_range_ip() {
 
     CHECK_RANGE_IP=$1
 
-	D=$(echo $CHECK_RANGE_IP | cut -f4 -d . )
+	D=$(echo "$CHECK_RANGE_IP" | cut -f4 -d . )
 
-	if [ $D -lt $MIN_RANGE_IP ] ; then 
+	if [[ "$D" =~ ^[0-9]+$ ]] && [ "$D" -lt "$MIN_RANGE_IP" ] ; then 
 		return 0
 	else
 		return 1
