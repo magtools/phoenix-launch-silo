@@ -49,7 +49,7 @@ Warp started as a tool to simplify development environments. The project is now 
 ## Requirements
 
 * Docker community edition
-* docker-compose
+* docker-compose `>= 1.29` or Docker Compose plugin (`docker compose`)
 
 
 ## Installation

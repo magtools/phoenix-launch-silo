@@ -109,7 +109,11 @@ Regla obligatoria para agentes:
 
 ## 7) Supuestos de entorno
 
-- Requiere `docker` y `docker-compose` (legacy v1 en scripts actuales).
+- Requiere `docker` y Compose en alguna de estas variantes:
+  - `docker-compose >= 1.29` (legacy v1),
+  - `docker compose` (plugin v2).
+- Warp implementa fallback interno: si falta `docker-compose` pero existe `docker compose`, genera shim local en `./var/warp-bin/docker-compose`.
+- No se requiere ni se recomienda crear symlink global de `docker-compose` como solución por defecto.
 - También requiere `ed` y `tr`.
 - En macOS pueden intervenir `docker-sync` y `rsync`.
 - Para flujos con `warp rsync`, asumir mínimo `rsync >= 3.1.1` (en macOS el `rsync` del sistema puede ser incompatible).
@@ -126,6 +130,7 @@ Luego de cambios en core/setup/comandos, validar como mínimo:
 3. `./warp start --help`
 4. `./warp stop --help`
 5. `./warp info --help`
+6. `./warp docker ps` (smoke compose passthrough)
 
 Si este repo fuente no incluye binario `./warp`, usar fallback equivalente:
 
@@ -134,6 +139,7 @@ Si este repo fuente no incluye binario `./warp`, usar fallback equivalente:
 3. `bash ./warp.sh start --help`
 4. `bash ./warp.sh stop --help`
 5. `bash ./warp.sh info --help`
+6. `bash ./warp.sh docker ps` (smoke compose passthrough)
 
 Si el cambio toca comandos específicos, validar también su `--help` y un smoke básico del flujo afectado.
 

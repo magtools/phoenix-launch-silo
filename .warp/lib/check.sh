@@ -239,12 +239,18 @@ warp_check_docker_version()
 {
 
     DOCKER_VERSION=$(docker version --format '{{.Server.Version}}')
-    DOCKER_COMPOSE_VERSION=$(docker-compose version --short)  
+    DOCKER_COMPOSE_VERSION_RAW=$(docker-compose version --short 2>/dev/null)
+    DOCKER_COMPOSE_VERSION=$(echo "$DOCKER_COMPOSE_VERSION_RAW" | head -n1 | sed -e 's/^[^0-9]*//' -e 's/[^0-9.].*$//')
 
-    if (( $(awk 'BEGIN {print ("'$DOCKER_COMPOSE_VERSION'" < "'$DOCKER_COMPOSE_MINIMUM_VERSION'")}') )); then
-        warp_message_warn "Warp Framework require docker-compose minimum version $DOCKER_COMPOSE_MINIMUM_VERSION"
-        warp_message_warn "actual version: $DOCKER_COMPOSE_VERSION"
-        warp_message_warn "should be update docker-compose"
+    if [ -n "$DOCKER_COMPOSE_VERSION" ]; then
+        if (( $(awk 'BEGIN {print ("'$DOCKER_COMPOSE_VERSION'" < "'$DOCKER_COMPOSE_MINIMUM_VERSION'")}') )); then
+            warp_message_warn "Warp Framework require docker-compose minimum version $DOCKER_COMPOSE_MINIMUM_VERSION"
+            warp_message_warn "actual version: $DOCKER_COMPOSE_VERSION_RAW"
+            warp_message_warn "should be update docker-compose"
+            warp_message  ""
+        fi
+    elif [ -n "$DOCKER_COMPOSE_VERSION_RAW" ]; then
+        warp_message_warn "Warp Framework could not parse docker-compose version: $DOCKER_COMPOSE_VERSION_RAW"
         warp_message  ""
     fi
 

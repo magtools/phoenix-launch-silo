@@ -76,8 +76,8 @@ WARP_BINARY_FILE="/usr/local/bin/warp"
 # SET STRONG PASSWORD LENGTH
 STRONG_PASSWORD_LENGTH=10
 
-# Set minimum version for docker-compose
-DOCKER_COMPOSE_MINIMUM_VERSION=1.21
+# Set minimum version for docker-compose (legacy binary path)
+DOCKER_COMPOSE_MINIMUM_VERSION=1.29
 
 # Set minimum version for rsync
 RSYNC_MINIMUM_VERSION=3.1.1

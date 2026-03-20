@@ -308,6 +308,98 @@ Implementacion inicial:
    - ejecutar `./warp cache info`,
    - ejecutar `./warp search info`.
 
+## 12.7 Plan de fallback `docker-compose` -> `docker compose`
+
+Objetivo:
+
+1. mantener compatibilidad de scripts legacy que invocan `docker-compose`,
+2. permitir ejecucion en entornos modernos donde solo existe `docker compose` (plugin v2),
+3. evitar depender de symlink global/manual en el host.
+
+Diagnostico base (codigo actual):
+
+1. `warp.sh` exige `hash docker-compose` en runtime docker,
+2. hay llamadas directas a `docker-compose` distribuidas en comandos y libs,
+3. `warp_check_docker_version` lee version via `docker-compose version --short`,
+4. `deploy doctor` y otros checks validan solo binario legacy.
+
+Decision de diseno:
+
+1. preferir fallback interno en `warp`,
+2. no requerir symlink global como solucion oficial,
+3. mantener symlink/documentacion solo como workaround opcional para casos extremos.
+
+### 12.7.1 Fases
+
+Fase D1 (detector + shim reversible):
+
+1. agregar resolucion de compose en bootstrap:
+   - si existe `docker-compose`, usarlo,
+   - si no existe, validar `docker compose version`,
+   - si v2 esta disponible, exponer wrapper `docker-compose` local al proceso `warp`.
+2. prioridad de ejecucion:
+   - `docker-compose` real (si existe),
+   - fallback wrapper hacia `docker compose`,
+   - error claro si no existe ninguna opcion.
+3. no modificar sistema operativo del usuario ni rutas globales.
+
+Fase D2 (normalizacion de checks):
+
+1. adaptar checks de arranque y doctor para aceptar cualquiera de los dos backends,
+2. mantener mensajes claros indicando backend activo (`legacy` o `plugin v2`),
+3. sanitizar parseo de version para v2 (p.ej. prefijo `v`).
+
+Fase D3 (endurecimiento + mantenimiento):
+
+1. centralizar helper de compose (single source of truth),
+2. prohibir nuevas llamadas directas fuera del helper en cambios futuros,
+3. documentar troubleshooting para diferencias v1/v2.
+
+### 12.7.2 Criterios de seguridad
+
+1. no usar `sudo`, no crear symlinks globales automaticamente,
+2. no ejecutar acciones destructivas por habilitar fallback,
+3. fallback solo cambia metodo de invocacion, no semantica de `init/start/stop`.
+
+### 12.7.3 Validacion minima obligatoria
+
+Con `docker-compose` legacy disponible:
+
+1. `./warp --help`
+2. `./warp init --help`
+3. `./warp start --help`
+4. `./warp stop --help`
+5. `./warp info --help`
+
+Con solo `docker compose` disponible (sin `docker-compose` en PATH):
+
+1. `./warp --help`
+2. `./warp init --help`
+3. `./warp start --help`
+4. `./warp stop --help`
+5. `./warp info --help`
+6. `./warp docker ps` (smoke del passthrough compose)
+
+### 12.7.4 Riesgos y mitigaciones
+
+Riesgo 1: divergencias menores de flags/salida entre v1 y v2.
+
+1. mitigacion: smoke de comandos canonicos y ajuste puntual de parsing.
+
+Riesgo 2: parseo de version no numerico en compose v2.
+
+1. mitigacion: normalizar `version --short` antes de comparar minimos.
+
+Riesgo 3: dependencia accidental de binario global del host.
+
+1. mitigacion: wrapper local y deteccion en runtime por comando.
+
+### 12.7.5 Baseline operativo compose
+
+1. baseline legacy declarado: `docker-compose >= 1.29`,
+2. backend moderno soportado: `docker compose` (plugin v2),
+3. con este baseline se elimina `version:` de templates compose para evitar warning deprecado en v2.
+
 ## 9) Riesgos y decisiones acordadas
 
 1. `flush` en servicios externos: advertencia explicita + confirmacion obligatoria.

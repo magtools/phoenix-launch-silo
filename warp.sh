@@ -14,7 +14,7 @@ main () {
     # Check docker tooling only when runtime mode requires docker.
     if [ "$BOOT_RUNTIME_MODE" = "docker" ]; then
         hash docker 2>/dev/null || { echo >&2 "warp framework requires \"docker\""; exit 1; }
-        hash docker-compose 2>/dev/null || { echo >&2 "warp framework requires \"docker-compose\""; exit 1; }
+        warp_compose_bootstrap
     fi
 
     # Check availability of ed
@@ -223,6 +223,46 @@ main () {
     esac
 
     exit 0
+}
+
+warp_compose_bootstrap() {
+    if hash docker-compose 2>/dev/null; then
+        export WARP_COMPOSE_BACKEND="legacy"
+        return 0
+    fi
+
+    if docker compose version >/dev/null 2>&1; then
+        _shim_dir="$PROJECTPATH/var/warp-bin"
+        _shim_file="$_shim_dir/docker-compose"
+
+        mkdir -p "$_shim_dir" 2>/dev/null || {
+            echo >&2 "warp framework could not prepare compose shim at $_shim_dir"
+            exit 1
+        }
+
+        printf '#!/bin/sh\nexec docker compose "$@"\n' > "$_shim_file" || {
+            echo >&2 "warp framework could not write compose shim at $_shim_file"
+            exit 1
+        }
+
+        chmod +x "$_shim_file" 2>/dev/null || {
+            echo >&2 "warp framework could not chmod compose shim at $_shim_file"
+            exit 1
+        }
+
+        export PATH="$_shim_dir:$PATH"
+        hash -r 2>/dev/null || true
+        hash docker-compose 2>/dev/null || {
+            echo >&2 "warp framework requires \"docker-compose\" or \"docker compose\" plugin"
+            exit 1
+        }
+
+        export WARP_COMPOSE_BACKEND="plugin-v2"
+        return 0
+    fi
+
+    echo >&2 "warp framework requires \"docker-compose\" or \"docker compose\" plugin"
+    exit 1
 }
 
 warp_runtime_mode_read_raw_from_env() {
