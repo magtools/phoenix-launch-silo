@@ -136,6 +136,12 @@ main () {
         hyva_main "$@"
         ;;
 
+        scan)
+        shift 1
+        scan_main "$@"
+        exit $?
+        ;;
+
         deploy)
         shift 1
         deploy_main "$@"
@@ -227,8 +233,10 @@ main () {
 
 warp_compose_bootstrap() {
     if hash docker-compose 2>/dev/null; then
-        export WARP_COMPOSE_BACKEND="legacy"
-        return 0
+        if docker-compose version >/dev/null 2>&1; then
+            export WARP_COMPOSE_BACKEND="legacy"
+            return 0
+        fi
     fi
 
     if docker compose version >/dev/null 2>&1; then
@@ -240,15 +248,17 @@ warp_compose_bootstrap() {
             exit 1
         }
 
-        printf '#!/bin/sh\nexec docker compose "$@"\n' > "$_shim_file" || {
-            echo >&2 "warp framework could not write compose shim at $_shim_file"
-            exit 1
-        }
+        if [ ! -x "$_shim_file" ]; then
+            printf '#!/bin/sh\nexec docker compose "$@"\n' > "$_shim_file" || {
+                echo >&2 "warp framework could not write compose shim at $_shim_file"
+                exit 1
+            }
 
-        chmod +x "$_shim_file" 2>/dev/null || {
-            echo >&2 "warp framework could not chmod compose shim at $_shim_file"
-            exit 1
-        }
+            chmod +x "$_shim_file" 2>/dev/null || {
+                echo >&2 "warp framework could not chmod compose shim at $_shim_file"
+                exit 1
+            }
+        fi
 
         export PATH="$_shim_dir:$PATH"
         hash -r 2>/dev/null || true
@@ -278,7 +288,7 @@ warp_runtime_mode_read_raw_from_env() {
 warp_command_supports_host_runtime() {
     _cmd="$1"
     case "$_cmd" in
-        ""|-h|--help|help|init|db|mysql|cache|redis|valkey|search|elasticsearch|opensearch|php|magento|ece-tools|ece-patches|telemetry|info|composer)
+        ""|-h|--help|help|init|db|mysql|cache|redis|valkey|search|elasticsearch|opensearch|php|magento|ece-tools|ece-patches|telemetry|info|composer|scan)
             return 0
             ;;
         *)

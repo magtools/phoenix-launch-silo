@@ -36,6 +36,7 @@
 . "$WARPFOLDER/bin/npm.sh"
 . "$WARPFOLDER/bin/grunt.sh"
 . "$WARPFOLDER/bin/hyva.sh"
+. "$WARPFOLDER/bin/scan.sh"
 . "$WARPFOLDER/bin/memory.sh"
 . "$WARPFOLDER/bin/deploy.sh"
 . "$WARPFOLDER/bin/crontab.sh"

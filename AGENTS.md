@@ -114,6 +114,12 @@ Regla obligatoria para agentes:
   - `docker compose` (plugin v2).
 - Warp implementa fallback interno: si falta `docker-compose` pero existe `docker compose`, genera shim local en `./var/warp-bin/docker-compose`.
 - No se requiere ni se recomienda crear symlink global de `docker-compose` como solución por defecto.
+- Patrón adoptado para comandos que pueden ejecutar sobre un contenedor PHP existente:
+  - exponer override explícito por env var (`WARP_<FEATURE>_PHP_CONTAINER=<container_name>`),
+  - validar primero con `docker inspect --format '{{.State.Running}}'` que el contenedor exista y esté corriendo,
+  - si el override existe y está corriendo, ejecutar con `docker exec -i ...`,
+  - si no hay override, usar el flujo estándar del proyecto (`docker-compose exec` / runtime host según corresponda),
+  - si el override existe pero no está corriendo, abortar con mensaje claro `container not running: <name>`.
 - También requiere `ed` y `tr`.
 - En macOS pueden intervenir `docker-sync` y `rsync`.
 - Para flujos con `warp rsync`, asumir mínimo `rsync >= 3.1.1` (en macOS el `rsync` del sistema puede ser incompatible).
