@@ -10,6 +10,8 @@
 . "$WARPFOLDER/lib/check.sh"
 . "$WARPFOLDER/lib/banner.sh"
 . "$WARPFOLDER/lib/fallback.sh"
+. "$WARPFOLDER/lib/service_version.sh"
+. "$WARPFOLDER/lib/app_context.sh"
 . "$WARPFOLDER/lib/service_context.sh"
 
 # INCLUDE COMMANDS

@@ -1,6 +1,6 @@
 
   redis-cache:
-    image: redis:${REDIS_CACHE_VERSION}
+    image: ${CACHE_IMAGE_REPO:-redis}:${REDIS_CACHE_VERSION}
     env_file: .env
     ports:
       - "6379"

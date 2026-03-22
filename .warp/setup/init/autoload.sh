@@ -7,6 +7,7 @@
 
     # LOAD VARIABLES SAMPLE
     . $ENVIRONMENTVARIABLESFILESAMPLE
+    warp_app_context_detect
 
 case "$(uname -s)" in
     Darwin)

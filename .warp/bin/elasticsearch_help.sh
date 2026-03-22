@@ -14,13 +14,14 @@ function elasticsearch_help_usage() {
     warp_message_info "Available commands:"
 
     warp_message_info   " info               $(warp_message 'display info available')"
-    warp_message_info   " ssh                $(warp_message 'connect to elasticsearch by ssh')"
-    warp_message_info   " flush              $(warp_message 'Unlock and delete all indexes')"
-    warp_message_info   " switch             $(warp_message 'Switch between ES versions.')"
+    warp_message_info   " ssh                $(warp_message 'connect to search container by ssh')"
+    warp_message_info   " flush              $(warp_message 'unlock and delete search indexes')"
+    warp_message_info   " switch             $(warp_message 'switch between search engine versions')"
 
     warp_message ""
     warp_message_info "Help:"
-    warp_message " elasticsearch service uses ports 9200 and 9300 inside the containers"
+    warp_message " search service uses ports 9200 and 9300 inside the containers"
+    warp_message " the underlying engine can be OpenSearch or Elasticsearch depending on project configuration"
     warp_message " to use this service you must modify localhost:9200 by elasticsearch:9200 in the project"
     warp_message ""
 }
@@ -48,7 +49,7 @@ elasticsearch_ssh_help() {
 
     warp_message ""
     warp_message_info "Help:"
-    warp_message " Connect to elasticsearch by ssh "
+    warp_message " Connect to search container by ssh "
     warp_message ""
 
     warp_message_info "Example:"
@@ -67,7 +68,7 @@ elasticsearch_flush_help() {
 
     warp_message ""
     warp_message_info "Help:"
-    warp_message " For delete ES data purposes. Use it to fix a cluster_block_exception "
+    warp_message " For delete search index data purposes. Use it to fix a cluster_block_exception "
     warp_message " also called as FORBIDDEN/12/index read-only / allow delete (api)]"
     warp_message ""
 
@@ -90,8 +91,9 @@ elasticsearch_switch_help () {
 
     warp_message ""
     warp_message_info "Help:"
-    warp_message " this command allows to change the ElasticSearch version"
-    warp_message " you can check the available versions of ElasticSearch here: $(warp_message_info '[ https://hub.docker.com/r/summasolutions/elasticsearch/tags/ ]')"
+    warp_message " this command allows to change the search engine version"
+    warp_message " you can check OpenSearch versions here: $(warp_message_info '[ https://hub.docker.com/r/opensearchproject/opensearch/tags/ ]')"
+    warp_message " Elasticsearch compatibility tags depend on project support and may use docker.elastic.co"
     warp_message ""
 
     warp_message_info "Example:"
