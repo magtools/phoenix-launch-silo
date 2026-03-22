@@ -13,6 +13,7 @@ La intención principal es reanudar sesiones de Codex del proyecto actual sin te
 1. Detecta `PROJECT_ROOT` y `$CODEX_HOME` (por defecto `~/.codex`).
 2. Recorre `$CODEX_HOME/sessions` de forma recursiva.
 3. Filtra solo sesiones cuyo `session_meta.payload.cwd` coincide con el proyecto actual.
+   - Si la sesión guardó el path físico y el repo fue abierto por un symlink/path lógico, también considera equivalencia por ruta canónica (`pwd -P`).
 4. Ordena por más recientes y muestra hasta 9.
 5. Permite elegir `1..9` o `0` para salir.
 6. Si se elige una sesión válida, obtiene su `session_id` y ejecuta:
@@ -87,10 +88,10 @@ Herramientas usadas por el script:
 
 1. Error `No sessions found for project ...`:
    - revisar que existan sesiones con `payload.cwd` igual al path del proyecto.
+   - si el repo fue abierto por symlink, confirmar la ruta física con `pwd -P`; `resume.sh` compara tanto ruta lógica como física.
 2. Error `Could not read session id ...`:
    - validar contenido del archivo `.jsonl`.
    - correr en debug para confirmar extracción:
      - `printf 'N\n' | RESUME_PRINT_ONLY=1 ./.codex/resume.sh`
 3. Si `codex resume` falla por ID no encontrado:
    - validar que `Session id` impreso en debug exista realmente en `session_meta.payload.id`.
-
