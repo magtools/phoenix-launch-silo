@@ -10,7 +10,7 @@ function scan_help_usage()
     warp_message ""
     warp_message_info "Options:"
     warp_message_info   " -h, --help         $(warp_message 'display this help message')"
-    warp_message_info   " --pr               $(warp_message 'run PR checks (PHPCS severity>=7 + PHPMD TestPR)')"
+    warp_message_info   " pr, --pr           $(warp_message 'run PR checks (PHPCS severity>=7 + PHPMD TestPR)')"
     warp_message_info   " -i, integrity      $(warp_message 'run setup:di:compile then --pr')"
     warp_message_info   " --path <route>     $(warp_message 'open scan options for a custom project route')"
     warp_message ""
@@ -25,6 +25,7 @@ function scan_help_usage()
 
     warp_message_info "Examples:"
     warp_message " warp scan"
+    warp_message " warp scan pr"
     warp_message " warp scan --pr"
     warp_message " warp scan integrity"
     warp_message " warp scan --path app/code/Vendor/Module"

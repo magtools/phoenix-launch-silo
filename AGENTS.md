@@ -92,6 +92,14 @@ Reglas de chequeo automático de versión:
   - archivo `.warp/bin/<cmd>_help.sh`
   - inclusión en `.warp/includes.sh`
   - dispatch en `warp.sh` si aplica
+- Si un subcomando necesita invocar `warp` desde otro script Bash:
+  - **no asumir** que `warp` existe en `PATH`;
+  - reutilizar el patrón ya establecido en `.warp/bin/deploy.sh` (`deploy_warp_exec`);
+  - resolver en este orden:
+    - `./warp`
+    - `./warp.sh`
+    - `warp`
+  - usar ese entrypoint resuelto para llamadas internas como `magento`, `search`, `hyva`, etc.
 
 ## 6) Seguridad y operaciones destructivas
 

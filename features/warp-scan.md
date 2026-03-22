@@ -10,12 +10,12 @@ Agregar `warp scan` para ejecutar chequeos de calidad de código con foco en Mag
 ## Alcance MVP
 
 1. `warp scan` muestra menú de acciones.
-2. `warp scan --pr` ejecuta PR checks:
+2. `warp scan pr` y `warp scan --pr` ejecutan PR checks:
    - PHPCS (`severity>=7`) sobre `app/code` y `app/design`.
    - PHPMD con `TestPR.xml`.
 3. `warp scan integrity` / `warp scan -i`:
-   - corre `warp magento setup:di:compile`.
-   - luego corre `warp scan --pr`.
+   - corre `warp magento setup:di:compile` usando el mismo patrón de resolución de entrypoint local ya fijado en `deploy` (`./warp`, `warp.sh` o `warp` en `PATH`).
+   - luego corre `warp scan pr`.
 4. `warp scan --path <ruta>` abre menú de acciones sobre una ruta arbitraria dentro del proyecto (`testpr|phpcs|phpmd`).
 
 ## Reglas TestPR

@@ -581,11 +581,26 @@ scan_menu_path() {
     return $?
 }
 
+scan_warp_exec() {
+    if [ -x "$PROJECTPATH/warp" ]; then
+        echo "$PROJECTPATH/warp"
+        return 0
+    fi
+
+    if [ -x "$PROJECTPATH/warp.sh" ]; then
+        echo "$PROJECTPATH/warp.sh"
+        return 0
+    fi
+
+    echo "warp"
+}
+
 scan_run_integrity() {
     scan_require_magento_context
+    _warp_exec=$(scan_warp_exec)
 
     warp_message_info "running Magento integrity compile"
-    if ! warp magento setup:di:compile; then
+    if ! $_warp_exec magento setup:di:compile; then
         warp_message_error "setup:di:compile failed"
         return 1
     fi
@@ -640,9 +655,9 @@ scan_command()
             scan_help_usage
             return 0
             ;;
-        --pr)
+        --pr|pr)
             shift
-            [ "$#" -eq 0 ] || { warp_message_error "--pr does not accept extra arguments"; return 1; }
+            [ "$#" -eq 0 ] || { warp_message_error "pr/--pr does not accept extra arguments"; return 1; }
             scan_run_pr
             return $?
             ;;
