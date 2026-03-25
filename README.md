@@ -9,60 +9,147 @@ Warp started as a tool to simplify development environments. The project is now 
 
 ## Features
 
-* Nginx
-* PHP
-* MySQL
-* Rabbit
-* MailHog
-* Elasticsearch
-* Varnish
-* Selenium
-* PostgreSQL
-* Sandbox Mode _(for developer modules on Magento 2)_
+### Infrastructure services
+
+- Nginx
+- PHP
+- MySQL / MariaDB
+- Redis / Valkey
+- OpenSearch / Elasticsearch
+- RabbitMQ
+- MailHog
+- Varnish
+- Selenium
+- PostgreSQL
+
+### Operational tooling
+
+- `warp deploy` for repeatable deploy flows
+- `warp scan` for Magento-oriented code quality checks
+- `warp telemetry scan` for memory diagnostics and recommendations
+- `warp db`, `warp cache`, `warp search` for capability-first operations
+- `warp php --version` for runtime PHP inspection
+- Sandbox mode for Magento 2 developer modules
+
+## What Warp Is Good At
+
+Warp is designed to help teams:
+
+- bootstrap Docker-based PHP environments quickly
+- operate project services with a consistent CLI
+- support Magento-first development and deployment workflows
+- run analysis and troubleshooting tasks without relying on ad-hoc scripts
+- work with local, mixed, or partially external infrastructure setups
 
 ## Requirements
 
-* Docker community edition
-* docker-compose `>= 1.29` or Docker Compose plugin (`docker compose`)
+- Docker community edition
+- `docker-compose >= 1.29` or Docker Compose plugin (`docker compose`)
 
 ## Installation
 
-Run the following command in your root project folder:
+Run the following command in your project root:
 
-```
-  curl -L -o warp https://raw.githubusercontent.com/magtools/phoenix-launch-silo/refs/heads/master/dist/warp && chmod 755 warp
-```
-
-## Command line update
-
-Run the following command in your root project folder:
-
-```
-  curl -L -o warp https://raw.githubusercontent.com/magtools/phoenix-launch-silo/refs/heads/master/dist/warp && chmod 755 warp && ./warp update --self
+```bash
+curl -L -o warp https://raw.githubusercontent.com/magtools/phoenix-launch-silo/refs/heads/master/dist/warp
+chmod 755 warp
 ```
 
-## Getting started
+## Command Line Update
 
-After download the warp binary file, you should initialize your dockerized infraestrucutre running the following command:
+Update the local Warp binary and framework with:
 
+```bash
+chmod 755 warp
+./warp update 
 ```
- ./warp init	
+
+## Quick Start
+
+Initialize and start a project:
+
+```bash
+./warp init
+./warp start
+./warp info
 ```
 
-## Useful warp commands
+Stop the environment when you are done:
 
-This repo comes with some useful bash command:
+```bash
+./warp stop
+```
 
-|  Command  |  Description  |
-|  -------  |  -----------  |
-| **warp --help** | Shows the warp tool help |
-| **warp [command] --help** | Shows the specific command help. For instance: warp php --help |
-| **warp info** | Shows the configured values and useful information for each services |
-| **warp init** |  Initialize the warp framework the first time before to start the project |
-| **warp start** | Starts the containers |
-| **warp stop** | Stops the containers |
-| **warp reset** | Reset config to default |
-| **warp fix** | fix common problems with permissions |
+## Core Commands
+
+### Setup and runtime
+
+| Command | Description |
+| ------- | ----------- |
+| `warp --help` | Show global help |
+| `warp [command] --help` | Show command-specific help |
+| `warp init` | Initialize Warp for the project |
+| `warp start` | Start containers |
+| `warp stop` | Stop containers |
+| `warp info` | Show current project and service information |
+
+### Operations
+
+| Command | Description |
+| ------- | ----------- |
+| `warp deploy doctor` | Validate deploy prerequisites |
+| `warp deploy run` | Run the configured deploy flow |
+| `warp update` | Update Warp |
+| `warp logs` | Inspect service logs |
+
+### Analysis and diagnostics
+
+| Command | Description |
+| ------- | ----------- |
+| `warp scan` | Run code quality scans |
+| `warp scan phpstan` | Run PHPStan using the default project scope |
+| `warp telemetry scan` | Show memory usage and recommendations |
+| `warp php --version` | Print the effective runtime PHP version |
+
+### Service-oriented commands
+
+| Command | Description |
+| ------- | ----------- |
+| `warp db` | Database operations |
+| `warp cache` | Cache operations |
+| `warp search` | Search engine operations |
+
+## Common Workflows
+
+### Run code analysis
+
+```bash
+./warp scan
+./warp scan phpstan
+./warp scan phpcompat --path app/code/Vendor/Module
+```
+
+### Check runtime PHP version
+
+```bash
+./warp php --version
+```
+
+### Run a deploy
+
+```bash
+./warp deploy doctor
+./warp deploy run
+```
+
+## Documentation
+
+For more detailed functional documentation, see:
+
+- [Warp Latest](features/warp-latest.md)
+- [Warp Scan](features/warp-scan.md)
+- [Warp Fallback](features/warp-fallback.md)
+- [Warp Service Version](features/warp-service-version.md)
 
 ## Licensing
 
@@ -71,7 +158,8 @@ See [LICENSE](LICENSE) for the full license text.
 
 ## Changelog
 
-### See what has changed: [changes](CHANGES.md)
+- Functional overview of recent improvements: [features/warp-latest.md](features/warp-latest.md)
+- Detailed historical changes: [CHANGES.md](CHANGES.md)
 
 ## Maintainer Information
 
@@ -103,4 +191,3 @@ Legacy credits from the old Warp project: [CREDITS.md](CREDITS.md)
 ```
 
 <img src="./release/landing/img/first-contact.png" alt="First Contact" width="500" style="max-width: 500px; width: 500px;" />
-
