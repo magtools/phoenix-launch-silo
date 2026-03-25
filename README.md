@@ -1,37 +1,11 @@
 # 🚀 Phoenix-Launch-Silo
 > *Making **First Contact** with production-ready **Docker** environments.*
 
-### Warp Drive initialized: Transcending development to full-scale orchestration
-
-    Out there... thataway.   https://github.com/magtools/phoenix-launch-silo
-
-<img src="./release/landing/img/first-contact.png" alt="First Contact" width="500" style="max-width: 500px; width: 500px;" />
-
-
 Warp started as a tool to simplify development environments. The project is now evolving into a warp-powered shipyard of networks for productive development and deployment, with built-in analysis tooling.
-
-## Warp Engine Overview
-
-
-```
-  ___ ____     ____        _____
- ____      ___      ______      ___
-      _  ___  __    ___        ____
- ___ | |     / /___ __________       ____
-     | | /| / / __ `/ ___/ __ \ __    ___
- ___ | |/ |/ / /_/ / /  / /_/ / __  ___
- _   |__/|__/\__,_/_/  / .___/    ___   ____
-  __   ___    ____    /_/  ___   __   __
-      ____     ___   ____  __   ______
- ____      ___      ______    ____   ____
-
- WARP ENGINE - Speeding up! your development infraestructure
-```
 
 ##  Warp Architecture
 
 ![Warp Architecture](release/landing/img/warp-architecture.jpg)
-
 
 ## Features
 
@@ -51,7 +25,6 @@ Warp started as a tool to simplify development environments. The project is now 
 * Docker community edition
 * docker-compose `>= 1.29` or Docker Compose plugin (`docker compose`)
 
-
 ## Installation
 
 Run the following command in your root project folder:
@@ -65,7 +38,7 @@ Run the following command in your root project folder:
 Run the following command in your root project folder:
 
 ```
-  curl -L -o warp https://raw.githubusercontent.com/magtools/phoenix-launch-silo/refs/heads/master/dist/warp && chmod 755 warp && ./warp update
+  curl -L -o warp https://raw.githubusercontent.com/magtools/phoenix-launch-silo/refs/heads/master/dist/warp && chmod 755 warp && ./warp update --self
 ```
 
 ## Getting started
@@ -91,12 +64,10 @@ This repo comes with some useful bash command:
 | **warp reset** | Reset config to default |
 | **warp fix** | fix common problems with permissions |
 
-
 ## Licensing
 
 **warp engine framework** is licensed under the Apache License, Version 2.0.
 See [LICENSE](LICENSE) for the full license text.
-
 
 ## Changelog
 
@@ -109,3 +80,27 @@ Phoenix Launch Silo is an independent evolution of the Warp lineage. It is no lo
 ![Martin Gonzalez](https://github.com/magtools.png?size=300)
 
 Legacy credits from the old Warp project: [CREDITS.md](CREDITS.md)
+
+### Warp Drive initialized: Transcending development to full-scale orchestration
+
+```
+    ___ ____     ____        _____
+   ____      ___      ______      ___
+        _  ___  __    ___        ____
+  ____ | |     / /___ __________       ____
+       | | /| / / __ `/ ___/ __ \ __    ___
+  ____ | |/ |/ / /_/ / /  / /_/ / __  ___
+   _   |__/|__/\__,_/_/  / .___/    ___   ____
+    __   ___    ____    /_/  ___   __   __
+        ____     ___   ____  __   ______
+   ____      ___      ______    ____   ____
+
+  WARP ENGINE - Speeding up! your development infraestructure
+```
+
+```
+  Out there... that way.   https://github.com/magtools/phoenix-launch-silo
+```
+
+<img src="./release/landing/img/first-contact.png" alt="First Contact" width="500" style="max-width: 500px; width: 500px;" />
+
