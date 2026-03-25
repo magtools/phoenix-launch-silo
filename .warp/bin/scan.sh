@@ -6,12 +6,15 @@ SCAN_OUTPUT_DIR="$PROJECTPATH/var/static"
 SCAN_RULESET_RUNTIME="$PROJECTPATH/.warp/docker/config/lint/TestPR.xml"
 SCAN_RULESET_PROJECT="$PROJECTPATH/app/devops/TestPR.xml"
 SCAN_RULESET_TEMPLATE="$PROJECTPATH/.warp/setup/init/config/lint/TestPR.xml"
+SCAN_PHPSTAN_CONFIG="$PROJECTPATH/phpstan.neon.dist"
+SCAN_PHPSTAN_TEMPLATE="$PROJECTPATH/.warp/setup/init/config/lint/phpstan.neon.dist"
 SCAN_PHP_CONTAINER="${WARP_SCAN_PHP_CONTAINER:-}"
 SCAN_LAST_CAPTURED_OUTPUT=""
 
 SCAN_PHPCS_BIN="vendor/squizlabs/php_codesniffer/bin/phpcs"
 SCAN_PHPCBF_BIN="vendor/squizlabs/php_codesniffer/bin/phpcbf"
 SCAN_PHPMD_BIN=""
+SCAN_PHPSTAN_BIN="vendor/bin/phpstan"
 
 scan_spinner_wait() {
     _pid="$1"
@@ -143,6 +146,21 @@ scan_compose_running_required_if_present() {
     return 1
 }
 
+scan_require_container_runtime() {
+    if [ -n "$SCAN_PHP_CONTAINER" ]; then
+        scan_compose_running_required_if_present || return 1
+        return 0
+    fi
+
+    if [ ! -f "$DOCKERCOMPOSEFILE" ]; then
+        warp_message_error "this scan action requires the php container runtime"
+        warp_message_error "docker-compose-warp.yml not found"
+        return 1
+    fi
+
+    scan_compose_running_required_if_present || return 1
+}
+
 scan_run_php_bin() {
     _bin="$1"
     shift
@@ -165,6 +183,23 @@ scan_run_php_bin() {
     docker-compose -f "$DOCKERCOMPOSEFILE" exec -T php bash -lc 'cd /var/www/html && php "$@"' bash "$_bin" "$@"
 }
 
+scan_run_php_runtime() {
+    shift 0
+
+    if [ -n "$SCAN_PHP_CONTAINER" ]; then
+        docker exec -i "$SCAN_PHP_CONTAINER" bash -lc 'cd /var/www/html && "$@"' bash "$@"
+        return $?
+    fi
+
+    if [ ! -f "$DOCKERCOMPOSEFILE" ]; then
+        warp_message_error "docker-compose-warp.yml not found"
+        return 1
+    fi
+
+    scan_compose_running_required_if_present || return 1
+    docker-compose -f "$DOCKERCOMPOSEFILE" exec -T php bash -lc 'cd /var/www/html && "$@"' bash "$@"
+}
+
 scan_phpmd_detect_bin() {
     if [ -x "$PROJECTPATH/vendor/phpmd/phpmd/bin/phpmd" ]; then
         SCAN_PHPMD_BIN="vendor/phpmd/phpmd/bin/phpmd"
@@ -180,25 +215,59 @@ scan_phpmd_detect_bin() {
     return 1
 }
 
-scan_require_bins() {
-    _missing=0
+scan_require_phpcs_bin() {
+    [ -x "$PROJECTPATH/$SCAN_PHPCS_BIN" ] && return 0
 
-    [ -x "$PROJECTPATH/$SCAN_PHPCS_BIN" ] || {
-        warp_message_error "missing binary: $SCAN_PHPCS_BIN"
-        _missing=1
-    }
+    warp_message_error "missing binary: $SCAN_PHPCS_BIN"
+    warp_message_error "scan requires development executables installed in vendor/"
+    warp_message_error "if this environment was installed with --no-dev, warp scan cannot run here"
+    warp_message_error "run composer install (with require-dev) in the target environment first"
+    return 1
+}
 
-    scan_phpmd_detect_bin || {
-        warp_message_error "missing binary: vendor/phpmd/phpmd/(bin|src/bin)/phpmd"
-        _missing=1
-    }
+scan_require_phpcbf_bin() {
+    [ -x "$PROJECTPATH/$SCAN_PHPCBF_BIN" ] && return 0
 
-    if [ $_missing -ne 0 ]; then
-        warp_message_error "scan requires development executables installed in vendor/"
-        warp_message_error "if this environment was installed with --no-dev, warp scan cannot run here"
-        warp_message_error "run composer install (with require-dev) in the target environment first"
-        exit 1
+    warp_message_error "missing binary: $SCAN_PHPCBF_BIN"
+    warp_message_error "scan requires development executables installed in vendor/"
+    warp_message_error "if this environment was installed with --no-dev, warp scan cannot run here"
+    warp_message_error "run composer install (with require-dev) in the target environment first"
+    return 1
+}
+
+scan_require_phpmd_bin() {
+    scan_phpmd_detect_bin && return 0
+
+    warp_message_error "missing binary: vendor/phpmd/phpmd/(bin|src/bin)/phpmd"
+    warp_message_error "scan requires development executables installed in vendor/"
+    warp_message_error "if this environment was installed with --no-dev, warp scan cannot run here"
+    warp_message_error "run composer install (with require-dev) in the target environment first"
+    return 1
+}
+
+scan_require_phpstan_bin() {
+    [ -x "$PROJECTPATH/$SCAN_PHPSTAN_BIN" ] && return 0
+
+    warp_message_error "missing binary: $SCAN_PHPSTAN_BIN"
+    warp_message_error "install/configure it with: ./warp composer require --dev phpstan/phpstan"
+    warp_message_error "then validate the binary with: ./warp composer exec -- phpstan --version"
+    return 1
+}
+
+scan_require_phpcompat_standard() {
+    scan_require_phpcs_bin || return 1
+    scan_require_container_runtime || return 1
+
+    scan_run_capture_with_spinner "checking PHPCompatibility standard" scan_run_php_bin "$SCAN_PHPCS_BIN" -i
+    _status=$?
+    if [ $_status -eq 0 ] && echo "$SCAN_LAST_CAPTURED_OUTPUT" | grep -q 'PHPCompatibility'; then
+        return 0
     fi
+
+    warp_message_error "required PHPCS standard is not available: PHPCompatibility"
+    warp_message_error "install/configure it with: ./warp composer require --dev magento/php-compatibility-fork"
+    warp_message_error "then validate the standard with: ./warp composer exec -- phpcs -i"
+    return 1
 }
 
 scan_ensure_ruleset_runtime() {
@@ -230,6 +299,46 @@ scan_ensure_ruleset_runtime() {
     warp_message_error "ruleset not found: $SCAN_RULESET_RUNTIME"
     warp_message_error "missing fallback source: $SCAN_RULESET_TEMPLATE"
     exit 1
+}
+
+scan_ensure_phpstan_config() {
+    [ -f "$SCAN_PHPSTAN_CONFIG" ] && return 0
+
+    if [ ! -f "$SCAN_PHPSTAN_TEMPLATE" ]; then
+        warp_message_error "phpstan config template not found: $SCAN_PHPSTAN_TEMPLATE"
+        return 1
+    fi
+
+    cp "$SCAN_PHPSTAN_TEMPLATE" "$SCAN_PHPSTAN_CONFIG" || {
+        warp_message_error "could not copy phpstan config to $SCAN_PHPSTAN_CONFIG"
+        return 1
+    }
+
+    warp_message_info "copied template phpstan.neon.dist to project root"
+    return 0
+}
+
+scan_normalize_php_version() {
+    _version="$1"
+    _normalized=$(echo "$_version" | sed 's/-.*$//' | sed -n 's/^\([0-9]\+\.[0-9]\+\).*/\1/p')
+    echo "$_normalized"
+}
+
+scan_phpcompat_target_version() {
+    _raw_version=""
+
+    if scan_require_container_runtime >/dev/null 2>&1; then
+        scan_run_capture_with_spinner "detecting php runtime version" scan_run_php_runtime php -r 'echo PHP_VERSION;'
+        if [ $? -eq 0 ]; then
+            _raw_version="$SCAN_LAST_CAPTURED_OUTPUT"
+        fi
+    fi
+
+    if [ -z "$_raw_version" ] && [ -f "$ENVIRONMENTVARIABLESFILE" ]; then
+        _raw_version=$(warp_env_read_var PHP_VERSION)
+    fi
+
+    scan_normalize_php_version "$_raw_version"
 }
 
 scan_run_phpmd_compat() {
@@ -310,20 +419,31 @@ scan_rel_path_from_project() {
 scan_report_result() {
     _status="$1"
     _file="$2"
+    _display_file="$_file"
+
+    case "$_file" in
+        "$PROJECTPATH"/*)
+            _display_file="${_file#$PROJECTPATH/}"
+            ;;
+    esac
 
     if [ "$_status" -ne 0 ]; then
-        warp_message_warn "scan found issues"
+        warp_message_error "scan found issues"
     else
         warp_message_ok "scan finished without issues"
     fi
 
-    warp_message "output file: $_file"
+    warp_message ""
+    warp_message "    output file: $_display_file"
+    warp_message ""
 }
 
 scan_run_pr() {
     scan_require_magento_context
     scan_ensure_output_dir
-    scan_require_bins
+    scan_require_phpcs_bin || return 1
+    scan_require_phpmd_bin || return 1
+    scan_require_phpcompat_standard || return 1
     scan_ensure_ruleset_runtime
 
     _path_code="app/code"
@@ -332,6 +452,12 @@ scan_run_pr() {
     _ruleset=".warp/docker/config/lint/TestPR.xml"
     _file=$(scan_output_file "scan" "testpr")
     _status=0
+    _phpcompat_target_version=$(scan_phpcompat_target_version)
+
+    if [ -z "$_phpcompat_target_version" ]; then
+        warp_message_error "could not resolve PHPCompatibility target version"
+        return 1
+    fi
 
     if ! scan_run_to_file_with_spinner "running phpcs PR checks" "$_file" scan_run_php_bin "$SCAN_PHPCS_BIN" --ignore=*/Test/Unit/* --standard="$_standard" --severity=7 "$_path_code" "$_path_design"; then
         _status=1
@@ -345,12 +471,25 @@ scan_run_pr() {
         _status=1
     fi
 
+    echo "PHP COMPATIBILITY" >> "$_file"
+    if ! scan_run_to_file_with_spinner "running phpcompat on ${_path_code}" "$_file.tmp" scan_run_php_bin "$SCAN_PHPCS_BIN" --ignore=*/Test/Unit/* --extensions=php,phtml --standard=PHPCompatibility --runtime-set testVersion "$_phpcompat_target_version" "$_path_code"; then
+        _status=1
+    fi
+    cat "$_file.tmp" >> "$_file"
+    rm -f "$_file.tmp"
+    {
+        echo ""
+        echo "PHPCompatibility target version: ${_phpcompat_target_version}"
+        echo "Scanned path: ${_path_code}"
+    } >> "$_file"
+
     scan_report_result "$_status" "$_file"
     return $_status
 }
 
 scan_run_phpcs_on_path() {
     _path="$1"
+    scan_require_phpcs_bin || return 1
     _standard="vendor/magento/magento-coding-standard/Magento2"
     _safe=$(echo "$_path" | tr '/ ' '__' | tr -cd '[:alnum:]._-')
     _file=$(scan_output_file "scan" "phpcs_${_safe}")
@@ -366,16 +505,10 @@ scan_run_phpcs_on_path() {
 
 scan_run_phpcbf_on_path() {
     _path="$1"
+    scan_require_phpcbf_bin || return 1
     _standard="vendor/magento/magento-coding-standard/Magento2"
     _safe=$(echo "$_path" | tr '/ ' '__' | tr -cd '[:alnum:]._-')
     _file=$(scan_output_file "scan" "phpcbf_${_safe}")
-
-    [ -x "$PROJECTPATH/$SCAN_PHPCBF_BIN" ] || {
-        warp_message_error "missing binary: $SCAN_PHPCBF_BIN"
-        warp_message_error "run composer install in project first"
-        return 1
-    }
-
     if scan_run_to_file_with_spinner "running phpcbf on ${_path}" "$_file" scan_run_php_bin "$SCAN_PHPCBF_BIN" --ignore=*/Test/Unit/* --standard="$_standard" "$_path"; then
         scan_report_result 0 "$_file"
         return 0
@@ -387,6 +520,7 @@ scan_run_phpcbf_on_path() {
 
 scan_run_phpmd_on_path() {
     _path="$1"
+    scan_require_phpmd_bin || return 1
     _safe=$(echo "$_path" | tr '/ ' '__' | tr -cd '[:alnum:]._-')
     _file=$(scan_output_file "scan" "phpmd_${_safe}")
     _status=0
@@ -415,6 +549,9 @@ scan_run_phpmd_on_path() {
 
 scan_run_testpr_on_path() {
     _path="$1"
+    scan_require_phpcs_bin || return 1
+    scan_require_phpmd_bin || return 1
+    scan_ensure_ruleset_runtime || return 1
     _standard="vendor/magento/magento-coding-standard/Magento2"
     _ruleset=".warp/docker/config/lint/TestPR.xml"
     _safe=$(echo "$_path" | tr '/ ' '__' | tr -cd '[:alnum:]._-')
@@ -435,6 +572,78 @@ scan_run_testpr_on_path() {
 
     scan_report_result "$_status" "$_file"
     return $_status
+}
+
+scan_run_phpcompat_on_path() {
+    _path="$1"
+    scan_require_phpcompat_standard || return 1
+    _target_version=$(scan_phpcompat_target_version)
+    if [ -z "$_target_version" ]; then
+        warp_message_error "could not resolve PHPCompatibility target version"
+        return 1
+    fi
+
+    _safe=$(echo "$_path" | tr '/ ' '__' | tr -cd '[:alnum:]._-')
+    _file=$(scan_output_file "scan" "phpcompat_${_safe}")
+
+    if scan_run_to_file_with_spinner "running phpcompat on ${_path}" "$_file" scan_run_php_bin "$SCAN_PHPCS_BIN" --ignore=*/Test/Unit/* --extensions=php,phtml --standard=PHPCompatibility --runtime-set testVersion "$_target_version" "$_path"; then
+        {
+            echo ""
+            echo "PHPCompatibility target version: ${_target_version}"
+            echo "Scanned path: ${_path}"
+        } >> "$_file"
+        scan_report_result 0 "$_file"
+        return 0
+    fi
+
+    {
+        echo ""
+        echo "PHPCompatibility target version: ${_target_version}"
+        echo "Scanned path: ${_path}"
+    } >> "$_file"
+    scan_report_result 1 "$_file"
+    return 1
+}
+
+scan_run_phpstan_default() {
+    _level="$1"
+    scan_require_phpstan_bin || return 1
+    scan_require_container_runtime || return 1
+    scan_ensure_phpstan_config || return 1
+
+    _file=$(scan_output_file "scan" "phpstan_default")
+    _args=(analyse --no-progress)
+    [ -n "$_level" ] && _args+=(--level "$_level")
+
+    if scan_run_to_file_with_spinner "running phpstan on default scope" "$_file" scan_run_php_bin "$SCAN_PHPSTAN_BIN" "${_args[@]}"; then
+        scan_report_result 0 "$_file"
+        return 0
+    fi
+
+    scan_report_result 1 "$_file"
+    return 1
+}
+
+scan_run_phpstan_on_path() {
+    _path="$1"
+    _level="$2"
+    scan_require_phpstan_bin || return 1
+    scan_require_container_runtime || return 1
+    scan_ensure_phpstan_config || return 1
+
+    _safe=$(echo "$_path" | tr '/ ' '__' | tr -cd '[:alnum:]._-')
+    _file=$(scan_output_file "scan" "phpstan_${_safe}")
+    _args=(analyse --no-progress)
+    [ -n "$_level" ] && _args+=(--level "$_level")
+    _args+=("$_path")
+
+    if scan_run_to_file_with_spinner "running phpstan on ${_path}" "$_file" scan_run_php_bin "$SCAN_PHPSTAN_BIN" "${_args[@]}"; then
+        scan_report_result 0 "$_file"
+        return 0
+    fi
+
+    scan_report_result 1 "$_file"
+    return 1
 }
 
 scan_path_option_add() {
@@ -486,12 +695,15 @@ scan_select_path_menu() {
     SCAN_SELECTED_PATH=""
     scan_build_path_options
 
-    _options=("${SCAN_PATH_OPTIONS[@]}" "cancel")
+    _options=("cancel" "${SCAN_PATH_OPTIONS[@]}")
     PS3="choose path to scan: "
 
     while : ; do
         select _selected in "${_options[@]}"; do
             case "$_selected" in
+                "cancel")
+                    return 1
+                    ;;
                 "custom path")
                     read -r -p "path to scan (inside project): " _custom_path
                     if [ -z "$_custom_path" ]; then
@@ -509,9 +721,6 @@ scan_select_path_menu() {
                     SCAN_SELECTED_PATH="$_rel"
                     return 0
                     ;;
-                "cancel")
-                    return 1
-                    ;;
                 "")
                     warp_message_warn "invalid option"
                     break
@@ -528,9 +737,13 @@ scan_select_path_menu() {
 scan_menu_tools_for_path() {
     _rel="$1"
     PS3="choose scan action for ${_rel}: "
-    _options=("phpcs" "phpcbf" "phpmd" "test PR" "cancel")
+    _options=("cancel" "phpcs" "phpcbf" "phpmd" "phpcompat" "phpstan" "test PR")
     select _opt in "${_options[@]}"; do
         case "$_opt" in
+            cancel)
+                warp_message_info "scan cancelled"
+                return 0
+                ;;
             phpcs)
                 scan_run_phpcs_on_path "$_rel"
                 return $?
@@ -543,13 +756,17 @@ scan_menu_tools_for_path() {
                 scan_run_phpmd_on_path "$_rel"
                 return $?
                 ;;
+            phpcompat)
+                scan_run_phpcompat_on_path "$_rel"
+                return $?
+                ;;
+            phpstan)
+                scan_run_phpstan_on_path "$_rel"
+                return $?
+                ;;
             "test PR")
                 scan_run_testpr_on_path "$_rel"
                 return $?
-                ;;
-            cancel)
-                warp_message_info "scan cancelled"
-                return 0
                 ;;
             *)
                 warp_message_warn "invalid option"
@@ -574,8 +791,6 @@ scan_menu_path() {
 
     scan_require_magento_context
     scan_ensure_output_dir
-    scan_require_bins
-    scan_ensure_ruleset_runtime
 
     scan_menu_tools_for_path "$_rel"
     return $?
@@ -611,13 +826,15 @@ scan_run_integrity() {
 scan_menu_main() {
     scan_require_magento_context
     scan_ensure_output_dir
-    scan_require_bins
-    scan_ensure_ruleset_runtime
 
     PS3="choose scan action: "
-    _options=("phpcs" "phpcbf" "phpmd" "test PR" "cancel")
+    _options=("cancel" "phpcs" "phpcbf" "phpmd" "phpcompat" "phpstan" "test PR")
     select _opt in "${_options[@]}"; do
         case "$_opt" in
+            cancel)
+                warp_message_info "scan cancelled"
+                return 0
+                ;;
             phpcs)
                 scan_select_path_menu || { warp_message_info "scan cancelled"; return 0; }
                 scan_run_phpcs_on_path "$SCAN_SELECTED_PATH"
@@ -633,19 +850,86 @@ scan_menu_main() {
                 scan_run_phpmd_on_path "$SCAN_SELECTED_PATH"
                 return $?
                 ;;
+            phpcompat)
+                scan_select_path_menu || { warp_message_info "scan cancelled"; return 0; }
+                scan_run_phpcompat_on_path "$SCAN_SELECTED_PATH"
+                return $?
+                ;;
+            phpstan)
+                scan_run_phpstan_default
+                return $?
+                ;;
             "test PR")
                 scan_run_pr
                 return $?
-                ;;
-            cancel)
-                warp_message_info "scan cancelled"
-                return 0
                 ;;
             *)
                 warp_message_warn "invalid option"
                 ;;
         esac
     done
+}
+
+scan_resolve_path_argument() {
+    _input="$1"
+    _rel=$(scan_rel_path_from_project "$_input")
+    _rel_status=$?
+    if [ $_rel_status -ne 0 ]; then
+        [ $_rel_status -eq 1 ] && warp_message_error "path not found: $_input"
+        return $_rel_status
+    fi
+
+    echo "$_rel"
+}
+
+scan_parse_direct_path_args() {
+    SCAN_DIRECT_PATH=""
+
+    case "$1" in
+        "")
+            return 0
+            ;;
+        --path)
+            shift
+            [ "$#" -eq 1 ] || { warp_message_error "--path requires exactly one argument"; return 1; }
+            SCAN_DIRECT_PATH=$(scan_resolve_path_argument "$1") || return $?
+            return 0
+            ;;
+        *)
+            warp_message_error "unknown option: $1"
+            return 1
+            ;;
+    esac
+}
+
+scan_parse_phpstan_args() {
+    SCAN_DIRECT_PATH=""
+    SCAN_PHPSTAN_LEVEL=""
+
+    while [ "$#" -gt 0 ]; do
+        case "$1" in
+            --path)
+                shift
+                [ "$#" -gt 0 ] || { warp_message_error "phpstan --path requires exactly one argument"; return 1; }
+                [ -z "$SCAN_DIRECT_PATH" ] || { warp_message_error "phpstan --path specified more than once"; return 1; }
+                SCAN_DIRECT_PATH=$(scan_resolve_path_argument "$1") || return $?
+                ;;
+            --level)
+                shift
+                [ "$#" -gt 0 ] || { warp_message_error "phpstan --level requires exactly one argument"; return 1; }
+                [ -z "$SCAN_PHPSTAN_LEVEL" ] || { warp_message_error "phpstan --level specified more than once"; return 1; }
+                echo "$1" | rg -q '^[0-9]+$' || { warp_message_error "phpstan --level must be numeric"; return 1; }
+                SCAN_PHPSTAN_LEVEL="$1"
+                ;;
+            *)
+                warp_message_error "unknown option for phpstan: $1"
+                return 1
+                ;;
+        esac
+        shift
+    done
+
+    return 0
 }
 
 scan_command()
@@ -665,6 +949,70 @@ scan_command()
             shift
             [ "$#" -eq 0 ] || { warp_message_error "integrity/-i does not accept extra arguments"; return 1; }
             scan_run_integrity
+            return $?
+            ;;
+        phpcs)
+            shift
+            scan_require_magento_context
+            scan_ensure_output_dir
+            scan_parse_direct_path_args "$@" || return $?
+            if [ -n "$SCAN_DIRECT_PATH" ]; then
+                scan_run_phpcs_on_path "$SCAN_DIRECT_PATH"
+            else
+                scan_select_path_menu || { warp_message_info "scan cancelled"; return 0; }
+                scan_run_phpcs_on_path "$SCAN_SELECTED_PATH"
+            fi
+            return $?
+            ;;
+        phpcbf)
+            shift
+            scan_require_magento_context
+            scan_ensure_output_dir
+            scan_parse_direct_path_args "$@" || return $?
+            if [ -n "$SCAN_DIRECT_PATH" ]; then
+                scan_run_phpcbf_on_path "$SCAN_DIRECT_PATH"
+            else
+                scan_select_path_menu || { warp_message_info "scan cancelled"; return 0; }
+                scan_run_phpcbf_on_path "$SCAN_SELECTED_PATH"
+            fi
+            return $?
+            ;;
+        phpmd)
+            shift
+            scan_require_magento_context
+            scan_ensure_output_dir
+            scan_parse_direct_path_args "$@" || return $?
+            if [ -n "$SCAN_DIRECT_PATH" ]; then
+                scan_run_phpmd_on_path "$SCAN_DIRECT_PATH"
+            else
+                scan_select_path_menu || { warp_message_info "scan cancelled"; return 0; }
+                scan_run_phpmd_on_path "$SCAN_SELECTED_PATH"
+            fi
+            return $?
+            ;;
+        phpcompat)
+            shift
+            scan_require_magento_context
+            scan_ensure_output_dir
+            scan_parse_direct_path_args "$@" || return $?
+            if [ -n "$SCAN_DIRECT_PATH" ]; then
+                scan_run_phpcompat_on_path "$SCAN_DIRECT_PATH"
+            else
+                scan_select_path_menu || { warp_message_info "scan cancelled"; return 0; }
+                scan_run_phpcompat_on_path "$SCAN_SELECTED_PATH"
+            fi
+            return $?
+            ;;
+        phpstan)
+            shift
+            scan_require_magento_context
+            scan_ensure_output_dir
+            scan_parse_phpstan_args "$@" || return $?
+            if [ -n "$SCAN_DIRECT_PATH" ] && [ "$SCAN_DIRECT_PATH" != "." ]; then
+                scan_run_phpstan_on_path "$SCAN_DIRECT_PATH" "$SCAN_PHPSTAN_LEVEL"
+            else
+                scan_run_phpstan_default "$SCAN_PHPSTAN_LEVEL"
+            fi
             return $?
             ;;
         --path)

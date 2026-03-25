@@ -61,6 +61,55 @@ Comandos:
 - `warp hyva watch[:theme]`: modo watch para desarrollo.
 - `warp hyva list`: muestra themes detectados.
 
+## Calidad de código Magento más completa (`warp scan`)
+
+`warp scan` dejó de ser solo un helper básico de PHPCS/PHPMD y pasó a cubrir más chequeos del flujo técnico diario.
+
+Qué aporta al equipo:
+
+- ejecución directa por herramienta o por menú,
+- misma UX para `phpcs`, `phpcbf`, `phpmd`, `phpcompat` y `phpstan`,
+- soporte de ruta puntual con `--path <ruta>` sin volver a preguntar path,
+- integración de `PHPCompatibility` para validar compatibilidad de versión de PHP,
+- integración de `PHPStan` usando configuración base del proyecto,
+- salida más limpia y legible en CLI y logs,
+- checks PR más útiles al sumar compatibilidad PHP sobre `app/code`.
+
+Comandos:
+
+- `warp scan`: menú principal de scans.
+- `warp scan --path <ruta>`: menú de herramientas sobre una ruta puntual.
+- `warp scan pr` / `warp scan --pr`: PR checks sobre defaults del proyecto.
+- `warp scan integrity` / `warp scan -i`: `setup:di:compile` + PR checks.
+- `warp scan phpcs --path <ruta>`: PHPCS directo sobre una ruta.
+- `warp scan phpcbf --path <ruta>`: PHPCBF directo sobre una ruta.
+- `warp scan phpmd --path <ruta>`: PHPMD directo sobre una ruta.
+- `warp scan phpcompat --path <ruta>`: PHPCompatibility directo sobre una ruta.
+- `warp scan phpstan`: PHPStan sobre el scope default de `phpstan.neon.dist`.
+- `warp scan phpstan --path <ruta>`: PHPStan sobre una ruta puntual.
+- `warp scan phpstan --level <n>`: override puntual de level para una corrida.
+
+Impacto funcional:
+
+- menos necesidad de scripts auxiliares por proyecto,
+- mejor cobertura de calidad/compatibilidad sin salir de Warp,
+- más consistencia entre chequeos interactivos y chequeos directos,
+- menor ruido en logs de análisis.
+
+## Diagnóstico explícito de runtime PHP (`warp php --version`)
+
+Se agregó una forma directa de consultar la versión real del runtime PHP.
+
+Qué aporta al equipo:
+
+- permite confirmar rápidamente drift entre `.env` y contenedor real,
+- sirve como apoyo para troubleshooting y para el target version de `PHPCompatibility`,
+- evita tener que entrar al contenedor solo para validar versión.
+
+Comando:
+
+- `warp php --version`: imprime la versión real del runtime PHP.
+
 ## Diagnóstico de memoria y sugerencias (`warp telemetry scan`)
 
 Se incorporó un reporte de memoria orientado a análisis:

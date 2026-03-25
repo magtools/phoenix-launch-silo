@@ -15,11 +15,13 @@ function php_help_usage()
     warp_message_info "Available commands:"
 
     warp_message_info   " ssh                $(warp_message 'connect to php by ssh')"
+    warp_message_info   " version            $(warp_message 'print runtime PHP version')"
     warp_message_info   " switch             $(warp_message 'allows to change the PHP version')"
 
     warp_message ""
     warp_message_info "Help:"
     warp_message " Connect to php by ssh "
+    warp_message " Print runtime version with: warp php --version "
     warp_message " default user to connect is www-data "
     warp_message " You can also see logs of php service with the command: warp logs php "
     warp_message " If you want to change php version, check command warp php switch --help "
@@ -29,6 +31,7 @@ function php_help_usage()
     warp_message " warp php ssh"
     warp_message " warp php ssh --root"
     warp_message " warp php ssh --help"
+    warp_message " warp php --version"
 
     warp_message ""
 

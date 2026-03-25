@@ -1,0 +1,13 @@
+parameters:
+    level: 3
+    paths:
+        - app/code
+    tmpDir: var/phpstan
+    excludePaths:
+        analyse:
+            - generated/*
+            - node_modules/*
+            - pub/static/*
+            - var/*
+            - */Test/*
+            - */tests/*

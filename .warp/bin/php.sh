@@ -43,6 +43,29 @@ function php_info()
     warp_message ""
 }
 
+function php_version()
+{
+    if [ -f "$DOCKERCOMPOSEFILE" ]; then
+        if [ "$(warp_check_is_running)" = false ]; then
+            warp_message_error "The containers are not running"
+            warp_message_error "please, first run warp start"
+            exit 1
+        fi
+
+        docker-compose -f "$DOCKERCOMPOSEFILE" exec -T php php -r 'echo PHP_VERSION;'
+        echo ""
+        return 0
+    fi
+
+    if ! command -v php >/dev/null 2>&1; then
+        warp_message_error "php binary not found in host"
+        exit 1
+    fi
+
+    php -r 'echo PHP_VERSION;'
+    echo ""
+}
+
 php_simil_ssh() {
     : '
     This function provides a bash pipe as root or www-data user.
@@ -210,6 +233,10 @@ function php_main()
 
         info)
             php_info
+        ;;
+
+        version|--version)
+            php_version
         ;;
 
         switch)
