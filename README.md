@@ -172,6 +172,12 @@ Legacy credits from the old Warp project: [CREDITS.md](CREDITS.md)
 ### Warp Drive initialized: Transcending development to full-scale orchestration
 
 ```
+  Out there... that way.   https://github.com/magtools/phoenix-launch-silo
+```
+
+<img src="./release/landing/img/first-contact.png" alt="First Contact" width="500" style="max-width: 500px; width: 500px;" />
+
+```
     ___ ____     ____        _____
    ____      ___      ______      ___
         _  ___  __    ___        ____
@@ -185,9 +191,3 @@ Legacy credits from the old Warp project: [CREDITS.md](CREDITS.md)
 
   WARP ENGINE - Speeding up! your development infraestructure
 ```
-
-```
-  Out there... that way.   https://github.com/magtools/phoenix-launch-silo
-```
-
-<img src="./release/landing/img/first-contact.png" alt="First Contact" width="500" style="max-width: 500px; width: 500px;" />
