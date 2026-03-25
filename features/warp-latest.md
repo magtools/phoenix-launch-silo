@@ -1,6 +1,6 @@
 # Warp Latest: mejoras funcionales del último año
 
-Fecha: 2026-03-16
+Fecha: 2026-03-24
 
 Este documento resume las mejoras recientes de Warp desde una mirada funcional, orientada a uso diario del equipo.
 
@@ -109,6 +109,87 @@ Qué aporta al equipo:
 Comando:
 
 - `warp php --version`: imprime la versión real del runtime PHP.
+
+## Compatibilidad ampliada con Compose y runtime mixto
+
+Warp mejoró su tolerancia a entornos donde el proyecto no cae exactamente en el caso clásico de `full warp`.
+
+Qué aporta al equipo:
+
+- compatibilidad real con `docker compose` plugin v2 además de `docker-compose`,
+- menor fricción en hosts donde no existe binario global `docker-compose`,
+- mejor soporte para comandos que pueden operar sin compose local,
+- menos bloqueos innecesarios en proyectos con infraestructura parcial o externa.
+
+Impacto funcional:
+
+- si falta `docker-compose` pero existe `docker compose`, Warp puede operar con fallback interno,
+- comandos compatibles como `warp magento`, `warp php`, `warp telemetry`, `warp info` y flujos ligados a fallback ya no quedan atados al mismo precheck rígido,
+- mejora la experiencia en proyectos con topologías mixtas: local + servicios externos o incluso infraestructura 100% externa con Warp presente.
+
+## Comandos canónicos por capability (`warp db`, `warp cache`, `warp search`)
+
+Durante este ciclo se consolidó una dirección más clara de naming y responsabilidad operacional.
+
+Qué aporta al equipo:
+
+- una capa canónica orientada a capability en lugar de nombres históricos de tecnología,
+- menor deuda de naming en comandos y ayudas,
+- mejor base para operar servicios locales o externos con el mismo comando funcional.
+
+Comandos y compatibilidad:
+
+- `warp db` como superficie canónica para base de datos.
+- `warp cache` como superficie canónica para cache.
+- `warp search` como superficie canónica para búsqueda.
+- se mantienen alias legacy:
+  - `warp mysql`
+  - `warp redis`
+  - `warp valkey`
+  - `warp elasticsearch`
+  - `warp opensearch`
+
+Impacto funcional:
+
+- el operador puede pensar primero en la capability (`db`, `cache`, `search`) y no en el nombre histórico del contenedor,
+- la compatibilidad hacia atrás se preserva sin forzar una migración abrupta de comandos.
+
+## Fallback operativo para servicios externos
+
+Warp avanzó en una capa más explícita de contexto y fallback para entornos con servicios fuera de Docker local.
+
+Qué aporta al equipo:
+
+- mejor soporte para DB externa,
+- base común para cache/búsqueda en modo `external`,
+- menor duplicación de lógica de detección y validación entre comandos.
+
+Impacto funcional:
+
+- `warp db`/`warp mysql` ya contemplan mejor escenarios RDS/external,
+- `warp cache` y `warp search` avanzan hacia un comportamiento consistente entre modo local y externo,
+- se endurecieron guardas para operaciones sensibles en modo externo, especialmente `flush`.
+
+Resultado práctico:
+
+- menos fallos ambiguos cuando falta un servicio en `docker-compose-warp.yml`,
+- mejor separación entre operación local de contenedor y operación contra endpoints externos.
+
+## Selección y defaults de versión más consistentes en `warp init`
+
+Se reforzó la base para que `warp init` resuelva motores/versiones de infraestructura con una estrategia más coherente.
+
+Qué aporta al equipo:
+
+- menos inconsistencias entre wizard, templates y defaults reales,
+- mejor alineación entre servicio canónico, engine y versión,
+- una base más clara para defaults vigentes y verificables.
+
+Impacto funcional:
+
+- mejora la previsibilidad al elegir stack de DB/cache/search,
+- reduce desalineaciones históricas entre naming legacy y motor real,
+- prepara mejor el terreno para upgrades de Magento y servicios asociados.
 
 ## Diagnóstico de memoria y sugerencias (`warp telemetry scan`)
 

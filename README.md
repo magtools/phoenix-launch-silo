@@ -30,7 +30,7 @@ Warp started as a tool to simplify development environments. The project is now 
 
 ##  Warp Architecture
 
-![Warp Architecture](release/landing/img/warp_architecture.jpg)
+![Warp Architecture](release/landing/img/warp-architecture.jpg)
 
 
 ## Features
