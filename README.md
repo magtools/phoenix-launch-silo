@@ -146,7 +146,7 @@ Stop the environment when you are done:
 
 For more detailed functional documentation, see:
 
-- [Warp Latest](features/warp-latest.md)
+- [Warp Latest (ES)](features/warp-latest.md), [Warp Latest (EN)](features/warp-latest-en.md)
 - [Warp Scan](features/warp-scan.md)
 - [Warp Fallback](features/warp-fallback.md)
 - [Warp Service Version](features/warp-service-version.md)
@@ -158,7 +158,7 @@ See [LICENSE](LICENSE) for the full license text.
 
 ## Changelog
 
-- Functional overview of recent improvements: [features/warp-latest.md](features/warp-latest.md)
+- Functional overview of recent improvements: [Warp Latest (ES)](features/warp-latest.md), [Warp Latest (EN)](features/warp-latest-en.md)
 - Detailed historical changes: [CHANGES.md](CHANGES.md)
 
 ## Maintainer Information

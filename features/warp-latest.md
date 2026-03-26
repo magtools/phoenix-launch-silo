@@ -322,12 +322,14 @@ Qué aporta al equipo:
 - evita fallos ambiguos cuando el servicio `mysql` no está en `docker-compose-warp.yml`,
 - permite pasar a modo externo con confirmación del operador,
 - autocompleta credenciales desde `app/etc/env.php` cuando existe,
-- usa cliente local para `connect` y `dump`, con instalación asistida si falta.
+- usa cliente local para `connect` y `dump`, con instalación asistida si falta,
+- permite limpiar `DEFINER` del stream del dump con una opción nativa.
 
 Comandos afectados:
 
 - `warp mysql connect`: en `rds` conecta a host externo.
 - `warp mysql dump <db>`: en `rds` dumpea contra host externo.
+- `warp mysql dump -s <db>` / `warp mysql dump --strip-definers <db>`: remueve cláusulas `DEFINER` del dump streameado antes de escribirlo.
 - `warp mysql import <db>`: en `rds` no importa; imprime comando sugerido y password.
 
 ## Setup de Grunt más guiado (`warp grunt setup`)

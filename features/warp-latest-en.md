@@ -1,0 +1,380 @@
+# Warp Latest: functional improvements from the last year
+
+Date: 2026-03-24
+
+This document summarizes Warp's recent improvements from a functional, day-to-day team usage perspective.
+
+Repository continuity note:
+
+- this fork is maintained as a compatibility and historical bridge,
+- active project evolution continues at `https://github.com/magtools/phoenix-launch-silo`.
+
+## Unified environment-aware deploy (`warp deploy`)
+
+Warp now includes a native deploy flow for `local` and `prod`, with per-project configuration in `.deploy`.
+
+What it brings to the team:
+
+- a standard deploy command (`warp deploy run`),
+- preflight validation with `warp deploy doctor`,
+- visible configuration with `warp deploy show`,
+- guided `.deploy` generation with `warp deploy set`,
+- recipe simulation without execution (`--dry-run`),
+- frontend/static-only execution with `warp deploy static`.
+
+Commands:
+
+- `warp deploy`: shows deploy help (informational entrypoint).
+- `warp deploy run`: executes the full deploy according to `.deploy`.
+- `warp deploy static`: runs only static/frontend steps.
+- `warp deploy set`: creates or updates `.deploy`.
+- `warp deploy show`: shows the active configuration.
+- `warp deploy doctor`: validates prerequisites.
+
+Functional impact:
+
+- fewer ad-hoc scripts per project,
+- more predictable step ordering,
+- better operational safety in production (confirmations and gates).
+
+## Integrated Hyva frontend flows (`warp hyva`)
+
+A dedicated command for Hyva workflows has been consolidated:
+
+- theme discovery,
+- dependency installation,
+- generate/build/watch,
+- per-theme or batch execution.
+
+What it brings to the team:
+
+- simpler onboarding in Hyva projects,
+- less manual npm work inside containers,
+- repeatable local and production build flows.
+
+Commands:
+
+- `warp hyva discover`: detects themes and generates configuration.
+- `warp hyva setup[:theme]`: installs dependencies and prepares theme(s).
+- `warp hyva prepare[:theme]`: runs generation only.
+- `warp hyva build[:theme]`: compiles assets.
+- `warp hyva watch[:theme]`: watch mode for development.
+- `warp hyva list`: shows detected themes.
+
+## More complete Magento code quality coverage (`warp scan`)
+
+`warp scan` is no longer just a basic PHPCS/PHPMD helper and now covers more of the daily technical workflow.
+
+What it brings to the team:
+
+- direct execution per tool or through a menu,
+- the same UX for `phpcs`, `phpcbf`, `phpmd`, `phpcompat`, and `phpstan`,
+- support for a specific path with `--path <path>` without prompting for the path again,
+- `PHPCompatibility` integration to validate PHP version compatibility,
+- `PHPStan` integration using the project's base configuration,
+- cleaner and more readable CLI and log output,
+- more useful PR checks by adding PHP compatibility checks on `app/code`.
+
+Commands:
+
+- `warp scan`: main scan menu.
+- `warp scan --path <path>`: tool menu for a specific path.
+- `warp scan pr` / `warp scan --pr`: PR checks on the project's default paths.
+- `warp scan integrity` / `warp scan -i`: `setup:di:compile` + PR checks.
+- `warp scan phpcs --path <path>`: direct PHPCS on a path.
+- `warp scan phpcbf --path <path>`: direct PHPCBF on a path.
+- `warp scan phpmd --path <path>`: direct PHPMD on a path.
+- `warp scan phpcompat --path <path>`: direct PHPCompatibility on a path.
+- `warp scan phpstan`: PHPStan on the default scope from `phpstan.neon.dist`.
+- `warp scan phpstan --path <path>`: PHPStan on a specific path.
+- `warp scan phpstan --level <n>`: one-off level override for a run.
+- `warp scan phpstan --level <n> --path <path>`: one-off level override on a specific path.
+
+Functional impact:
+
+- less need for project-specific helper scripts,
+- broader quality/compatibility coverage without leaving Warp,
+- more consistency between interactive and direct checks,
+- less noise in analysis logs.
+
+## Explicit PHP runtime diagnostics (`warp php --version`)
+
+A direct way to query the real PHP runtime version was added.
+
+What it brings to the team:
+
+- quickly confirms drift between `.env` and the real container,
+- supports troubleshooting and the target version used by `PHPCompatibility`,
+- avoids entering the container just to validate the PHP version.
+
+Command:
+
+- `warp php --version`: prints the real PHP runtime version.
+
+## Broader Compose compatibility and mixed-runtime support
+
+Warp improved its tolerance for environments that do not fit the classic `full warp` case exactly.
+
+What it brings to the team:
+
+- real support for the `docker compose` v2 plugin in addition to `docker-compose`,
+- less friction on hosts where there is no global `docker-compose` binary,
+- better support for commands that can operate without local compose,
+- fewer unnecessary blocks in projects with partial or external infrastructure.
+
+Functional impact:
+
+- if `docker-compose` is missing but `docker compose` exists, Warp can operate through an internal fallback,
+- compatible commands such as `warp magento`, `warp php`, `warp telemetry`, `warp info`, and other fallback-aware flows are no longer tied to the same rigid precheck,
+- the experience improves in mixed-topology projects: local + external services or even fully external infrastructure with Warp present.
+
+## Canonical capability-based commands (`warp db`, `warp cache`, `warp search`)
+
+During this cycle, a clearer direction for naming and operational responsibility was consolidated.
+
+What it brings to the team:
+
+- a canonical capability-oriented layer instead of historical technology names,
+- lower naming debt in commands and help output,
+- a better base to operate local or external services through the same functional command.
+
+Commands and compatibility:
+
+- `warp db` as the canonical database surface.
+- `warp cache` as the canonical cache surface.
+- `warp search` as the canonical search surface.
+- legacy aliases remain available:
+  - `warp mysql`
+  - `warp redis`
+  - `warp valkey`
+  - `warp elasticsearch`
+  - `warp opensearch`
+
+Functional impact:
+
+- operators can think first in terms of capability (`db`, `cache`, `search`) instead of the historical container name,
+- backward compatibility is preserved without forcing an abrupt command migration.
+
+## Operational fallback for external services
+
+Warp moved forward with a more explicit context and fallback layer for environments with services outside local Docker.
+
+What it brings to the team:
+
+- better external DB support,
+- a common base for cache/search in `external` mode,
+- less duplication of detection and validation logic across commands.
+
+Functional impact:
+
+- `warp db` / `warp mysql` now handle RDS/external scenarios better,
+- `warp cache` and `warp search` are moving toward consistent behavior across local and external modes,
+- guards for sensitive operations were hardened in external mode, especially `flush`.
+
+Practical result:
+
+- fewer ambiguous failures when a service is missing in `docker-compose-warp.yml`,
+- better separation between local container operations and operations against external endpoints.
+
+## More consistent version selection and defaults in `warp init`
+
+The base logic behind `warp init` was strengthened so infrastructure engines/versions are resolved with a more coherent strategy.
+
+What it brings to the team:
+
+- fewer inconsistencies between the wizard, templates, and real defaults,
+- better alignment between canonical service, engine, and version,
+- a clearer base for current, verifiable defaults.
+
+Functional impact:
+
+- improved predictability when choosing the DB/cache/search stack,
+- fewer historical misalignments between legacy naming and the real engine,
+- better groundwork for Magento and supporting service upgrades.
+
+## Memory diagnostics and suggestions (`warp telemetry scan`)
+
+A memory report focused on analysis was added:
+
+- memory usage by key services (`php`, `mysql`, `elasticsearch`, `redis-*`),
+- reading the current configuration when present,
+- automatic threshold suggestions based on RAM and real usage.
+
+Recent functional evolution:
+
+- Redis and Elasticsearch recommendations now use `used_memory` as the base.
+- A `used_memory_peak` guardrail was added to propose a “safe minimum”.
+- Operational alerts for memory pressure were added:
+  - `>=75%` warning
+  - `>=90%` critical
+- PHP-FPM moved to RAM-based extrapolation with optimistic rounding for `pm.max_children`
+  (including an additional adjustment on medium/large servers).
+
+What it brings to the team:
+
+- capacity/tuning decisions based on data,
+- quick visibility into drift between real usage and configuration,
+- clear separation between container usage and internal service usage,
+- text and JSON output for troubleshooting and documentation,
+- better signals to prevent saturation before business impact.
+
+Commands:
+
+- `warp telemetry` / `warp telemetry scan`: functional report for usage/configuration/suggestions.
+- `warp telemetry scan --no-suggest`: shows usage + current config without recommendations.
+- `warp telemetry scan --json`: structured output for automation.
+- `warp telemetry config`: quick guide showing where to configure memory per service (Redis, Search, PHP-FPM) plus MySQL/MariaDB reference through MySQLTuner.
+
+## More configurable Redis per environment
+
+Warp moved from an “implicit” Redis configuration to a more controlled one:
+
+- effective use of `redis.conf` inside containers,
+- memory/policy parameters per service through `.env`,
+- functional separation of cache/fpc vs session,
+- compatibility with Magento operational recommendations.
+
+What it brings to the team:
+
+- safer tuning in production,
+- faster per-environment adjustments without rebuilding images,
+- lower risk of degradation caused by incorrect memory policies.
+
+Commands:
+
+- `warp redis info`: shows information about configured Redis services.
+- `warp redis cli <cache|session|fpc>`: access to `redis-cli` per service.
+- `warp redis monitor <cache|session|fpc>`: real-time command monitoring.
+- `warp redis flush <cache|session|fpc|--all>`: data cleanup per service.
+
+## Warp self-maintenance and update flow (`warp update`)
+
+The framework update flow was hardened:
+
+- integrity verification (checksum) before replacement,
+- pending update state tracking,
+- automatic version checks without interrupting critical commands,
+- clear separation between Warp updates and Docker image updates.
+
+Current remote sources for runtime update:
+
+- `https://raw.githubusercontent.com/magtools/phoenix-launch-silo/refs/heads/master/dist/version.md`
+- `https://raw.githubusercontent.com/magtools/phoenix-launch-silo/refs/heads/master/dist/sha256sum.md`
+- `https://raw.githubusercontent.com/magtools/phoenix-launch-silo/refs/heads/master/dist/warp`
+
+What it brings to the team:
+
+- more reliable upgrades,
+- better visibility when a new version exists or when connectivity fails,
+- lower risk of surprising project configuration changes.
+
+Commands:
+
+- `warp update`: updates the Warp binary/framework.
+- `warp update --images`: updates project Docker images.
+- `warp update self` / `warp update --self`: applies a local self-update for development flows; if the remote is newer, it leaves the normal pending update marker.
+
+## Quick MySQL diagnostics with MySQLTuner (`warp mysql tuner`)
+
+An operational shortcut was added to run MySQLTuner against the project's DB service.
+
+What it brings to the team:
+
+- avoids manual steps to download the script,
+- uses a standard working directory (`./var` or `/tmp`),
+- detects missing Perl and attempts distro-specific installation with prior confirmation,
+- runs MySQLTuner using connection data aligned with the project's `.env` (local or external).
+
+Connection behavior:
+
+- local environment with DB container: uses `localhost` and the mapped port (`DATABASE_BINDED_PORT` or `docker-compose port`).
+- if the effective port is `3306`, connects to `localhost` without forcing `--port`.
+- external environment (`MYSQL_VERSION=rds`): uses `DATABASE_HOST`, `DATABASE_BINDED_PORT`, `DATABASE_USER`, `DATABASE_PASSWORD`.
+- server log output is filtered by default to reduce noise; use `warp mysql tuner -vvv` to include it completely.
+- color is enabled by default (except with `--nocolor`).
+
+Command:
+
+- `warp mysql tuner`: downloads/validates dependencies and runs MySQLTuner.
+
+## Per-application dev dumps (`warp mysql devdump`)
+
+A lightweight development dump flow based on per-app exclusion profiles was added.
+
+What it brings to the team:
+
+- avoids maintaining ad-hoc scripts per project,
+- allows generating smaller dumps without sensitive/voluminous data,
+- enables simple extension by adding profile files without touching the core,
+- supports selecting one profile or combining all profiles for the same app.
+
+Commands:
+
+- `warp mysql devdump`: helper with description and available apps.
+- `warp mysql devdump:magento`: runs Magento devdump with profile selection.
+
+## External database support for `warp mysql` (`rds` mode)
+
+MySQL commands now handle scenarios where there is no `mysql` service in Docker and the database is external.
+
+What it brings to the team:
+
+- avoids ambiguous failures when the `mysql` service is not present in `docker-compose-warp.yml`,
+- allows switching to external mode with operator confirmation,
+- autocompletes credentials from `app/etc/env.php` when available,
+- uses a local client for `connect` and `dump`, with assisted installation when missing,
+- allows cleaning `DEFINER` clauses from the dump stream with a native option.
+
+Affected commands:
+
+- `warp mysql connect`: in `rds`, connects to the external host.
+- `warp mysql dump <db>`: in `rds`, dumps against the external host.
+- `warp mysql dump -s <db>` / `warp mysql dump --strip-definers <db>`: removes `DEFINER` clauses from the streamed dump before writing it.
+- `warp mysql import <db>`: in `rds`, does not import; it prints a suggested command and the password.
+
+## More guided Grunt setup (`warp grunt setup`)
+
+In addition to the classic execution command, there is now a dedicated setup flow for Grunt:
+
+- prepares base files when missing,
+- installs npm dependencies inside the container,
+- normalizes permissions to avoid later blockers.
+
+What it brings to the team:
+
+- less friction in legacy/classic frontend projects,
+- fewer permission errors when installing as root,
+- better compatibility with different PHP containers.
+
+Commands:
+
+- `warp grunt setup`: prepares base files and installs Grunt dependencies.
+- `warp grunt exec`: republishes frontend symlinks/artifacts.
+- `warp grunt less`: compiles LESS/CSS.
+- `WARP_GRUNT_PHP_CONTAINER=<container> warp grunt ...`: runs against a specific PHP container.
+
+## Platform and version compatibility (Magento/OpenSearch)
+
+Over the last year, compatibility adjustments were also added to reduce friction during upgrades and environment bootstrap.
+
+What it brings to the team:
+
+- better operational support for Magento projects on recent branches (including 2.4.7/2.4.8 adjustments),
+- fixes in OpenSearch/Elasticsearch setup and related variables,
+- alignment of setup defaults for PHP/MySQL and supporting components,
+- lower risk of bootstrap failures caused by version combinations.
+
+Functional impact:
+
+- more stable `warp init` runs,
+- fewer manual corrections after setup,
+- greater consistency across projects when migrating stack versions.
+
+## Overall result for the team
+
+Taken together, these improvements aim to:
+
+- standardize repetitive operations,
+- reduce variability across projects,
+- improve operational safety in deploy/update flows,
+- shorten diagnosis and setup times.
