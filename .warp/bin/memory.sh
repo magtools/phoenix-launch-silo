@@ -18,13 +18,13 @@ memory_print_warn() {
 }
 
 memory_progress_begin() {
-    _label="$1"
+    local _label="$1"
     [ "$MEMORY_PROGRESS" = "1" ] || return 0
 
     if [ -t 2 ]; then
         (
-            _spin='|/-\'
-            _i=0
+            local _spin='|/-\'
+            local _i=0
             while :; do
                 _i=$(((_i + 1) % 4))
                 printf "\r[%c] %s" "${_spin:$_i:1}" "$_label" >&2
@@ -38,8 +38,8 @@ memory_progress_begin() {
 }
 
 memory_progress_end() {
-    _status="$1"
-    _label="$2"
+    local _status="$1"
+    local _label="$2"
     [ "$MEMORY_PROGRESS" = "1" ] || return 0
 
     if [ -n "$MEMORY_PROGRESS_PID" ]; then
@@ -57,7 +57,7 @@ memory_progress_end() {
 }
 
 memory_trim() {
-    echo "$1" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//'
+    printf '%s' "$1" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//'
 }
 
 memory_docker_available() {
@@ -984,8 +984,8 @@ EOF
 }
 
 memory_report() {
-    _output="text"
-    _show_suggest="1"
+    local _output="text"
+    local _show_suggest="1"
 
     while [ $# -gt 0 ]; do
         case "$1" in
@@ -1021,6 +1021,7 @@ memory_report() {
 }
 
 memory_guide() {
+    local _php_conf
     _php_conf=$(memory_php_conf_file)
     [ -z "$_php_conf" ] && _php_conf="$PROJECTPATH/.warp/docker/config/php/php-fpm.conf"
 

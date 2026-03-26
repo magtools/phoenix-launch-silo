@@ -643,9 +643,10 @@ warp_update() {
         exit 0;
     fi
 
-    if [ "$1" = "self" ] ; then
+    if [ "$1" = "self" ] || [ "$1" = "--self" ] ; then
         warp_message_info "Buscando actualizaciones..."
         warp_message_info "Self update mode: aplicando payload de ./warp actual"
+        warp_message_info2 "No remote version will be downloaded in self mode"
         warp_pending_update_ensure
         warp_update_tmp_clean
         mkdir -p "$WARP_TMP_EXTRACT_DIR" || { warp_message_error "unable to create $WARP_TMP_EXTRACT_DIR"; exit 1; }

@@ -18,13 +18,13 @@ Agregar `warp scan` para ejecutar chequeos de calidad de código con foco en Mag
    - corre `warp magento setup:di:compile` usando el mismo patrón de resolución de entrypoint local ya fijado en `deploy` (`./warp`, `warp.sh` o `warp` en `PATH`).
    - luego corre `warp scan pr`.
 4. `warp scan --path <ruta>` abre menú de acciones sobre una ruta arbitraria dentro del proyecto sin volver a mostrar menú de paths.
-5. `warp scan phpcs --path <ruta>` ejecuta PHPCS directamente sobre la ruta indicada.
-6. `warp scan phpcbf --path <ruta>` ejecuta PHPCBF directamente sobre la ruta indicada.
-7. `warp scan phpmd --path <ruta>` ejecuta PHPMD directamente sobre la ruta indicada.
+5. `warp scan phpcs --path <ruta>` ejecuta `PHPCS` directo sobre la ruta indicada.
+6. `warp scan phpcbf --path <ruta>` ejecuta `PHPCBF` directo sobre la ruta indicada.
+7. `warp scan phpmd --path <ruta>` ejecuta `PHPMD` directo sobre la ruta indicada.
 8. `warp scan phpcompat --path <ruta>` ejecuta `PHPCompatibility` sobre la ruta indicada.
 9. `warp scan phpstan` ejecuta el scope default definido por `phpstan.neon.dist`.
 10. `warp scan phpstan --path <ruta>` ejecuta `PHPStan` sobre una ruta puntual.
-11. `warp scan phpstan --level <n>` permite override puntual del level sin modificar `phpstan.neon.dist`.
+11. `warp scan phpstan --level <n>` permite override puntual del level sin tocar `phpstan.neon.dist`.
 
 ## Reglas TestPR
 
@@ -179,8 +179,12 @@ Estrategia de ejecución actual:
    - usa el scope default definido por `phpstan.neon.dist`
 2. `warp scan phpstan --path <ruta>`
    - ejecuta `phpstan analyse <path>`
-3. en el menú principal, `phpstan` ejecuta directamente el scope default
-4. en `warp scan --path <ruta>`, `phpstan` corre sobre la ruta elegida
+3. `warp scan phpstan --level <n>`
+   - aplica un override puntual de `level` para esa corrida
+4. `warp scan phpstan --level <n> --path <ruta>`
+   - combina override de `level` con una ruta puntual
+5. en el menú principal, `phpstan` ejecuta directamente el scope default
+6. en `warp scan --path <ruta>`, `phpstan` corre sobre la ruta elegida
 
 Referencia:
 
@@ -197,7 +201,7 @@ Importante:
 
 1. `level`, exclusiones y `tmpDir` deben quedar en `phpstan.neon.dist`
 2. no conviene duplicar esa configuración rígidamente en CLI
-3. los overrides por CLI, si existieran, deben ser explícitos y excepcionales
+3. `--level` existe solo como override puntual; el default sigue viviendo en `phpstan.neon.dist`
 
 Si falta el binario, el mensaje debe sugerir:
 
@@ -272,7 +276,6 @@ Modelo actual:
 6. `phpstan`
    - requiere `vendor/bin/phpstan`
    - asegura `phpstan.neon.dist` si falta
-   - acepta override opcional `--level <n>`
 
 Beneficio:
 
@@ -343,7 +346,7 @@ Comportamiento de `--path`:
 3. `phpcs`, `phpcbf`, `phpmd`, `phpcompat` y `phpstan` usan la ruta seleccionada
 4. `test PR` sobre `--path` ejecuta los checks PR solo sobre esa ruta
 
-Subcomandos directos normalizados:
+Subcomandos directos expuestos actualmente:
 
 1. `warp scan phpcs --path <ruta>`
 2. `warp scan phpcbf --path <ruta>`

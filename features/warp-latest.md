@@ -88,6 +88,7 @@ Comandos:
 - `warp scan phpstan`: PHPStan sobre el scope default de `phpstan.neon.dist`.
 - `warp scan phpstan --path <ruta>`: PHPStan sobre una ruta puntual.
 - `warp scan phpstan --level <n>`: override puntual de level para una corrida.
+- `warp scan phpstan --level <n> --path <ruta>`: override puntual de level sobre una ruta puntual.
 
 Impacto funcional:
 
@@ -271,7 +272,7 @@ Comandos:
 
 - `warp update`: actualiza binario/framework de Warp.
 - `warp update --images`: actualiza imágenes Docker del proyecto.
-- `warp update self`: aplica self-update local para flujo de desarrollo.
+- `warp update self` / `warp update --self`: aplica self-update local para flujo de desarrollo; si el remoto es mas nuevo, deja la marca normal de update pendiente.
 
 ## Diagnóstico rápido de MySQL con MySQLTuner (`warp mysql tuner`)
 

@@ -49,11 +49,12 @@ Importante:
 - ejecuta `docker-compose -f $DOCKERCOMPOSEFILE pull`
 - no participa del flujo de checksum/binario de `warp`.
 
-## 4.1) `update self` (modo desarrollo/publicacion local)
+## 4.1) `update self` / `update --self` (modo desarrollo/publicacion local)
 
 Se agrega:
 
 - `warp update self`
+- `warp update --self`
 
 Objetivo:
 
@@ -69,10 +70,15 @@ Comportamiento:
    - excluye `.warp/docker/config`
 5. Ajusta permisos ejecutables del `./warp` actual (`chmod 755`).
 6. Limpia temporales y limpia `.pending-update`.
+7. Al finalizar el comando, el chequeo remoto normal sigue activo.
+8. Si el remoto es mas nuevo, deja la marca de update pendiente en `.pending-update`.
+9. Si el remoto es mas viejo, no degrada el binario local aplicado por `--self`.
 
 Nota:
 
 - este modo es para pruebas/flujo local de desarrollo del binario antes de publicar artefactos remotos.
+- si el `./warp` fisico local es mas nuevo que la version publicada, `--self` conserva y aplica ese payload local; no degrada al remoto.
+- si la version publicada resulta mas nueva, `--self` igual aplica el payload local y deja visible el aviso de update pendiente para una corrida posterior de `warp update`.
 
 ## 5) Chequeo automatico post-comando
 

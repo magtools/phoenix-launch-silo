@@ -446,6 +446,8 @@ function mysql_connect_ssh()
 
 function mysql_switch()
 {
+    local mysql_version_requested
+    local mysql_version_current
 
     if [ "$1" = "-h" ] || [ "$1" = "--help" ] || [ -z "$1" ]
     then
@@ -460,69 +462,41 @@ function mysql_switch()
         exit 1;
     fi
 
-    MYSQL_VERSION_CURRENT=$(warp_env_read_var MYSQL_VERSION)
-    warp_message_info2 "You current MySQL version is: $MYSQL_VERSION_CURRENT"
+    mysql_version_requested="$1"
+    mysql_version_current=$(warp_env_read_var MYSQL_VERSION)
+    warp_message_info2 "You current MySQL version is: $mysql_version_current"
 
-    if [ $MYSQL_VERSION_CURRENT = $1 ]
+    if [ "$mysql_version_current" = "$mysql_version_requested" ]
     then
         warp_message_info2 "the selected version is the same as the previous one, no changes will be made"
         warp_message_warn "for help run: $(warp_message_bold './warp db switch --help')"
+        return 0
     else
-        warp_message_warn "This command will destroy MySQL database"
-        warp_message "you can create a backup running: $(warp_message_bold './warp db dump --help')"
-        respuesta_switch_version_db=$( warp_question_ask_default "Do you want to continue? $(warp_message_info [Y/n]) " "Y" )
-
-        if [ "$respuesta_switch_version_db" = "Y" ] || [ "$respuesta_switch_version_db" = "y" ]
-        then
-            mysql_version=$1
-            warp_message_info2 "change version to: $mysql_version"
-
-            MYSQL_VERSION_OLD="MYSQL_VERSION=$MYSQL_VERSION_CURRENT"
-            MYSQL_VERSION_NEW="MYSQL_VERSION=$mysql_version"
-
-            cat $ENVIRONMENTVARIABLESFILE | sed -e "s/$MYSQL_VERSION_OLD/$MYSQL_VERSION_NEW/" > "$ENVIRONMENTVARIABLESFILE.warp_tmp"
-            mv "$ENVIRONMENTVARIABLESFILE.warp_tmp" $ENVIRONMENTVARIABLESFILE
-
-            cat $ENVIRONMENTVARIABLESFILESAMPLE | sed -e "s/$MYSQL_VERSION_OLD/$MYSQL_VERSION_NEW/" > "$ENVIRONMENTVARIABLESFILESAMPLE.warp_tmp"
-            mv "$ENVIRONMENTVARIABLESFILESAMPLE.warp_tmp" $ENVIRONMENTVARIABLESFILESAMPLE
-
-            # delete old files
-            rm  -rf $PROJECTPATH/.warp/docker/config/mysql/ 2> /dev/null
-            if [ -d $PROJECTPATH/.warp/docker/volumes/mysql ]
-            then
-                sudo rm -rf $PROJECTPATH/.warp/docker/volumes/mysql/* 2> /dev/null
-            fi
-
-            # delete volume database
-            warp volume --rm mysql 2> /dev/null
-
-            DOCKER_PRIVATE_REGISTRY=$(warp_env_read_var DOCKER_PRIVATE_REGISTRY)
-
-            if [ ! -z "$DOCKER_PRIVATE_REGISTRY" ] ; then
-                NAMESPACE=$(warp_env_read_var NAMESPACE)
-                PROJECT=$(warp_env_read_var PROJECT)
-                mysql_docker_image="${NAMESPACE}-${PROJECT}-dbs"
-
-                CREATE_MYSQL_IMAGE_FROM="mysql:${mysql_version} ${DOCKER_PRIVATE_REGISTRY}/${mysql_docker_image}:latest"
-
-                # clear custom image
-                docker pull "mysql:$mysql_version"
-                docker rmi "${DOCKER_PRIVATE_REGISTRY}/${mysql_docker_image}"
-                docker tag $CREATE_MYSQL_IMAGE_FROM 2> /dev/null
-            fi
-
-            # check files for mysql version
-            #warp_mysql_check_files_yaml
-
-            # copy base files
-            cp -R $PROJECTPATH/.warp/setup/mysql/config/ $PROJECTPATH/.warp/docker/config/mysql/
-
-            warp_message_warn "* commit new changes"
-            warp_message_warn "* at each environment run: $(warp_message_bold './warp reset')"
-            warp_message_warn "* after that run: $(warp_message_bold './warp db --update')"
-        else
-            warp_message_warn "* aborting switch database"
-        fi
+        warp_message_warn "Automatic mysql version switching is disabled."
+        warp_message_warn "This flow destroys local MySQL data and must be executed manually by the operator."
+        warp_message ""
+        warp_message_info "Requested change:"
+        warp_message " from: $(warp_message_info "$mysql_version_current")"
+        warp_message " to:   $(warp_message_info "$mysql_version_requested")"
+        warp_message ""
+        warp_message_info "Manual procedure:"
+        warp_message " 1. Create a backup if needed: $(warp_message_bold './warp db dump <database_name> > backup.sql')"
+        warp_message " 2. Update MYSQL_VERSION in:"
+        warp_message "    - $(warp_message_info "$ENVIRONMENTVARIABLESFILE")"
+        warp_message "    - $(warp_message_info "$ENVIRONMENTVARIABLESFILESAMPLE")"
+        warp_message " 3. Remove local MySQL config/cache artifacts if the operator confirms it is safe:"
+        warp_message "    - $(warp_message_info "$PROJECTPATH/.warp/docker/config/mysql/")"
+        warp_message "    - $(warp_message_info "$PROJECTPATH/.warp/docker/volumes/mysql/*")"
+        warp_message " 4. Remove the docker volume if required: $(warp_message_bold 'warp volume --rm mysql')"
+        warp_message " 5. Restore base MySQL config from setup:"
+        warp_message "    - $(warp_message_info 'cp -R .warp/setup/mysql/config/ .warp/docker/config/mysql/')"
+        warp_message " 6. If the project uses a private DB registry, refresh/tag the image manually before restart."
+        warp_message " 7. Rebuild/restart the environment:"
+        warp_message "    - $(warp_message_bold './warp reset')"
+        warp_message "    - $(warp_message_bold './warp db --update')"
+        warp_message ""
+        warp_message_warn "No files were changed by ./warp db switch."
+        return 2
     fi
 }
 

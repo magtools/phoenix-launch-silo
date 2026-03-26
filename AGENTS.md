@@ -64,6 +64,9 @@ Reglas actuales del proceso de update runtime:
 - Validación obligatoria de checksum SHA-256 antes de reemplazar `./warp`.
 - La actualización de `.warp` debe extraer payload en temporal y copiar al proyecto **sin tocar** `.warp/docker/config`.
 - `warp update` no debe ejecutar wizard ni `init`, ni procesos de setup que modifiquen `config`.
+- `warp update self` y `warp update --self` deben aplicar el payload del `./warp` fisico local, sin descargar artefactos remotos.
+- si la version remota publicada es mas vieja que el `./warp` fisico local, `update self` / `update --self` no deben degradar el binario local.
+- si la version remota publicada es mas nueva, `update self` / `update --self` igual deben aplicar el payload local y dejar la marca normal de update pendiente en `./var/warp-update/.pending-update`.
 - Al finalizar, limpiar contenido temporal de update (la carpeta `var` puede quedar).
 - Si `warp` queda actualizado, `.pending-update` debe quedar vacío.
 - Si hay versión más nueva, `.pending-update` debe contener mensaje visible de update pendiente.
@@ -100,6 +103,19 @@ Reglas de chequeo automático de versión:
     - `./warp.sh`
     - `warp`
   - usar ese entrypoint resuelto para llamadas internas como `magento`, `search`, `hyva`, etc.
+
+## 5.1) Reglas de refactor Bash
+
+- En funciones Bash, declarar como `local` toda variable interna salvo estado global intencional y documentado.
+- Capturar códigos de salida inmediatamente después de `wait` o del comando relevante; no confiar en `$?` luego de más lógica.
+- Evitar ejecutar comandos complejos mediante strings con `bash -lc "$cmd"` cuando exista una forma razonable de pasar `argv` real.
+- Si una acción histórica deja de modificar estado y pasa a ser solo informativa/manual, **no** devolver éxito silencioso simulando que el cambio ocurrió; dejar el comportamiento explícito en mensaje y exit code según corresponda.
+- Si un comando soporta override por contenedor (`WARP_<FEATURE>_PHP_CONTAINER`), el preflight y la ejecución real deben respetar el mismo override.
+- Si se cambia el contrato CLI de un comando (subcomandos, flags, defaults o ejemplos), actualizar en la misma tarea:
+  - el archivo `*_help.sh`,
+  - la documentación funcional en `features/*`,
+  - y, si aplica, `README.md` / `features/warp-latest.md`.
+- Para pipelines que escriben a un mismo archivo de salida, dejar explícito qué paso inicializa el archivo y cuáles hacen append.
 
 ## 6) Seguridad y operaciones destructivas
 

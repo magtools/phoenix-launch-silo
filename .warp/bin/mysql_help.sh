@@ -151,7 +151,8 @@ function mysql_switch_help()
 
     warp_message ""
     warp_message_info "Help:"
-    warp_message " this command allows to change the MySQL version"
+    warp_message " this command prints the manual guide to change the MySQL version safely"
+    warp_message " it does not edit files or remove volumes automatically"
     warp_message " you can check the available versions of MySQL here: $(warp_message_info '[ https://hub.docker.com/r/library/mysql/tags/ ]')"
     warp_message ""
 

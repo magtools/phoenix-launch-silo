@@ -10,4 +10,4 @@ cache/search robustecer health/checks reales de external (PING cache y /_cluster
 consultas tamaños/indices
 health c/colores
 
-
+warp update --self no debe buscar un update
