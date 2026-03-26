@@ -14,20 +14,56 @@ function php_info()
 
     PHP_VERSION=$(warp_env_read_var PHP_VERSION)
 
-    if [ ! -z "$PHP_VERSION" ]
-    then
-        warp_message ""
-        warp_message_info "* PHP"
+    warp_message ""
+    warp_message_info "* PHP"
+
+    if [ ! -z "$PHP_VERSION" ]; then
         warp_message "Version:                    $(warp_message_info $PHP_VERSION)"
+    fi
+
+    if [ -f "$DOCKERCOMPOSEFILE" ]; then
+        warp_message "Mode:                       $(warp_message_info docker)"
         warp_message "Logs:                       $(warp_message_info $PROJECTPATH/.warp/docker/volumes/php-fpm/logs)"
         warp_message "Xdebug file:                $(warp_message_info $PROJECTPATH/.warp/docker/config/php/ext-xdebug.ini)"
         warp_message "php.ini file:               $(warp_message_info $PROJECTPATH/.warp/docker/config/php/php.ini)"
         warp_message "Cron file:                  $(warp_message_info $PROJECTPATH/.warp/docker/config/crontab/cronfile)"
         warp_message ""
         warp_message_warn " - In order to configure Xdebug, please check FAQs here: $(warp_message_bold 'http://ct.summasolutions.net/warp-engine/?#anchorFAQs')"
-        
-        warp_message ""
+    else
+        _host_php_version="N/A"
+        if command -v php >/dev/null 2>&1; then
+            _host_php_version=$(php -r 'echo PHP_VERSION;' 2>/dev/null)
+        fi
+        warp_message "Mode:                       $(warp_message_info host)"
+        warp_message "Host php binary:            $(warp_message_info ${_host_php_version:-N/A})"
+        warp_message "docker-compose file:        $(warp_message_warn not found)"
+        warp_message_warn " - In host mode, use 'warp magento ...' to run bin/magento with local php."
     fi
+
+    warp_message ""
+}
+
+function php_version()
+{
+    if [ -f "$DOCKERCOMPOSEFILE" ]; then
+        if [ "$(warp_check_is_running)" = false ]; then
+            warp_message_error "The containers are not running"
+            warp_message_error "please, first run warp start"
+            exit 1
+        fi
+
+        docker-compose -f "$DOCKERCOMPOSEFILE" exec -T php php -r 'echo PHP_VERSION;'
+        echo ""
+        return 0
+    fi
+
+    if ! command -v php >/dev/null 2>&1; then
+        warp_message_error "php binary not found in host"
+        exit 1
+    fi
+
+    php -r 'echo PHP_VERSION;'
+    echo ""
 }
 
 php_simil_ssh() {
@@ -42,6 +78,12 @@ php_simil_ssh() {
         php_ssh_wrong_input
         exit 1
     else
+        if [ ! -f "$DOCKERCOMPOSEFILE" ]; then
+            warp_message_error "docker-compose-warp.yml not found"
+            warp_message_warn "php ssh is only available for docker mode"
+            exit 1
+        fi
+
         if [[ $1 == "--root" ]]; then
             # Check if warp is running:    
             if [ "$(warp_check_is_running)" = false ]; then
@@ -191,6 +233,10 @@ function php_main()
 
         info)
             php_info
+        ;;
+
+        version|--version)
+            php_version
         ;;
 
         switch)

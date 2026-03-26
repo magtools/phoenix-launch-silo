@@ -73,7 +73,7 @@ elasticsearch_simil_ssh() {
                 exit 1
             fi
             docker-compose -f "$DOCKERCOMPOSEFILE" exec -u root elasticsearch bash
-        elif [[ -z $1 || $1 == "--elasticsearch" ]]; then
+        elif [[ -z $1 || $1 == "--elasticsearch" || $1 == "--search" ]]; then
             # Check if warp is running:    
             if [ "$(warp_check_is_running)" = false ]; then
                 warp_message_error "The containers are not running"

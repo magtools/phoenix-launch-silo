@@ -64,6 +64,9 @@ Reglas actuales del proceso de update runtime:
 - Validación obligatoria de checksum SHA-256 antes de reemplazar `./warp`.
 - La actualización de `.warp` debe extraer payload en temporal y copiar al proyecto **sin tocar** `.warp/docker/config`.
 - `warp update` no debe ejecutar wizard ni `init`, ni procesos de setup que modifiquen `config`.
+- `warp update self` y `warp update --self` deben aplicar el payload del `./warp` fisico local, sin descargar artefactos remotos.
+- si la version remota publicada es mas vieja que el `./warp` fisico local, `update self` / `update --self` no deben degradar el binario local.
+- si la version remota publicada es mas nueva, `update self` / `update --self` igual deben aplicar el payload local y dejar la marca normal de update pendiente en `./var/warp-update/.pending-update`.
 - Al finalizar, limpiar contenido temporal de update (la carpeta `var` puede quedar).
 - Si `warp` queda actualizado, `.pending-update` debe quedar vacío.
 - Si hay versión más nueva, `.pending-update` debe contener mensaje visible de update pendiente.
@@ -92,6 +95,27 @@ Reglas de chequeo automático de versión:
   - archivo `.warp/bin/<cmd>_help.sh`
   - inclusión en `.warp/includes.sh`
   - dispatch en `warp.sh` si aplica
+- Si un subcomando necesita invocar `warp` desde otro script Bash:
+  - **no asumir** que `warp` existe en `PATH`;
+  - reutilizar el patrón ya establecido en `.warp/bin/deploy.sh` (`deploy_warp_exec`);
+  - resolver en este orden:
+    - `./warp`
+    - `./warp.sh`
+    - `warp`
+  - usar ese entrypoint resuelto para llamadas internas como `magento`, `search`, `hyva`, etc.
+
+## 5.1) Reglas de refactor Bash
+
+- En funciones Bash, declarar como `local` toda variable interna salvo estado global intencional y documentado.
+- Capturar códigos de salida inmediatamente después de `wait` o del comando relevante; no confiar en `$?` luego de más lógica.
+- Evitar ejecutar comandos complejos mediante strings con `bash -lc "$cmd"` cuando exista una forma razonable de pasar `argv` real.
+- Si una acción histórica deja de modificar estado y pasa a ser solo informativa/manual, **no** devolver éxito silencioso simulando que el cambio ocurrió; dejar el comportamiento explícito en mensaje y exit code según corresponda.
+- Si un comando soporta override por contenedor (`WARP_<FEATURE>_PHP_CONTAINER`), el preflight y la ejecución real deben respetar el mismo override.
+- Si se cambia el contrato CLI de un comando (subcomandos, flags, defaults o ejemplos), actualizar en la misma tarea:
+  - el archivo `*_help.sh`,
+  - la documentación funcional en `features/*`,
+  - y, si aplica, `README.md` / `features/warp-latest.md`.
+- Para pipelines que escriben a un mismo archivo de salida, dejar explícito qué paso inicializa el archivo y cuáles hacen append.
 
 ## 6) Seguridad y operaciones destructivas
 
@@ -109,7 +133,17 @@ Regla obligatoria para agentes:
 
 ## 7) Supuestos de entorno
 
-- Requiere `docker` y `docker-compose` (legacy v1 en scripts actuales).
+- Requiere `docker` y Compose en alguna de estas variantes:
+  - `docker-compose >= 1.29` (legacy v1),
+  - `docker compose` (plugin v2).
+- Warp implementa fallback interno: si falta `docker-compose` pero existe `docker compose`, genera shim local en `./var/warp-bin/docker-compose`.
+- No se requiere ni se recomienda crear symlink global de `docker-compose` como solución por defecto.
+- Patrón adoptado para comandos que pueden ejecutar sobre un contenedor PHP existente:
+  - exponer override explícito por env var (`WARP_<FEATURE>_PHP_CONTAINER=<container_name>`),
+  - validar primero con `docker inspect --format '{{.State.Running}}'` que el contenedor exista y esté corriendo,
+  - si el override existe y está corriendo, ejecutar con `docker exec -i ...`,
+  - si no hay override, usar el flujo estándar del proyecto (`docker-compose exec` / runtime host según corresponda),
+  - si el override existe pero no está corriendo, abortar con mensaje claro `container not running: <name>`.
 - También requiere `ed` y `tr`.
 - En macOS pueden intervenir `docker-sync` y `rsync`.
 - Para flujos con `warp rsync`, asumir mínimo `rsync >= 3.1.1` (en macOS el `rsync` del sistema puede ser incompatible).
@@ -126,6 +160,7 @@ Luego de cambios en core/setup/comandos, validar como mínimo:
 3. `./warp start --help`
 4. `./warp stop --help`
 5. `./warp info --help`
+6. `./warp docker ps` (smoke compose passthrough)
 
 Si este repo fuente no incluye binario `./warp`, usar fallback equivalente:
 
@@ -134,6 +169,7 @@ Si este repo fuente no incluye binario `./warp`, usar fallback equivalente:
 3. `bash ./warp.sh start --help`
 4. `bash ./warp.sh stop --help`
 5. `bash ./warp.sh info --help`
+6. `bash ./warp.sh docker ps` (smoke compose passthrough)
 
 Si el cambio toca comandos específicos, validar también su `--help` y un smoke básico del flujo afectado.
 

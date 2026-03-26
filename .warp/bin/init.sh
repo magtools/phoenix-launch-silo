@@ -19,14 +19,21 @@ function init_command() {
     warp_banner
     echo ""
 
+    _warp_init_detect_app_context() {
+        warp_app_context_detect
+        warp_message_info2 "Detected app context: $(warp_app_context_summary)"
+    }
+
     if [ -f $DOCKERCOMPOSEFILE ] || [ -f $ENVIRONMENTVARIABLESFILESAMPLE ]; then
 
         if [ ! -f $ENVIRONMENTVARIABLESFILE ]; then
             if [ "$1" = "-n" ] || [ "$1" = "--no-interaction" ] ; then
                 # INIT WITHOUT WIZARD MODE
+                _warp_init_detect_app_context
                 . "$WARPFOLDER/setup/init/autoload.sh"
             else
                 # INIT WIZARD MODE DEVELOPER
+                _warp_init_detect_app_context
                 . "$WARPFOLDER/setup/init/developer.sh"
             fi
         else
@@ -61,6 +68,7 @@ function init_command() {
         warp_message_info "* Starting initial installation\n"
         . "$WARPFOLDER/setup/init/service.sh"
         . "$WARPFOLDER/setup/init/base.sh"
+        _warp_init_detect_app_context
         . "$WARPFOLDER/setup/mac/mac.sh"
         . "$WARPFOLDER/setup/webserver/webserver.sh"
         . "$WARPFOLDER/setup/php/php.sh"

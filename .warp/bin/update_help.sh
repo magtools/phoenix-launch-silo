@@ -11,7 +11,7 @@ function update_help_usage()
     warp_message_info "Options:"
     warp_message_info   " -h, --help         $(warp_message 'display this help message')"
     warp_message_info   " -f, --force        $(warp_message 'force update without confirmation')"
-    warp_message_info   " self               $(warp_message 'apply payload from current ./warp without remote download')"
+    warp_message_info   " self, --self       $(warp_message 'apply payload from current ./warp without remote download')"
     warp_message_info   " --images           $(warp_message 'update images from hub registry docker')"
     warp_message ""
 

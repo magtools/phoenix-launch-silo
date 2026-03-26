@@ -10,7 +10,7 @@ hyva_logs_ensure_dir() {
 }
 
 hyva_ensure_gitignore_block() {
-    gitignore_file="$PROJECTPATH/.gitignore"
+    local gitignore_file="$PROJECTPATH/.gitignore"
     [ -f "$gitignore_file" ] || touch "$gitignore_file"
 
     grep -q "^# HYVA / TAILWIND" "$gitignore_file" 2>/dev/null
@@ -35,45 +35,50 @@ hyva_ensure_gitignore_block() {
 }
 
 hyva_log_file_for_action() {
-    key="$1"
-    npm_action="$2"
-    ts="$(date +%Y%m%d-%H%M%S)"
-    safe_action="$(printf "%s" "$npm_action" | tr ' /:' '___' | tr -cd '[:alnum:]_-' )"
-    safe_key="$(printf "%s" "$key" | tr -cd '[:alnum:]_-' )"
+    local key="$1"
+    local npm_action="$2"
+    local ts="$(date +%Y%m%d-%H%M%S)"
+    local safe_action="$(printf "%s" "$npm_action" | tr ' /:' '___' | tr -cd '[:alnum:]_-' )"
+    local safe_key="$(printf "%s" "$key" | tr -cd '[:alnum:]_-' )"
     printf "%s/%s_%s_%s.log" "$HYVA_LOG_DIR" "$safe_key" "$safe_action" "$ts"
 }
 
 hyva_spinner_wait() {
-    pid="$1"
-    message="$2"
-    spin='|/-\'
-    i=0
+    local pid="$1"
+    local message="$2"
+    local spin='|/-\'
+    local i=0
 
     while kill -0 "$pid" 2>/dev/null; do
         i=$(( (i + 1) % 4 ))
         printf "\r%s [%c]" "$message" "${spin:$i:1}"
         sleep 0.1
     done
-    printf "\r%*s\r" 80 ""
+    printf "\r%*s\r" 100 ""
 }
 
 hyva_run_npm_with_log() {
-    key="$1"
-    npm_action="$2"
-    tailwind_path="$3"
-    log_file="$4"
-    run_as_root="$5"
-    cmd="npm --prefix \"$tailwind_path\" $npm_action"
+    local key="$1"
+    local npm_action="$2"
+    local tailwind_path="$3"
+    local log_file="$4"
+    local run_as_root="$5"
+    local cmd_display="npm --prefix \"$tailwind_path\" $npm_action"
+    local start_ts
+    local end_ts
+    local elapsed
+    local cmd_status
+    local cmd_pid
 
     # watch must remain interactive/live; still tee to log.
     if [ "$npm_action" = "run watch" ]; then
         start_ts="$(date +%s)"
-        warp_message_info "[$key] $cmd"
+        warp_message_info "[$key] $cmd_display"
         warp_message_info "[$key] log: $log_file"
         warp_message ""
         warp_message_warn "# Watch mode running. Press Ctrl+C to stop."
         warp_message ""
-        hyva_npm_exec "$cmd" "$run_as_root" 2>&1 | tee "$log_file"
+        hyva_npm_exec "$tailwind_path" "$npm_action" "$run_as_root" 2>&1 | tee "$log_file"
         cmd_status=${PIPESTATUS[0]}
         end_ts="$(date +%s)"
         elapsed=$((end_ts - start_ts))
@@ -90,7 +95,7 @@ hyva_run_npm_with_log() {
     fi
 
     start_ts="$(date +%s)"
-    hyva_npm_exec "$cmd" "$run_as_root" > "$log_file" 2>&1 &
+    hyva_npm_exec "$tailwind_path" "$npm_action" "$run_as_root" > "$log_file" 2>&1 &
     cmd_pid=$!
 
     if [ -t 1 ]; then
@@ -135,6 +140,29 @@ hyva_php_container() {
     fi
 }
 
+hyva_npm_command_from_action() {
+    local tailwind_path="$1"
+    local npm_action="$2"
+
+    case "$npm_action" in
+        install)
+            printf 'npm\0--prefix\0%s\0install\0' "$tailwind_path"
+            ;;
+        "run generate")
+            printf 'npm\0--prefix\0%s\0run\0generate\0' "$tailwind_path"
+            ;;
+        "run build")
+            printf 'npm\0--prefix\0%s\0run\0build\0' "$tailwind_path"
+            ;;
+        "run watch")
+            printf 'npm\0--prefix\0%s\0run\0watch\0' "$tailwind_path"
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
 hyva_validate_json_file() {
     if [ ! -f "$HYVA_THEMES_FILE" ]; then
         return 2
@@ -149,7 +177,8 @@ hyva_validate_json_file() {
 }
 
 hyva_require_json_file() {
-    context_action="$1"
+    local context_action="$1"
+    local status
     hyva_validate_json_file >/dev/null 2>&1
     status=$?
     case "$status" in
@@ -184,11 +213,11 @@ hyva_require_json_file() {
 }
 
 hyva_theme_key_from_code() {
-    code="$1"
-    vendor="$(printf "%s" "$code" | cut -d '/' -f 1)"
-    theme="$(printf "%s" "$code" | cut -d '/' -f 2-)"
-    vendor_key="$(printf "%s" "$vendor" | sed -E 's/[^A-Za-z0-9]+/_/g')"
-    theme_key="$(printf "%s" "$theme" | awk -F'[^A-Za-z0-9]+' '
+    local code="$1"
+    local vendor="$(printf "%s" "$code" | cut -d '/' -f 1)"
+    local theme="$(printf "%s" "$code" | cut -d '/' -f 2-)"
+    local vendor_key="$(printf "%s" "$vendor" | sed -E 's/[^A-Za-z0-9]+/_/g')"
+    local theme_key="$(printf "%s" "$theme" | awk -F'[^A-Za-z0-9]+' '
         {
             out="";
             for (i=1; i<=NF; i++) {
@@ -204,7 +233,7 @@ hyva_theme_key_from_code() {
 }
 
 hyva_json_rows() {
-    mode="$1"
+    local mode="$1"
     cat "$HYVA_THEMES_FILE" | hyva_php_container -r '
         $mode=$argv[1];
         $raw=stream_get_contents(STDIN);
@@ -224,8 +253,8 @@ hyva_json_rows() {
 }
 
 hyva_json_get_field() {
-    key="$1"
-    field="$2"
+    local key="$1"
+    local field="$2"
     cat "$HYVA_THEMES_FILE" | hyva_php_container -r '
         $k=$argv[1]; $field=$argv[2];
         $raw=stream_get_contents(STDIN);
@@ -238,14 +267,34 @@ hyva_json_get_field() {
 }
 
 hyva_check_runtime_preflight() {
-    if [ "$(warp_check_is_running)" = false ]; then
-        warp_message_error "The containers are not running"
-        warp_message_error "please, first run warp start"
-        exit 1
+    local _status
+
+    if [ -n "$WARP_HYVA_PHP_CONTAINER" ]; then
+        docker inspect --format '{{.State.Running}}' "$WARP_HYVA_PHP_CONTAINER" >/dev/null 2>&1 || {
+            warp_message_error "container not found: $WARP_HYVA_PHP_CONTAINER"
+            exit 1
+        }
+
+        _status=$(docker inspect --format '{{.State.Running}}' "$WARP_HYVA_PHP_CONTAINER" 2>/dev/null)
+        if [ "$_status" != "true" ]; then
+            warp_message_error "container not running: $WARP_HYVA_PHP_CONTAINER"
+            exit 1
+        fi
+
+        docker exec -i "$WARP_HYVA_PHP_CONTAINER" sh -lc 'command -v npm >/dev/null 2>&1'
+        _status=$?
+    else
+        if [ "$(warp_check_is_running)" = false ]; then
+            warp_message_error "The containers are not running"
+            warp_message_error "please, first run warp start"
+            exit 1
+        fi
+
+        docker-compose -f "$DOCKERCOMPOSEFILE" exec -T php sh -lc 'command -v npm >/dev/null 2>&1'
+        _status=$?
     fi
 
-    docker-compose -f "$DOCKERCOMPOSEFILE" exec -T php bash -lc "command -v npm >/dev/null 2>&1"
-    if [ $? -ne 0 ]; then
+    if [ $_status -ne 0 ]; then
         warp_message_error "npm not found in php container"
         warp_message_error "install Node/NPM in php image or use a php image with npm"
         exit 1
@@ -253,22 +302,29 @@ hyva_check_runtime_preflight() {
 }
 
 hyva_npm_exec() {
-    npm_cmd="$1"
-    run_as_root="$2"
+    local tailwind_path="$1"
+    local npm_action="$2"
+    local run_as_root="$3"
+    local -a npm_cmd
+
+    if ! mapfile -d '' -t npm_cmd < <(hyva_npm_command_from_action "$tailwind_path" "$npm_action"); then
+        warp_message_error "unsupported npm action: $npm_action"
+        return 1
+    fi
 
     if [ -n "$WARP_HYVA_PHP_CONTAINER" ]; then
         if [ "$run_as_root" = "1" ]; then
-            docker exec -i -u root "$WARP_HYVA_PHP_CONTAINER" bash -lc "$npm_cmd"
+            docker exec -i -u root "$WARP_HYVA_PHP_CONTAINER" "${npm_cmd[@]}"
         else
-            docker exec -i "$WARP_HYVA_PHP_CONTAINER" bash -lc "$npm_cmd"
+            docker exec -i "$WARP_HYVA_PHP_CONTAINER" "${npm_cmd[@]}"
         fi
         return $?
     fi
 
     if [ "$run_as_root" = "1" ]; then
-        docker-compose -f "$DOCKERCOMPOSEFILE" exec -T -u root php bash -lc "$npm_cmd"
+        docker-compose -f "$DOCKERCOMPOSEFILE" exec -T -u root php "${npm_cmd[@]}"
     else
-        docker-compose -f "$DOCKERCOMPOSEFILE" exec -T php bash -lc "$npm_cmd"
+        docker-compose -f "$DOCKERCOMPOSEFILE" exec -T php "${npm_cmd[@]}"
     fi
 }
 
@@ -277,8 +333,14 @@ hyva_get_enabled_keys() {
 }
 
 hyva_prompt_select_theme_key() {
-    keys_block="$1"
-    tmpfile="$(mktemp)"
+    local keys_block="$1"
+    local tmpfile="$(mktemp)"
+    local count
+    local idx
+    local key
+    local code
+    local choice
+    local selected
     printf "%s\n" "$keys_block" > "$tmpfile"
 
     count="$(wc -l < "$tmpfile" | tr -d ' ')"
@@ -318,8 +380,10 @@ hyva_prompt_select_theme_key() {
 }
 
 hyva_resolve_targets() {
-    action="$1"
-    explicit_key="$2"
+    local action="$1"
+    local explicit_key="$2"
+    local keys
+    local count
 
     if [ -n "$explicit_key" ]; then
         hyva_json_get_field "$explicit_key" "code" >/dev/null 2>&1
@@ -352,9 +416,9 @@ hyva_resolve_targets() {
 }
 
 hyva_validate_theme_paths() {
-    key="$1"
-    tailwind_path="$(hyva_json_get_field "$key" "tailwindPath" 2>/dev/null)"
-    package_json="$(hyva_json_get_field "$key" "packageJson" 2>/dev/null)"
+    local key="$1"
+    local tailwind_path="$(hyva_json_get_field "$key" "tailwindPath" 2>/dev/null)"
+    local package_json="$(hyva_json_get_field "$key" "packageJson" 2>/dev/null)"
 
     if [ -z "$tailwind_path" ] || [ -z "$package_json" ]; then
         warp_message_error "theme $key is missing tailwindPath or packageJson in hyva-themes.json"
@@ -375,10 +439,10 @@ hyva_validate_theme_paths() {
 }
 
 hyva_require_theme_dependencies() {
-    key="$1"
-    consumer_action="$2"
-    tailwind_path="$(hyva_json_get_field "$key" "tailwindPath" 2>/dev/null)"
-    node_modules_path="$PROJECTPATH/$tailwind_path/node_modules"
+    local key="$1"
+    local consumer_action="$2"
+    local tailwind_path="$(hyva_json_get_field "$key" "tailwindPath" 2>/dev/null)"
+    local node_modules_path="$PROJECTPATH/$tailwind_path/node_modules"
 
     if [ ! -d "$node_modules_path" ]; then
         warp_message_error "dependencies not found for theme $key"
@@ -399,8 +463,8 @@ hyva_require_theme_dependencies() {
 }
 
 hyva_fix_permissions_after_setup() {
-    key="$1"
-    tailwind_path="$(hyva_json_get_field "$key" "tailwindPath" 2>/dev/null)"
+    local key="$1"
+    local tailwind_path="$(hyva_json_get_field "$key" "tailwindPath" 2>/dev/null)"
     [ -z "$tailwind_path" ] && return 1
 
     if [ -n "$WARP_HYVA_PHP_CONTAINER" ]; then
@@ -413,10 +477,11 @@ hyva_fix_permissions_after_setup() {
 }
 
 hyva_run_npm_action_for_key() {
-    key="$1"
-    npm_action="$2"
-    run_as_root="$3"
-    tailwind_path="$(hyva_json_get_field "$key" "tailwindPath" 2>/dev/null)"
+    local key="$1"
+    local npm_action="$2"
+    local run_as_root="$3"
+    local tailwind_path="$(hyva_json_get_field "$key" "tailwindPath" 2>/dev/null)"
+    local log_file
 
     hyva_validate_theme_paths "$key" || return 1
 
@@ -433,10 +498,10 @@ hyva_run_npm_action_for_key() {
 }
 
 hyva_package_script_contains() {
-    key="$1"
-    script_name="$2"
-    needle="$3"
-    package_json="$(hyva_json_get_field "$key" "packageJson" 2>/dev/null)"
+    local key="$1"
+    local script_name="$2"
+    local needle="$3"
+    local package_json="$(hyva_json_get_field "$key" "packageJson" 2>/dev/null)"
 
     [ -z "$package_json" ] && return 1
     [ ! -f "$PROJECTPATH/$package_json" ] && return 1

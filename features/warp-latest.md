@@ -1,6 +1,6 @@
 # Warp Latest: mejoras funcionales del último año
 
-Fecha: 2026-03-16
+Fecha: 2026-03-24
 
 Este documento resume las mejoras recientes de Warp desde una mirada funcional, orientada a uso diario del equipo.
 
@@ -60,6 +60,137 @@ Comandos:
 - `warp hyva build[:theme]`: compila assets.
 - `warp hyva watch[:theme]`: modo watch para desarrollo.
 - `warp hyva list`: muestra themes detectados.
+
+## Calidad de código Magento más completa (`warp scan`)
+
+`warp scan` dejó de ser solo un helper básico de PHPCS/PHPMD y pasó a cubrir más chequeos del flujo técnico diario.
+
+Qué aporta al equipo:
+
+- ejecución directa por herramienta o por menú,
+- misma UX para `phpcs`, `phpcbf`, `phpmd`, `phpcompat` y `phpstan`,
+- soporte de ruta puntual con `--path <ruta>` sin volver a preguntar path,
+- integración de `PHPCompatibility` para validar compatibilidad de versión de PHP,
+- integración de `PHPStan` usando configuración base del proyecto,
+- salida más limpia y legible en CLI y logs,
+- checks PR más útiles al sumar compatibilidad PHP sobre `app/code`.
+
+Comandos:
+
+- `warp scan`: menú principal de scans.
+- `warp scan --path <ruta>`: menú de herramientas sobre una ruta puntual.
+- `warp scan pr` / `warp scan --pr`: PR checks sobre defaults del proyecto.
+- `warp scan integrity` / `warp scan -i`: `setup:di:compile` + PR checks.
+- `warp scan phpcs --path <ruta>`: PHPCS directo sobre una ruta.
+- `warp scan phpcbf --path <ruta>`: PHPCBF directo sobre una ruta.
+- `warp scan phpmd --path <ruta>`: PHPMD directo sobre una ruta.
+- `warp scan phpcompat --path <ruta>`: PHPCompatibility directo sobre una ruta.
+- `warp scan phpstan`: PHPStan sobre el scope default de `phpstan.neon.dist`.
+- `warp scan phpstan --path <ruta>`: PHPStan sobre una ruta puntual.
+- `warp scan phpstan --level <n>`: override puntual de level para una corrida.
+- `warp scan phpstan --level <n> --path <ruta>`: override puntual de level sobre una ruta puntual.
+
+Impacto funcional:
+
+- menos necesidad de scripts auxiliares por proyecto,
+- mejor cobertura de calidad/compatibilidad sin salir de Warp,
+- más consistencia entre chequeos interactivos y chequeos directos,
+- menor ruido en logs de análisis.
+
+## Diagnóstico explícito de runtime PHP (`warp php --version`)
+
+Se agregó una forma directa de consultar la versión real del runtime PHP.
+
+Qué aporta al equipo:
+
+- permite confirmar rápidamente drift entre `.env` y contenedor real,
+- sirve como apoyo para troubleshooting y para el target version de `PHPCompatibility`,
+- evita tener que entrar al contenedor solo para validar versión.
+
+Comando:
+
+- `warp php --version`: imprime la versión real del runtime PHP.
+
+## Compatibilidad ampliada con Compose y runtime mixto
+
+Warp mejoró su tolerancia a entornos donde el proyecto no cae exactamente en el caso clásico de `full warp`.
+
+Qué aporta al equipo:
+
+- compatibilidad real con `docker compose` plugin v2 además de `docker-compose`,
+- menor fricción en hosts donde no existe binario global `docker-compose`,
+- mejor soporte para comandos que pueden operar sin compose local,
+- menos bloqueos innecesarios en proyectos con infraestructura parcial o externa.
+
+Impacto funcional:
+
+- si falta `docker-compose` pero existe `docker compose`, Warp puede operar con fallback interno,
+- comandos compatibles como `warp magento`, `warp php`, `warp telemetry`, `warp info` y flujos ligados a fallback ya no quedan atados al mismo precheck rígido,
+- mejora la experiencia en proyectos con topologías mixtas: local + servicios externos o incluso infraestructura 100% externa con Warp presente.
+
+## Comandos canónicos por capability (`warp db`, `warp cache`, `warp search`)
+
+Durante este ciclo se consolidó una dirección más clara de naming y responsabilidad operacional.
+
+Qué aporta al equipo:
+
+- una capa canónica orientada a capability en lugar de nombres históricos de tecnología,
+- menor deuda de naming en comandos y ayudas,
+- mejor base para operar servicios locales o externos con el mismo comando funcional.
+
+Comandos y compatibilidad:
+
+- `warp db` como superficie canónica para base de datos.
+- `warp cache` como superficie canónica para cache.
+- `warp search` como superficie canónica para búsqueda.
+- se mantienen alias legacy:
+  - `warp mysql`
+  - `warp redis`
+  - `warp valkey`
+  - `warp elasticsearch`
+  - `warp opensearch`
+
+Impacto funcional:
+
+- el operador puede pensar primero en la capability (`db`, `cache`, `search`) y no en el nombre histórico del contenedor,
+- la compatibilidad hacia atrás se preserva sin forzar una migración abrupta de comandos.
+
+## Fallback operativo para servicios externos
+
+Warp avanzó en una capa más explícita de contexto y fallback para entornos con servicios fuera de Docker local.
+
+Qué aporta al equipo:
+
+- mejor soporte para DB externa,
+- base común para cache/búsqueda en modo `external`,
+- menor duplicación de lógica de detección y validación entre comandos.
+
+Impacto funcional:
+
+- `warp db`/`warp mysql` ya contemplan mejor escenarios RDS/external,
+- `warp cache` y `warp search` avanzan hacia un comportamiento consistente entre modo local y externo,
+- se endurecieron guardas para operaciones sensibles en modo externo, especialmente `flush`.
+
+Resultado práctico:
+
+- menos fallos ambiguos cuando falta un servicio en `docker-compose-warp.yml`,
+- mejor separación entre operación local de contenedor y operación contra endpoints externos.
+
+## Selección y defaults de versión más consistentes en `warp init`
+
+Se reforzó la base para que `warp init` resuelva motores/versiones de infraestructura con una estrategia más coherente.
+
+Qué aporta al equipo:
+
+- menos inconsistencias entre wizard, templates y defaults reales,
+- mejor alineación entre servicio canónico, engine y versión,
+- una base más clara para defaults vigentes y verificables.
+
+Impacto funcional:
+
+- mejora la previsibilidad al elegir stack de DB/cache/search,
+- reduce desalineaciones históricas entre naming legacy y motor real,
+- prepara mejor el terreno para upgrades de Magento y servicios asociados.
 
 ## Diagnóstico de memoria y sugerencias (`warp telemetry scan`)
 
@@ -141,7 +272,7 @@ Comandos:
 
 - `warp update`: actualiza binario/framework de Warp.
 - `warp update --images`: actualiza imágenes Docker del proyecto.
-- `warp update self`: aplica self-update local para flujo de desarrollo.
+- `warp update self` / `warp update --self`: aplica self-update local para flujo de desarrollo; si el remoto es mas nuevo, deja la marca normal de update pendiente.
 
 ## Diagnóstico rápido de MySQL con MySQLTuner (`warp mysql tuner`)
 

@@ -1,6 +1,6 @@
 
   redis-fpc:
-    image: redis:${REDIS_FPC_VERSION}
+    image: ${CACHE_IMAGE_REPO:-redis}:${REDIS_FPC_VERSION}
     env_file: .env
     ports:
       - "6379"

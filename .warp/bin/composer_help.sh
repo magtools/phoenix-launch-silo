@@ -16,7 +16,7 @@ function composer_help_usage()
 
     warp_message ""
     warp_message_info "Help:"
-    warp_message " allows to run composer inside the container"
+    warp_message " allows to run composer in docker or host mode"
 
     warp_message ""
     warp_message_info "Example:"

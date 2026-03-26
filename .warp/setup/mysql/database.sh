@@ -1,7 +1,7 @@
 #!/bin/bash +x
 
 warp_message ""
-warp_message_info "Configuring the MySQL Service"
+warp_message_info "Configuring the DB Service"
 
 while : ; do
     respuesta_mysql=$( warp_question_ask_default "Do you want to add a MySQL service? $(warp_message_info [Y/n]) " "Y" )
@@ -16,11 +16,39 @@ done
 if [ "$respuesta_mysql" = "Y" ] || [ "$respuesta_mysql" = "y" ]
 then
 
-    warp_message_info2 "You can check the available versions of MySQL here: $(warp_message_info '[ https://hub.docker.com/r/library/mysql/tags/ ]')"
-    mysql_version=$( warp_question_ask_default "Choose the MySQL engine version: $(warp_message_info [10.6.22]) " "10.6.22" )
-    warp_message_info2 "Selected MySQL Version: $mysql_version"
+    mysql_use_project_specific="N"
+    db_engine_default=$(warp_service_version_engine_default db)
+    db_engines_allowed=$(warp_service_version_engines_csv db)
 
-    mysql_docker_image="mysql:${mysql_version}"
+    while : ; do
+        db_engine=$( warp_question_ask_default "Choose the DB engine: $(warp_message_info [$db_engine_default]) $(warp_message '[ '"$db_engines_allowed"' ]') " "$db_engine_default" )
+        case "$db_engine" in
+            mariadb|mysql)
+                break
+                ;;
+            *)
+                warp_message_warn "wrong engine, choose one of: $(warp_message_info "$db_engines_allowed")"
+                ;;
+        esac
+    done
+
+    db_image_repo=$(warp_service_version_image_repo db "$db_engine")
+    db_version_default=$(warp_service_version_tag_default db "$db_engine")
+    db_tags_suggested=$(warp_service_version_tags_csv db "$db_engine" suggested)
+    db_tags_legacy=$(warp_service_version_tags_csv db "$db_engine" legacy)
+
+    warp_message_info2 "You can check the available versions of ${db_engine} here: $(warp_message_info "[ https://hub.docker.com/r/library/${db_image_repo}/tags/ ]")"
+    [ -n "$db_tags_suggested" ] && warp_message_info2 "Suggested ${db_engine} tags: $(warp_message_info "$db_tags_suggested")"
+    [ -n "$db_tags_legacy" ] && warp_message_info2 "Legacy/manual ${db_engine} tags: $(warp_message_info "$db_tags_legacy")"
+
+    if { [ "$private_registry_mode" = "Y" ] || [ "$private_registry_mode" = "y" ]; } && [ ! -z "$docker_private_registry" ]; then
+        mysql_version=$( warp_question_ask_default "Choose the ${db_engine} engine version: $(warp_message_info [$db_version_default]) " "$db_version_default" )
+    else
+        mysql_version=$( warp_service_version_prompt_tag db "$db_engine" "Choose the ${db_engine} engine version: $(warp_message_info [$db_version_default]) " "$db_version_default" )
+    fi
+    warp_message_info2 "Selected DB engine/version: ${db_engine}:${mysql_version}"
+
+    mysql_docker_image="${db_engine}:${mysql_version}"
 
     if [ "$private_registry_mode" = "Y" ] || [ "$private_registry_mode" = "y" ] ; then
         # while : ; do
@@ -97,10 +125,12 @@ then
     if [ "$mysql_use_project_specific" = "Y" ] || [ "$mysql_use_project_specific" = "y" ]; then
         cat $PROJECTPATH/.warp/setup/mysql/tpl/database_custom.yml >> $DOCKERCOMPOSEFILESAMPLE
     else
-        if [ $(uname -m) == 'arm64' ] ; then
+        if [ "$db_engine" = "mariadb" ] ; then
+            cat $PROJECTPATH/.warp/setup/mysql/tpl/database.yml >> $DOCKERCOMPOSEFILESAMPLE
+        elif [ $(uname -m) == 'arm64' ] ; then
             cat $PROJECTPATH/.warp/setup/mysql/tpl/database_arm.yml >> $DOCKERCOMPOSEFILESAMPLE
         else
-            cat $PROJECTPATH/.warp/setup/mysql/tpl/database.yml >> $DOCKERCOMPOSEFILESAMPLE
+            cat $PROJECTPATH/.warp/setup/mysql/tpl/database_mysql.yml >> $DOCKERCOMPOSEFILESAMPLE
         fi
     fi
     
@@ -118,6 +148,25 @@ then
     echo "DATABASE_USER=$mysql_user_database" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "DATABASE_PASSWORD=$mysql_password_database" >> $ENVIRONMENTVARIABLESFILESAMPLE
 
+    db_engine="mysql"
+    case "$mysql_docker_image" in
+        mariadb:*|*/mariadb:*|*mariadb*)
+            db_engine="mariadb"
+            ;;
+    esac
+
+    echo "# Canonical DB Configuration" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "DB_MODE=local" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "DB_ENGINE=$db_engine" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "DB_VERSION=$mysql_version" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "DB_IMAGE=$mysql_docker_image" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "DB_HOST=mysql" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "DB_PORT=$mysql_binded_port" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "DB_NAME=$mysql_name_database" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "DB_USER=$mysql_user_database" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "DB_PASSWORD=$mysql_password_database" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "" >> $ENVIRONMENTVARIABLESFILESAMPLE
+
     if [ "$mysql_use_project_specific" = "Y" ] || [ "$mysql_use_project_specific" = "y" ]; then
         cat $PROJECTPATH/.warp/setup/mysql/tpl/database_volumes_networks_custom.yml >> $DOCKERCOMPOSEFILESAMPLE
     else
@@ -127,4 +176,3 @@ then
 
     cp -R $PROJECTPATH/.warp/setup/mysql/config/ $PROJECTPATH/.warp/docker/config/mysql/
 fi; 
-

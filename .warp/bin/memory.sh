@@ -18,13 +18,13 @@ memory_print_warn() {
 }
 
 memory_progress_begin() {
-    _label="$1"
+    local _label="$1"
     [ "$MEMORY_PROGRESS" = "1" ] || return 0
 
     if [ -t 2 ]; then
         (
-            _spin='|/-\'
-            _i=0
+            local _spin='|/-\'
+            local _i=0
             while :; do
                 _i=$(((_i + 1) % 4))
                 printf "\r[%c] %s" "${_spin:$_i:1}" "$_label" >&2
@@ -38,8 +38,8 @@ memory_progress_begin() {
 }
 
 memory_progress_end() {
-    _status="$1"
-    _label="$2"
+    local _status="$1"
+    local _label="$2"
     [ "$MEMORY_PROGRESS" = "1" ] || return 0
 
     if [ -n "$MEMORY_PROGRESS_PID" ]; then
@@ -57,7 +57,15 @@ memory_progress_end() {
 }
 
 memory_trim() {
-    echo "$1" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//'
+    printf '%s' "$1" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//'
+}
+
+memory_docker_available() {
+    command -v docker >/dev/null 2>&1 && command -v docker-compose >/dev/null 2>&1
+}
+
+memory_compose_available() {
+    [ -f "$DOCKERCOMPOSEFILE" ] && memory_docker_available
 }
 
 memory_host_total_mb() {
@@ -74,6 +82,48 @@ memory_host_total_mb() {
         fi
     fi
 
+    echo ""
+}
+
+memory_host_used_mb() {
+    if [ -r /proc/meminfo ]; then
+        awk '
+            /^MemTotal:/ { t=$2 }
+            /^MemAvailable:/ { a=$2 }
+            END { if (t>0 && a>0) printf "%d\n", (t-a)/1024; else print "" }
+        ' /proc/meminfo
+        return 0
+    fi
+
+    if command -v vm_stat >/dev/null 2>&1 && command -v sysctl >/dev/null 2>&1; then
+        _pagesize=$(sysctl -n hw.pagesize 2>/dev/null)
+        _active=$(vm_stat 2>/dev/null | awk '/Pages active/ {gsub("\\.","",$3); print $3}')
+        _wired=$(vm_stat 2>/dev/null | awk '/Pages wired down/ {gsub("\\.","",$4); print $4}')
+        _comp=$(vm_stat 2>/dev/null | awk '/Pages occupied by compressor/ {gsub("\\.","",$5); print $5}')
+        if [[ "$_pagesize" =~ ^[0-9]+$ ]] && [[ "$_active" =~ ^[0-9]+$ ]] && [[ "$_wired" =~ ^[0-9]+$ ]] && [[ "$_comp" =~ ^[0-9]+$ ]]; then
+            awk -v p="$_pagesize" -v a="$_active" -v w="$_wired" -v c="$_comp" 'BEGIN { printf "%d\n", ((a+w+c)*p)/1024/1024 }'
+            return 0
+        fi
+    fi
+
+    echo ""
+}
+
+memory_host_used_pct() {
+    _used="$1"
+    _total="$2"
+    if [[ "$_used" =~ ^[0-9]+$ ]] && [[ "$_total" =~ ^[0-9]+$ ]] && [ "$_total" -gt 0 ]; then
+        awk -v u="$_used" -v t="$_total" 'BEGIN { printf "%.1f", (u/t)*100 }'
+        return 0
+    fi
+    echo "N/A"
+}
+
+memory_host_load_1m() {
+    if command -v uptime >/dev/null 2>&1; then
+        uptime 2>/dev/null | sed -n 's/.*load averages\{0,1\}:[[:space:]]*\([^,[:space:]]*\).*/\1/p' | head -n1
+        return 0
+    fi
     echo ""
 }
 
@@ -227,7 +277,7 @@ memory_env_to_mb() {
 
 memory_compose_service_id() {
     _service="$1"
-    [ -f "$DOCKERCOMPOSEFILE" ] || { echo ""; return 0; }
+    memory_compose_available || { echo ""; return 0; }
     docker-compose -f "$DOCKERCOMPOSEFILE" ps -q "$_service" 2>/dev/null | head -n 1
 }
 
@@ -239,6 +289,7 @@ memory_service_is_running() {
 
 memory_service_mem_usage() {
     _service="$1"
+    memory_compose_available || { echo "N/A"; return 0; }
     _cid=$(memory_compose_service_id "$_service")
     [ -n "$_cid" ] || { echo "N/A"; return 0; }
     [ "$(memory_service_is_running "$_cid")" = "true" ] || { echo "stopped"; return 0; }
@@ -299,6 +350,7 @@ memory_mem_usage_to_mb() {
 
 memory_redis_info_memory() {
     _service="$1"
+    memory_compose_available || return 1
     _cid=$(memory_compose_service_id "$_service")
     [ -n "$_cid" ] || return 1
     [ "$(memory_service_is_running "$_cid")" = "true" ] || return 1
@@ -312,6 +364,7 @@ memory_redis_field() {
 }
 
 memory_es_heap_stats_mb() {
+    memory_compose_available || return 1
     _service=$(memory_search_service_name)
     _cid=$(memory_compose_service_id "$_service")
     [ -n "$_cid" ] || return 1
@@ -540,9 +593,13 @@ memory_report_print_text() {
 
     memory_progress_begin "check host resources"
     _host_mb=$(memory_host_total_mb)
+    _host_used_mb=$(memory_host_used_mb)
+    _host_used_pct=$(memory_host_used_pct "$_host_used_mb" "$_host_mb")
+    _host_load_1m=$(memory_host_load_1m)
     _host_human=$(memory_mb_to_human "$_host_mb")
     _host_cores=$(memory_host_cores)
     [ -z "$_host_cores" ] && _host_cores="N/A"
+    [ -z "$_host_load_1m" ] && _host_load_1m="N/A"
     memory_progress_end 0 "check host resources"
 
     memory_progress_begin "check container memory usage"
@@ -648,7 +705,9 @@ memory_report_print_text() {
     memory_print ""
     memory_print_info "WARP Memory Report"
     memory_print "Host RAM total:             ${FCYN}${_host_human}${RS}"
+    memory_print "Host RAM used:              ${FCYN}$(memory_mb_human_or_na "$_host_used_mb") (${_host_used_pct}%)${RS}"
     memory_print "Host CPU cores:             ${FCYN}${_host_cores}${RS}"
+    memory_print "Host load (1m):             ${FCYN}${_host_load_1m}${RS}"
     memory_print ""
 
     memory_print_info "[USO ACTUAL]"
@@ -754,8 +813,12 @@ memory_json_escape() {
 memory_report_print_json() {
     _show_suggest="$1"
     _host_mb=$(memory_host_total_mb)
+    _host_used_mb=$(memory_host_used_mb)
+    _host_used_pct=$(memory_host_used_pct "$_host_used_mb" "$_host_mb")
+    _host_load_1m=$(memory_host_load_1m)
     _host_human=$(memory_mb_to_human "$_host_mb")
     _host_cores=$(memory_host_cores)
+    [ -z "$_host_load_1m" ] && _host_load_1m="N/A"
 
     _usage_php=$(memory_service_mem_usage "php")
     _usage_mysql=$(memory_service_mem_usage "mysql")
@@ -851,6 +914,9 @@ memory_report_print_json() {
   "host": {
     "ram_total_mb": "$(memory_json_escape "$_host_mb")",
     "ram_total_human": "$(memory_json_escape "$_host_human")",
+    "ram_used_mb": "$(memory_json_escape "$_host_used_mb")",
+    "ram_used_pct": "$(memory_json_escape "$_host_used_pct")",
+    "load_1m": "$(memory_json_escape "$_host_load_1m")",
     "cores": "$(memory_json_escape "$_host_cores")"
   },
   "usage": {
@@ -918,8 +984,8 @@ EOF
 }
 
 memory_report() {
-    _output="text"
-    _show_suggest="1"
+    local _output="text"
+    local _show_suggest="1"
 
     while [ $# -gt 0 ]; do
         case "$1" in
@@ -955,6 +1021,7 @@ memory_report() {
 }
 
 memory_guide() {
+    local _php_conf
     _php_conf=$(memory_php_conf_file)
     [ -z "$_php_conf" ] && _php_conf="$PROJECTPATH/.warp/docker/config/php/php-fpm.conf"
 
@@ -1027,11 +1094,11 @@ memory_guide() {
     memory_print "configuracion y estado de MySQL/MariaDB y sugiere ajustes de performance/estabilidad."
     memory_print ""
     memory_print "Recomendado:"
-    memory_print "  warp mysql tuner"
+    memory_print "  warp db tuner"
     memory_print "  (descarga mysqltuner.pl en ./var o /tmp, valida perl e intenta instalarlo por distro)"
     memory_print ""
     memory_print "Ejemplo con opciones extra:"
-    memory_print "  warp mysql tuner --skipsize --nocolor"
+    memory_print "  warp db tuner --skipsize --nocolor"
     memory_print ""
 
     memory_print_info "Nota rápida"

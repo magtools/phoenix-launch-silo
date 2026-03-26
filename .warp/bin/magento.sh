@@ -20,13 +20,6 @@ function magento_command()
         exit 0;
     fi;
 
-    if [ "$(warp_check_is_running)" = false ]; then
-        warp_message_error "The containers are not running"
-        warp_message_error "please, first run warp start"
-
-        exit 0;
-    fi
-
     if [ "$1" = "--install-only" ]
     then
         magento_install_only "$@"
@@ -77,6 +70,33 @@ function magento_command()
         MAGENTOBIN='bin/magento'
     fi
 
+    if [ ! -f "$DOCKERCOMPOSEFILE" ]; then
+        if ! command -v php >/dev/null 2>&1; then
+            warp_message_error "php not found in host"
+            warp_message_error "install php in host or run with docker-compose-warp.yml"
+            exit 1
+        fi
+
+        if [ ! -f "$MAGENTOBIN" ]; then
+            warp_message_error "not found binary $MAGENTOBIN"
+            exit 1
+        fi
+
+        if [ "$1" = "--root" ] || [ "$1" = "-T" ]; then
+            shift 1
+        fi
+
+        php -dmemory_limit=-1 "$MAGENTOBIN" "$@"
+        return $?
+    fi
+
+    if [ "$(warp_check_is_running)" = false ]; then
+        warp_message_error "The containers are not running"
+        warp_message_error "please, first run warp start"
+
+        exit 0;
+    fi
+
     if [ "$1" = "--root" ]
     then
         shift 1
@@ -100,13 +120,6 @@ function magento_command_tools()
         exit 0;
     fi;
 
-    if [ "$(warp_check_is_running)" = false ]; then
-        warp_message_error "The containers are not running"
-        warp_message_error "please, first run warp start"
-
-        exit 0;
-    fi
-
     if [ "$1" = "ece-patches" ]
     then
         TOOLS_COMMAND='vendor/bin/ece-patches'
@@ -118,6 +131,31 @@ function magento_command_tools()
     fi;
 
     shift 1;
+
+    if [ ! -f "$DOCKERCOMPOSEFILE" ]; then
+        if [ ! -f "$TOOLS_COMMAND" ]; then
+            warp_message_error "not found binary $TOOLS_COMMAND"
+            exit 1
+        fi
+
+        if [ -x "$TOOLS_COMMAND" ]; then
+            "$TOOLS_COMMAND" "$@"
+        else
+            if ! command -v php >/dev/null 2>&1; then
+                warp_message_error "php not found in host"
+                exit 1
+            fi
+            php "$TOOLS_COMMAND" "$@"
+        fi
+        return $?
+    fi
+
+    if [ "$(warp_check_is_running)" = false ]; then
+        warp_message_error "The containers are not running"
+        warp_message_error "please, first run warp start"
+
+        exit 0;
+    fi
     
     # Execute ece tool with the same argument boundaries passed by the caller.
     docker-compose -f "$DOCKERCOMPOSEFILE" exec php bash -lc "[ -f \"$TOOLS_COMMAND\" ] && \"$TOOLS_COMMAND\" \"\$@\" || echo \"not found binary $TOOLS_COMMAND\"" bash "$@"

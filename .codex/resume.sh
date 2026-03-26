@@ -2,6 +2,7 @@
 set -euo pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PROJECT_ROOT_PHYSICAL="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 CODEX_HOME_DIR="${CODEX_HOME:-$HOME/.codex}"
 SESSIONS_DIR="$CODEX_HOME_DIR/sessions"
 INIT_SCRIPT="$PROJECT_ROOT/.codex/init.sh"
@@ -40,6 +41,59 @@ file_accessed_at() {
   local access_epoch
   access_epoch="$(stat -c '%X' "$file" 2>/dev/null || echo -1)"
   format_epoch "$access_epoch"
+}
+
+extract_session_cwd() {
+  local file="$1"
+  local first_line
+  local meta_line
+  local parsed_cwd
+
+  first_line="$(head -n 1 "$file" 2>/dev/null || true)"
+  parsed_cwd="$(echo "$first_line" | sed -n 's/.*"cwd":"\([^"]*\)".*/\1/p')"
+  if [ -n "$parsed_cwd" ]; then
+    echo "$parsed_cwd"
+    return
+  fi
+
+  meta_line="$(rg -a -m 1 '"type":"session_meta"' "$file" 2>/dev/null || true)"
+  parsed_cwd="$(echo "$meta_line" | sed -n 's/.*"cwd":"\([^"]*\)".*/\1/p')"
+  echo "$parsed_cwd"
+}
+
+canonicalize_path() {
+  local path="$1"
+
+  if [ -z "$path" ] || [ ! -d "$path" ]; then
+    echo ""
+    return
+  fi
+
+  (
+    cd "$path" >/dev/null 2>&1 && pwd -P
+  ) || true
+}
+
+session_matches_project() {
+  local file="$1"
+  local session_cwd
+  local session_cwd_physical
+
+  session_cwd="$(extract_session_cwd "$file")"
+  if [ -z "$session_cwd" ]; then
+    return 1
+  fi
+
+  if [ "$session_cwd" = "$PROJECT_ROOT" ] || [ "$session_cwd" = "$PROJECT_ROOT_PHYSICAL" ]; then
+    return 0
+  fi
+
+  session_cwd_physical="$(canonicalize_path "$session_cwd")"
+  if [ -n "$session_cwd_physical" ] && [ "$session_cwd_physical" = "$PROJECT_ROOT_PHYSICAL" ]; then
+    return 0
+  fi
+
+  return 1
 }
 
 extract_session_id() {
@@ -84,7 +138,7 @@ mapfile -t CANDIDATE_FILES < <(find "$SESSIONS_DIR" -type f -name '*.jsonl' -pri
 
 SESSION_FILES=()
 for file in "${CANDIDATE_FILES[@]}"; do
-  if head -n 1 "$file" | grep -F "\"cwd\":\"$PROJECT_ROOT\"" >/dev/null 2>&1; then
+  if session_matches_project "$file"; then
     SESSION_FILES+=("$file")
   fi
   if [ "${#SESSION_FILES[@]}" -ge 9 ]; then

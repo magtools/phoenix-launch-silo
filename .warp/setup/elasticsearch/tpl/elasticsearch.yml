@@ -1,6 +1,6 @@
 
   elasticsearch:
-    image: opensearchproject/opensearch:${ES_VERSION}
+    image: ${SEARCH_IMAGE:-opensearchproject/opensearch:${ES_VERSION}}
     env_file: .env
     ports:
       - "9200"

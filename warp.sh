@@ -9,12 +9,13 @@ main () {
     # of the current script (e.g. "server")
     SCRIPTNAME="bin/$(basename "$0")"
     ORIGINAL_COMMAND="$1"
+    BOOT_RUNTIME_MODE=$(warp_runtime_mode_resolve_boot "$ORIGINAL_COMMAND")
 
-    # Check availability of docker
-    hash docker 2>/dev/null || { echo >&2 "warp framework requires \"docker\""; exit 1; }
-
-    # Check availability of docker-compose
-    hash docker-compose 2>/dev/null || { echo >&2 "warp framework requires \"docker-compose\""; exit 1; }
+    # Check docker tooling only when runtime mode requires docker.
+    if [ "$BOOT_RUNTIME_MODE" = "docker" ]; then
+        hash docker 2>/dev/null || { echo >&2 "warp framework requires \"docker\""; exit 1; }
+        warp_compose_bootstrap
+    fi
 
     # Check availability of ed
     hash ed 2>/dev/null || { echo >&2 "warp framework requires \"ed command\". On debian install it running \"sudo apt-get install ed\""; exit 1; }
@@ -28,7 +29,7 @@ main () {
         include_warp_framework
     fi;
 
-    if [ -d "$PROJECTPATH/.warp/lib" ]; then
+    if [ -d "$PROJECTPATH/.warp/lib" ] && [ "$BOOT_RUNTIME_MODE" = "docker" ]; then
         # Check minimum versions
         warp_check_docker_version
     fi;
@@ -47,9 +48,9 @@ main () {
         setup_main "$@"
         ;;
 
-        mysql)
+        db|mysql)
         shift 1
-        mysql_main "$@"
+        db_main "$@"
         ;;
 
         postgres)
@@ -135,6 +136,12 @@ main () {
         hyva_main "$@"
         ;;
 
+        scan)
+        shift 1
+        scan_main "$@"
+        exit $?
+        ;;
+
         deploy)
         shift 1
         deploy_main "$@"
@@ -157,9 +164,9 @@ main () {
         build_main "$@"
         ;;
 
-        elasticsearch)
+        search|elasticsearch|opensearch)
         shift 1
-        elasticsearch_main "$@"
+        search_main "$@"
         ;;
 
         varnish)
@@ -167,9 +174,9 @@ main () {
         varnish_main "$@"
         ;;
 
-        redis)
+        cache|redis|valkey)
         shift 1
-        redis_main "$@"
+        cache_main "$@"
         ;;
 
         sync)
@@ -222,6 +229,94 @@ main () {
     esac
 
     exit 0
+}
+
+warp_compose_bootstrap() {
+    if hash docker-compose 2>/dev/null; then
+        if docker-compose version >/dev/null 2>&1; then
+            export WARP_COMPOSE_BACKEND="legacy"
+            return 0
+        fi
+    fi
+
+    if docker compose version >/dev/null 2>&1; then
+        _shim_dir="$PROJECTPATH/var/warp-bin"
+        _shim_file="$_shim_dir/docker-compose"
+
+        mkdir -p "$_shim_dir" 2>/dev/null || {
+            echo >&2 "warp framework could not prepare compose shim at $_shim_dir"
+            exit 1
+        }
+
+        if [ ! -x "$_shim_file" ]; then
+            printf '#!/bin/sh\nexec docker compose "$@"\n' > "$_shim_file" || {
+                echo >&2 "warp framework could not write compose shim at $_shim_file"
+                exit 1
+            }
+
+            chmod +x "$_shim_file" 2>/dev/null || {
+                echo >&2 "warp framework could not chmod compose shim at $_shim_file"
+                exit 1
+            }
+        fi
+
+        export PATH="$_shim_dir:$PATH"
+        hash -r 2>/dev/null || true
+        hash docker-compose 2>/dev/null || {
+            echo >&2 "warp framework requires \"docker-compose\" or \"docker compose\" plugin"
+            exit 1
+        }
+
+        export WARP_COMPOSE_BACKEND="plugin-v2"
+        return 0
+    fi
+
+    echo >&2 "warp framework requires \"docker-compose\" or \"docker compose\" plugin"
+    exit 1
+}
+
+warp_runtime_mode_read_raw_from_env() {
+    _env_file="$PROJECTPATH/.env"
+    [ -f "$_env_file" ] || { echo ""; return 0; }
+    _mode=$(grep -m1 '^WARP_RUNTIME_MODE=' "$_env_file" | cut -d '=' -f2- | tr '[:upper:]' '[:lower:]')
+    case "$_mode" in
+        host|docker|auto) echo "$_mode" ;;
+        *) echo "" ;;
+    esac
+}
+
+warp_command_supports_host_runtime() {
+    _cmd="$1"
+    case "$_cmd" in
+        ""|-h|--help|help|init|db|mysql|cache|redis|valkey|search|elasticsearch|opensearch|php|magento|ece-tools|ece-patches|telemetry|info|composer|scan)
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+warp_runtime_mode_resolve_boot() {
+    _cmd="$1"
+    _mode=$(warp_runtime_mode_read_raw_from_env)
+    case "$_mode" in
+        host|docker)
+            echo "$_mode"
+            return 0
+            ;;
+    esac
+
+    if [ -f "$PROJECTPATH/docker-compose-warp.yml" ]; then
+        echo "docker"
+        return 0
+    fi
+
+    if warp_command_supports_host_runtime "$_cmd"; then
+        echo "host"
+    else
+        echo "docker"
+    fi
 }
 
 include_warp_framework() {
@@ -326,7 +421,7 @@ help() {
 
 warp_should_skip_update_check() {
     case "$1" in
-        mysql|start|stop)
+        mysql|db|start|stop)
             return 0
         ;;
         *)
@@ -548,9 +643,10 @@ warp_update() {
         exit 0;
     fi
 
-    if [ "$1" = "self" ] ; then
+    if [ "$1" = "self" ] || [ "$1" = "--self" ] ; then
         warp_message_info "Buscando actualizaciones..."
         warp_message_info "Self update mode: aplicando payload de ./warp actual"
+        warp_message_info2 "No remote version will be downloaded in self mode"
         warp_pending_update_ensure
         warp_update_tmp_clean
         mkdir -p "$WARP_TMP_EXTRACT_DIR" || { warp_message_error "unable to create $WARP_TMP_EXTRACT_DIR"; exit 1; }

@@ -15,11 +15,11 @@ function redis_info()
     REDIS_CACHE_VERSION=$(warp_env_read_var REDIS_CACHE_VERSION)
     REDIS_CACHE_CONF=$(warp_env_read_var REDIS_CACHE_CONF)
 
-    REDIS_SESSION_VERSION=$(warp_env_read_var REDIS_CACHE_VERSION)
-    REDIS_SESSION_CONF=$(warp_env_read_var REDIS_CACHE_CONF)
+    REDIS_SESSION_VERSION=$(warp_env_read_var REDIS_SESSION_VERSION)
+    REDIS_SESSION_CONF=$(warp_env_read_var REDIS_SESSION_CONF)
 
-    REDIS_FPC_VERSION=$(warp_env_read_var REDIS_CACHE_VERSION)
-    REDIS_FPC_CONF=$(warp_env_read_var REDIS_CACHE_CONF)
+    REDIS_FPC_VERSION=$(warp_env_read_var REDIS_FPC_VERSION)
+    REDIS_FPC_CONF=$(warp_env_read_var REDIS_FPC_CONF)
 
     if [ ! -z "$REDIS_CACHE_VERSION" ]
     then
@@ -91,7 +91,7 @@ function redis_cli()
         *)            
             warp_message_error "Please, choose a valid option:"
             warp_message_error "fpc, session, cache"
-            warp_message_error "for more information please run: warp redis cli --help"
+            warp_message_error "for more information please run: warp cache cli --help"
         ;;
     esac
 
@@ -129,7 +129,7 @@ function redis_monitor()
         *)            
             warp_message_error "Please, choose a valid option:"
             warp_message_error "fpc, session, cache"
-            warp_message_error "for more information please run: warp redis monitor --help"
+            warp_message_error "for more information please run: warp cache monitor --help"
         ;;
     esac
 
@@ -206,31 +206,31 @@ redis_simil_ssh() {
     else
         case "$1" in
         cache)
-            redis_service_check $1
             if [[ $2 == "-h" || $2 == "--help" ]]; then
                 redis_ssh_help
                 exit 0
             fi
+            redis_service_check $1
             redis_check_warp_running
             shift ; redis_simil_ssh_link redis-cache "$@"
             exit 0
         ;;
         session)
-            redis_service_check $1
             if [[ $2 == "-h" || $2 == "--help" ]]; then
                 redis_ssh_help
                 exit 0
             fi
+            redis_service_check $1
             redis_check_warp_running
             shift ; redis_simil_ssh_link redis-session "$@"
             exit 0
         ;;
         fpc)
-            redis_service_check $1
             if [[ $2 == "-h" || $2 == "--help" ]]; then
                 redis_ssh_help
                 exit 0
             fi
+            redis_service_check $1
             redis_check_warp_running
             shift ; redis_simil_ssh_link redis-fpc "$@"
             exit 0
@@ -250,7 +250,7 @@ redis_simil_ssh_link() {
 
     if [[ $2 == "--root" ]]; then
         docker-compose -f "$DOCKERCOMPOSEFILE" exec -u root "$1" bash
-    elif [[ -z $2 || $2 == "--redis" ]]; then
+    elif [[ -z $2 || $2 == "--redis" || $2 == "--cache" ]]; then
         docker-compose -f "$DOCKERCOMPOSEFILE" exec -u redis "$1" bash
     elif [[ $1 == "-h" || $1 == "--help" ]]; then
         redis_ssh_help

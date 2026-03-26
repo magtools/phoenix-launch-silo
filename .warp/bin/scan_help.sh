@@ -1,0 +1,66 @@
+#!/bin/bash
+
+function scan_help_usage()
+{
+    warp_message ""
+    warp_message_info "Usage:"
+    warp_message      " warp scan [options]"
+    warp_message ""
+
+    warp_message ""
+    warp_message_info "Options:"
+    warp_message_info   " -h, --help         $(warp_message 'display this help message')"
+    warp_message_info   " pr, --pr           $(warp_message 'run PR checks (PHPCS severity>=7 + PHPMD TestPR + PHPCompatibility app/code)')"
+    warp_message_info   " -i, integrity      $(warp_message 'run setup:di:compile then --pr')"
+    warp_message_info   " phpcs              $(warp_message 'run PHPCS scan')"
+    warp_message_info   " phpcbf             $(warp_message 'run PHPCBF auto-fix scan')"
+    warp_message_info   " phpmd              $(warp_message 'run PHPMD scan')"
+    warp_message_info   " phpcompat          $(warp_message 'run PHPCompatibility scan')"
+    warp_message_info   " phpstan            $(warp_message 'run PHPStan scan')"
+    warp_message_info   " --path <route>     $(warp_message 'open scan options for a custom project route')"
+    warp_message ""
+
+    warp_message ""
+    warp_message_info "Help:"
+    warp_message " Magento-first command."
+    warp_message " Stores rules in .warp/docker/config/lint/TestPR.xml (copied from app/devops/TestPR.xml if present)."
+    warp_message " Stores phpstan.neon.dist in project root only if it does not exist."
+    warp_message " Use WARP_SCAN_PHP_CONTAINER=<container_name> to force execution in a specific PHP container."
+    warp_message " --pr and integrity/-i run without interactive menu."
+    warp_message ""
+
+    warp_message_info "Examples:"
+    warp_message " warp scan"
+    warp_message " warp scan pr"
+    warp_message " warp scan --pr"
+    warp_message " warp scan integrity"
+    warp_message " warp scan phpcs --path app/code/Vendor/Module"
+    warp_message " warp scan phpcbf --path app/code/Vendor/Module"
+    warp_message " warp scan phpmd --path app/code/Vendor/Module"
+    warp_message " warp scan phpcompat --path app/code/Vendor/Module"
+    warp_message " warp scan phpstan"
+    warp_message " warp scan phpstan --level 5"
+    warp_message " warp scan phpstan --path app/code/Vendor/Module"
+    warp_message " warp scan phpstan --level 5 --path app/code/Vendor/Module"
+    warp_message " warp scan --path app/code/Vendor/Module"
+    warp_message ""
+    warp_message " Menu options (scan):"
+    warp_message " 1) cancel"
+    warp_message " 2) phpcs"
+    warp_message " 3) phpcbf"
+    warp_message " 4) phpmd"
+    warp_message " 5) phpcompat"
+    warp_message " 6) phpstan (default scope from phpstan.neon.dist)"
+    warp_message " 7) test PR"
+    warp_message ""
+    warp_message " Path menu:"
+    warp_message " 1) cancel"
+    warp_message " 2) custom path"
+    warp_message " 3..n) project paths"
+    warp_message ""
+}
+
+function scan_help()
+{
+    warp_message_info   " scan              $(warp_message 'code quality scan helper (Magento-first)')"
+}
