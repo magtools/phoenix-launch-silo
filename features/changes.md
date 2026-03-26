@@ -11,3 +11,9 @@ consultas tamaños/indices
 health c/colores
 
 warp update --self no debe buscar un update
+
+warp mysql dump sed definer
+
+init respete imagenes de sample docker
+
+

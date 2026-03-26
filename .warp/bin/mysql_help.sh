@@ -82,18 +82,25 @@ function mysql_dump_help()
 
     warp_message ""
     warp_message_info "Usage:"
-    warp_message      " warp db dump [db_name] > [file]"
+    warp_message      " warp db dump [options] [db_name] > [file]"
+    warp_message ""
+
+    warp_message ""
+    warp_message_info "Options:"
+    warp_message_info   " -h, --help         $(warp_message 'display this help message')"
+    warp_message_info   " -s, --strip-definers $(warp_message 'remove DEFINER clauses from the streamed dump output')"
     warp_message ""
 
     warp_message ""
     warp_message_info "Help:"
     warp_message " Create a backup of a database and save it local machine"
-    warp_message " to remove all the security definers of a mysql dump, add this to the command: sed -e 's/DEFINER[ ]*=[ ]*[^*]*\*/\*/'"
+    warp_message " if needed, use -s / --strip-definers to remove DEFINER clauses from the streamed dump output"
     warp_message ""
 
     warp_message_info "Example:"
     warp_message " warp db dump warp_db | gzip > /path/to/save/backup/warp_db.sql.gz"
-    warp_message " warp db dump warp_db | sed -e 's/DEFINER[ ]*=[ ]*[^*]*\*/\*/' | gzip > /path/to/save/backup/warp_db.sql.gz"
+    warp_message " warp db dump -s warp_db | gzip > /path/to/save/backup/warp_db.sql.gz"
+    warp_message " warp db dump --strip-definers warp_db | gzip > /path/to/save/backup/warp_db.sql.gz"
     warp_message " warp db dump warp_db | gzip | pv > /path/to/save/backup/warp_db.sql.gz"
     warp_message " warp db dump warp_db > /path/to/save/backup/warp_db.sql"
     warp_message ""
