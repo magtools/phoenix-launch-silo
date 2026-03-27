@@ -4,6 +4,8 @@
 
 MEMORY_PROGRESS=0
 MEMORY_PROGRESS_PID=""
+MEMORY_LABEL_WIDTH=35
+MEMORY_SECTION_SEPARATOR="---------------------------------"
 
 memory_print() {
     printf '%b\n' "$1"
@@ -15,6 +17,35 @@ memory_print_info() {
 
 memory_print_warn() {
     printf '%b\n' "${FYEL}$1${RS}"
+}
+
+memory_print_kv() {
+    local _label="$1"
+    local _value="$2"
+
+    printf '%-*s %b\n' "$MEMORY_LABEL_WIDTH" "${_label}:" "${FCYN}${_value}${RS}"
+}
+
+memory_print_separator() {
+    memory_print "$MEMORY_SECTION_SEPARATOR"
+}
+
+memory_print_php_suggest_block() {
+    local _suggest="$1"
+    local _line=""
+    local _php_key=""
+    local _php_value=""
+
+    while IFS= read -r _line; do
+        [ -n "$_line" ] || continue
+        _php_key=$(printf '%s' "$_line" | cut -d '=' -f1)
+        _php_value=$(printf '%s' "$_line" | cut -d '=' -f2-)
+        _php_key=$(memory_trim "$_php_key")
+        _php_value=$(memory_trim "$_php_value")
+        memory_print_kv "PHP-FPM ${_php_key}" "${_php_value}"
+    done <<EOF
+$_suggest
+EOF
 }
 
 memory_progress_begin() {
@@ -732,64 +763,74 @@ memory_report_print_text() {
 
     memory_print ""
     memory_print_info "WARP Memory Report"
-    memory_print "Host RAM total:             ${FCYN}${_host_human}${RS}"
-    memory_print "Host RAM used:              ${FCYN}$(memory_mb_human_or_na "$_host_used_mb") (${_host_used_pct}%)${RS}"
-    memory_print "Host CPU topology:          ${FCYN}${_host_cpu_summary}${RS}"
-    memory_print "Host CPU sockets:           ${FCYN}${_host_sockets}${RS}"
-    memory_print "Host physical cores:        ${FCYN}${_host_cores}${RS}"
-    memory_print "Host logical threads:       ${FCYN}${_host_threads}${RS}"
-    memory_print "Host threads/core:          ${FCYN}${_host_threads_per_core}${RS}"
-    memory_print "Host thread reserve:        ${FCYN}${_host_threads_reserve}${RS}"
-    memory_print "Deploy THREADS sugeridos:   ${FCYN}${_host_deploy_threads}${RS}"
-    memory_print "Host load (1m):             ${FCYN}${_host_load_1m}${RS}"
+    memory_print_kv "Host RAM total" "${_host_human}"
+    memory_print_kv "Host RAM used" "$(memory_mb_human_or_na "$_host_used_mb") (${_host_used_pct}%)"
+    memory_print_kv "Host CPU topology" "${_host_cpu_summary}"
+    memory_print_kv "Host CPU sockets" "${_host_sockets}"
+    memory_print_kv "Host physical cores" "${_host_cores}"
+    memory_print_kv "Host logical threads" "${_host_threads}"
+    memory_print_kv "Host threads/core" "${_host_threads_per_core}"
+    memory_print_kv "Host thread reserve" "${_host_threads_reserve}"
+    memory_print_kv "Deploy THREADS sugeridos" "${_host_deploy_threads}"
+    memory_print_kv "Host load (1m)" "${_host_load_1m}"
     memory_print ""
 
     memory_print_info "[USO ACTUAL]"
-    memory_print "php (container):            ${FCYN}${_usage_php}${RS}"
-    memory_print "mysql (container):          ${FCYN}${_usage_mysql}${RS}"
-    memory_print "elasticsearch (container):  ${FCYN}${_usage_es_container}${RS}"
-    memory_print "redis-cache (container):    ${FCYN}${_usage_rc_container}${RS}"
-    memory_print "redis-fpc (container):      ${FCYN}${_usage_rf_container}${RS}"
-    memory_print "redis-session (container):  ${FCYN}${_usage_rs_container}${RS}"
+    memory_print_kv "php (container)" "${_usage_php}"
+    memory_print_kv "mysql (container)" "${_usage_mysql}"
+    memory_print_kv "elasticsearch (container)" "${_usage_es_container}"
+    memory_print_kv "redis-cache (container)" "${_usage_rc_container}"
+    memory_print_kv "redis-fpc (container)" "${_usage_rf_container}"
+    memory_print_kv "redis-session (container)" "${_usage_rs_container}"
     memory_print ""
 
     memory_print_info "[USO SERVICIO]"
-    memory_print "elasticsearch used (heap):  ${FCYN}$(memory_mb_human_or_na "$_es_used_mb")${RS}"
-    memory_print "elasticsearch max (heap):   ${FCYN}$(memory_mb_human_or_na "$_es_assigned_mb")${RS}"
-    memory_print "redis-cache used:           ${FCYN}$(memory_mb_human_or_na "$_rc_used_mb")${RS}"
-    memory_print "redis-cache peak:           ${FCYN}$(memory_mb_human_or_na "$_rc_peak_mb")${RS}"
-    memory_print "redis-cache maxmemory:      ${FCYN}$(memory_mb_human_or_na "$_rc_max_mb")${RS}"
-    memory_print "redis-fpc used:             ${FCYN}$(memory_mb_human_or_na "$_rf_used_mb")${RS}"
-    memory_print "redis-fpc peak:             ${FCYN}$(memory_mb_human_or_na "$_rf_peak_mb")${RS}"
-    memory_print "redis-fpc maxmemory:        ${FCYN}$(memory_mb_human_or_na "$_rf_max_mb")${RS}"
-    memory_print "redis-session used:         ${FCYN}$(memory_mb_human_or_na "$_rs_used_mb")${RS}"
-    memory_print "redis-session peak:         ${FCYN}$(memory_mb_human_or_na "$_rs_peak_mb")${RS}"
-    memory_print "redis-session maxmemory:    ${FCYN}$(memory_mb_human_or_na "$_rs_max_mb")${RS}"
+    memory_print_separator
+    memory_print_kv "elasticsearch used (heap)" "$(memory_mb_human_or_na "$_es_used_mb")"
+    memory_print_kv "elasticsearch max (heap)" "$(memory_mb_human_or_na "$_es_assigned_mb")"
+    memory_print_separator
+    memory_print_kv "redis-cache used" "$(memory_mb_human_or_na "$_rc_used_mb")"
+    memory_print_kv "redis-cache peak" "$(memory_mb_human_or_na "$_rc_peak_mb")"
+    memory_print_kv "redis-cache maxmemory" "$(memory_mb_human_or_na "$_rc_max_mb")"
+    memory_print_kv "redis-fpc used" "$(memory_mb_human_or_na "$_rf_used_mb")"
+    memory_print_kv "redis-fpc peak" "$(memory_mb_human_or_na "$_rf_peak_mb")"
+    memory_print_kv "redis-fpc maxmemory" "$(memory_mb_human_or_na "$_rf_max_mb")"
+    memory_print_kv "redis-session used" "$(memory_mb_human_or_na "$_rs_used_mb")"
+    memory_print_kv "redis-session peak" "$(memory_mb_human_or_na "$_rs_peak_mb")"
+    memory_print_kv "redis-session maxmemory" "$(memory_mb_human_or_na "$_rs_max_mb")"
+    memory_print_separator
     memory_print ""
 
     memory_print_info "[CONFIG ACTUAL]"
-    memory_print "ES_MEMORY:                  ${FCYN}${_cfg_es}${RS}"
-    memory_print "REDIS_CACHE_MAXMEMORY:      ${FCYN}${_cfg_rc}${RS}"
-    memory_print "REDIS_CACHE_MAXMEMORY_POLICY: ${FCYN}${_cfg_rcp}${RS}"
-    memory_print "REDIS_FPC_MAXMEMORY:        ${FCYN}${_cfg_rf}${RS}"
-    memory_print "REDIS_FPC_MAXMEMORY_POLICY: ${FCYN}${_cfg_rfp}${RS}"
-    memory_print "REDIS_SESSION_MAXMEMORY:    ${FCYN}${_cfg_rs}${RS}"
-    memory_print "REDIS_SESSION_MAXMEMORY_POLICY: ${FCYN}${_cfg_rsp}${RS}"
-    memory_print "PHP-FPM conf:               ${FCYN}${_php_conf:-N/A}${RS}"
-    memory_print "PHP-FPM pm:                 ${FCYN}${_php_pm}${RS}"
-    memory_print "PHP-FPM pm.max_children:    ${FCYN}${_php_mc}${RS}"
-    memory_print "PHP-FPM pm.start_servers:   ${FCYN}${_php_ss}${RS}"
-    memory_print "PHP-FPM pm.min_spare_servers: ${FCYN}${_php_min}${RS}"
-    memory_print "PHP-FPM pm.max_spare_servers: ${FCYN}${_php_max}${RS}"
-    memory_print "PHP-FPM pm.max_requests:    ${FCYN}${_php_req}${RS}"
+    memory_print_separator
+    memory_print_kv "ES_MEMORY" "${_cfg_es}"
+    memory_print_separator
+    memory_print_kv "REDIS_CACHE_MAXMEMORY" "${_cfg_rc}"
+    memory_print_kv "REDIS_CACHE_MAXMEMORY_POLICY" "${_cfg_rcp}"
+    memory_print_kv "REDIS_FPC_MAXMEMORY" "${_cfg_rf}"
+    memory_print_kv "REDIS_FPC_MAXMEMORY_POLICY" "${_cfg_rfp}"
+    memory_print_kv "REDIS_SESSION_MAXMEMORY" "${_cfg_rs}"
+    memory_print_kv "REDIS_SESSION_MAXMEMORY_POLICY" "${_cfg_rsp}"
+    memory_print_separator
+    memory_print_kv "PHP-FPM conf" "${_php_conf:-N/A}"
+    memory_print_kv "PHP-FPM pm" "${_php_pm}"
+    memory_print_kv "PHP-FPM pm.max_children" "${_php_mc}"
+    memory_print_kv "PHP-FPM pm.start_servers" "${_php_ss}"
+    memory_print_kv "PHP-FPM pm.min_spare_servers" "${_php_min}"
+    memory_print_kv "PHP-FPM pm.max_spare_servers" "${_php_max}"
+    memory_print_kv "PHP-FPM pm.max_requests" "${_php_req}"
+    memory_print_separator
     memory_print ""
 
     memory_print_info "[ALERTAS DE USO ASIGNADO]"
-    memory_print "redis-cache:                ${FCYN}${_rc_warn}${RS}"
-    memory_print "redis-fpc:                  ${FCYN}${_rf_warn}${RS}"
-    memory_print "redis-session:              ${FCYN}${_rs_warn}${RS}"
-    memory_print "elasticsearch:              ${FCYN}${_es_warn}${RS}"
-    memory_print "elasticsearch fuente datos: ${FCYN}${_es_source}${RS}"
+    memory_print_separator
+    memory_print_kv "redis-cache" "${_rc_warn}"
+    memory_print_kv "redis-fpc" "${_rf_warn}"
+    memory_print_kv "redis-session" "${_rs_warn}"
+    memory_print_separator
+    memory_print_kv "elasticsearch" "${_es_warn}"
+    memory_print_kv "elasticsearch fuente datos" "${_es_source}"
+    memory_print_separator
     memory_print ""
 
     if [ "$_show_suggest" = "0" ]; then
@@ -815,22 +856,23 @@ memory_report_print_text() {
     memory_progress_end 0 "calculate recommendations"
 
     memory_print_info "[SUGERIDO]"
-    memory_print "ES cálculo base (servicio): ${FCYN}used=$(memory_mb_human_or_na "$_es_used_mb"), fuente=${_es_source}${RS}"
-    memory_print "ES_MEMORY (base):           ${FCYN}$(memory_with_unit "$_es_base" "m")${RS}"
-    memory_print "ES_MEMORY (seguridad min):  ${FCYN}$(memory_with_unit "$_es_safe" "m")${RS}  [peak:${_es_note} $(memory_ratio_display "$_es_peak_ratio")]"
-    memory_print "REDIS_CACHE_MAXMEMORY (base): ${FCYN}$(memory_with_unit "$_rc_base" "mb")${RS}"
-    memory_print "REDIS_CACHE_MAXMEMORY (seguridad min): ${FCYN}$(memory_with_unit "$_rc_safe" "mb")${RS}  [peak:${_rc_note} $(memory_ratio_display "$_rc_peak_ratio")]"
-    memory_print "REDIS_CACHE_MAXMEMORY_POLICY: ${FCYN}allkeys-lru${RS}"
-    memory_print "REDIS_FPC_MAXMEMORY (base): ${FCYN}$(memory_with_unit "$_rf_base" "mb")${RS}"
-    memory_print "REDIS_FPC_MAXMEMORY (seguridad min): ${FCYN}$(memory_with_unit "$_rf_safe" "mb")${RS}  [peak:${_rf_note} $(memory_ratio_display "$_rf_peak_ratio")]"
-    memory_print "REDIS_FPC_MAXMEMORY_POLICY: ${FCYN}allkeys-lru${RS}"
-    memory_print "REDIS_SESSION_MAXMEMORY (base): ${FCYN}$(memory_with_unit "$_rs_base" "mb")${RS}"
-    memory_print "REDIS_SESSION_MAXMEMORY (seguridad min): ${FCYN}$(memory_with_unit "$_rs_safe" "mb")${RS}  [peak:${_rs_note} $(memory_ratio_display "$_rs_peak_ratio")]"
-    memory_print "REDIS_SESSION_MAXMEMORY_POLICY: ${FCYN}noeviction${RS}"
-    echo "$_php_suggest" | while IFS= read -r _line; do
-        [ -z "$_line" ] && continue
-        memory_print "PHP-FPM $_line"
-    done
+    memory_print_separator
+    memory_print_kv "ES cálculo base (servicio)" "used=$(memory_mb_human_or_na "$_es_used_mb"), fuente=${_es_source}"
+    memory_print_kv "ES_MEMORY (base)" "$(memory_with_unit "$_es_base" "m")"
+    memory_print_kv "ES_MEMORY (seguridad min)" "$(memory_with_unit "$_es_safe" "m")  [peak:${_es_note} $(memory_ratio_display "$_es_peak_ratio")]"
+    memory_print_separator
+    memory_print_kv "REDIS_CACHE_MAXMEMORY (base)" "$(memory_with_unit "$_rc_base" "mb")"
+    memory_print_kv "REDIS_CACHE_MAXMEMORY (seguridad min)" "$(memory_with_unit "$_rc_safe" "mb")  [peak:${_rc_note} $(memory_ratio_display "$_rc_peak_ratio")]"
+    memory_print_kv "REDIS_CACHE_MAXMEMORY_POLICY" "allkeys-lru"
+    memory_print_kv "REDIS_FPC_MAXMEMORY (base)" "$(memory_with_unit "$_rf_base" "mb")"
+    memory_print_kv "REDIS_FPC_MAXMEMORY (seguridad min)" "$(memory_with_unit "$_rf_safe" "mb")  [peak:${_rf_note} $(memory_ratio_display "$_rf_peak_ratio")]"
+    memory_print_kv "REDIS_FPC_MAXMEMORY_POLICY" "allkeys-lru"
+    memory_print_kv "REDIS_SESSION_MAXMEMORY (base)" "$(memory_with_unit "$_rs_base" "mb")"
+    memory_print_kv "REDIS_SESSION_MAXMEMORY (seguridad min)" "$(memory_with_unit "$_rs_safe" "mb")  [peak:${_rs_note} $(memory_ratio_display "$_rs_peak_ratio")]"
+    memory_print_kv "REDIS_SESSION_MAXMEMORY_POLICY" "noeviction"
+    memory_print_separator
+    memory_print_php_suggest_block "$_php_suggest"
+    memory_print_separator
     memory_print ""
 
     memory_print_info "Nota operador:"

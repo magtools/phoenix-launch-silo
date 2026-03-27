@@ -669,6 +669,7 @@ warp_update() {
         tar -C "$WARP_TMP_EXTRACT_DIR/.warp" --exclude='./docker/config' --exclude='./docker/config/*' -cf - . | tar -C "$PROJECTPATH/.warp" -xf - || { warp_message_error "unable to update .warp"; exit 1; }
 
         chmod 755 "$WARP_TARGET_FILE" || { warp_message_error "unable to set executable permissions on warp"; exit 1; }
+        WARP_BINARY_SYNC_NOTICE=""
         warp_pending_update_clear
         warp_update_tmp_clean
 
@@ -736,6 +737,7 @@ warp_update() {
 
     cp "$WARP_TMP_WARP" "$WARP_TARGET_FILE" || { warp_message_error "unable to update warp binary"; exit 1; }
     chmod 755 "$WARP_TARGET_FILE" || { warp_message_error "unable to set executable permissions on warp"; exit 1; }
+    WARP_BINARY_SYNC_NOTICE=""
     warp_pending_update_clear
     warp_update_tmp_clean
 
