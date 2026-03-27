@@ -130,3 +130,24 @@ Cambios clave garantizados por el flujo actual:
 - no ejecutar setup/wizard durante update
 - conservar estado de aviso/error en `.pending-update`
 - limpieza de temporales al finalizar
+
+## 8) Desalineado entre ejecutable y `.warp` instalado
+
+Warp compara la version embebida en el ejecutable fisico con la version instalada en:
+
+- `.warp/lib/version.sh`
+
+Si no coinciden:
+
+1. muestra advertencia explicita,
+2. informa ambas versiones (`binary` e `installed framework`),
+3. recomienda ejecutar:
+
+```bash
+./warp update --self
+```
+
+Objetivo:
+
+1. detectar cuando se actualizo/commiteo el ejecutable pero no se aplico su payload local,
+2. evitar errores por comandos nuevos en `./warp` con librerias/scripts viejos en `.warp`.
