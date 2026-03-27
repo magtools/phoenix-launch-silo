@@ -128,15 +128,31 @@ memory_host_load_1m() {
 }
 
 memory_host_cores() {
-    if command -v nproc >/dev/null 2>&1; then
-        nproc 2>/dev/null
-        return 0
-    fi
-    if command -v getconf >/dev/null 2>&1; then
-        getconf _NPROCESSORS_ONLN 2>/dev/null
-        return 0
-    fi
-    echo ""
+    warp_host_cpu_physical
+}
+
+memory_host_threads() {
+    warp_host_cpu_logical
+}
+
+memory_host_sockets() {
+    warp_host_cpu_sockets
+}
+
+memory_host_threads_per_core() {
+    warp_host_cpu_threads_per_core
+}
+
+memory_host_deploy_threads() {
+    warp_host_worker_threads_default
+}
+
+memory_host_threads_reserve() {
+    warp_host_threads_reserve
+}
+
+memory_host_cpu_summary() {
+    warp_host_cpu_topology_summary
 }
 
 memory_mb_to_human() {
@@ -598,7 +614,19 @@ memory_report_print_text() {
     _host_load_1m=$(memory_host_load_1m)
     _host_human=$(memory_mb_to_human "$_host_mb")
     _host_cores=$(memory_host_cores)
+    _host_threads=$(memory_host_threads)
+    _host_sockets=$(memory_host_sockets)
+    _host_threads_per_core=$(memory_host_threads_per_core)
+    _host_deploy_threads=$(memory_host_deploy_threads)
+    _host_threads_reserve=$(memory_host_threads_reserve)
+    _host_cpu_summary=$(memory_host_cpu_summary)
     [ -z "$_host_cores" ] && _host_cores="N/A"
+    [ -z "$_host_threads" ] && _host_threads="N/A"
+    [ -z "$_host_sockets" ] && _host_sockets="N/A"
+    [ -z "$_host_threads_per_core" ] && _host_threads_per_core="N/A"
+    [ -z "$_host_deploy_threads" ] && _host_deploy_threads="N/A"
+    [ -z "$_host_threads_reserve" ] && _host_threads_reserve="N/A"
+    [ -z "$_host_cpu_summary" ] && _host_cpu_summary="N/A"
     [ -z "$_host_load_1m" ] && _host_load_1m="N/A"
     memory_progress_end 0 "check host resources"
 
@@ -706,7 +734,13 @@ memory_report_print_text() {
     memory_print_info "WARP Memory Report"
     memory_print "Host RAM total:             ${FCYN}${_host_human}${RS}"
     memory_print "Host RAM used:              ${FCYN}$(memory_mb_human_or_na "$_host_used_mb") (${_host_used_pct}%)${RS}"
-    memory_print "Host CPU cores:             ${FCYN}${_host_cores}${RS}"
+    memory_print "Host CPU topology:          ${FCYN}${_host_cpu_summary}${RS}"
+    memory_print "Host CPU sockets:           ${FCYN}${_host_sockets}${RS}"
+    memory_print "Host physical cores:        ${FCYN}${_host_cores}${RS}"
+    memory_print "Host logical threads:       ${FCYN}${_host_threads}${RS}"
+    memory_print "Host threads/core:          ${FCYN}${_host_threads_per_core}${RS}"
+    memory_print "Host thread reserve:        ${FCYN}${_host_threads_reserve}${RS}"
+    memory_print "Deploy THREADS sugeridos:   ${FCYN}${_host_deploy_threads}${RS}"
     memory_print "Host load (1m):             ${FCYN}${_host_load_1m}${RS}"
     memory_print ""
 
@@ -818,7 +852,21 @@ memory_report_print_json() {
     _host_load_1m=$(memory_host_load_1m)
     _host_human=$(memory_mb_to_human "$_host_mb")
     _host_cores=$(memory_host_cores)
+    _host_threads=$(memory_host_threads)
+    _host_sockets=$(memory_host_sockets)
+    _host_threads_per_core=$(memory_host_threads_per_core)
+    _host_deploy_threads=$(memory_host_deploy_threads)
+    _host_threads_reserve=$(memory_host_threads_reserve)
+    _host_cpu_summary=$(memory_host_cpu_summary)
     [ -z "$_host_load_1m" ] && _host_load_1m="N/A"
+    [ -z "$_host_human" ] && _host_human="N/A"
+    [ -z "$_host_cores" ] && _host_cores="N/A"
+    [ -z "$_host_threads" ] && _host_threads="N/A"
+    [ -z "$_host_sockets" ] && _host_sockets="N/A"
+    [ -z "$_host_threads_per_core" ] && _host_threads_per_core="N/A"
+    [ -z "$_host_deploy_threads" ] && _host_deploy_threads="N/A"
+    [ -z "$_host_threads_reserve" ] && _host_threads_reserve="N/A"
+    [ -z "$_host_cpu_summary" ] && _host_cpu_summary="N/A"
 
     _usage_php=$(memory_service_mem_usage "php")
     _usage_mysql=$(memory_service_mem_usage "mysql")
@@ -917,7 +965,14 @@ memory_report_print_json() {
     "ram_used_mb": "$(memory_json_escape "$_host_used_mb")",
     "ram_used_pct": "$(memory_json_escape "$_host_used_pct")",
     "load_1m": "$(memory_json_escape "$_host_load_1m")",
-    "cores": "$(memory_json_escape "$_host_cores")"
+    "cores": "$(memory_json_escape "$_host_cores")",
+    "cpu_summary": "$(memory_json_escape "$_host_cpu_summary")",
+    "physical_cores": "$(memory_json_escape "$_host_cores")",
+    "logical_threads": "$(memory_json_escape "$_host_threads")",
+    "threads_per_core": "$(memory_json_escape "$_host_threads_per_core")",
+    "sockets": "$(memory_json_escape "$_host_sockets")",
+    "threads_reserve": "$(memory_json_escape "$_host_threads_reserve")",
+    "deploy_threads_suggested": "$(memory_json_escape "$_host_deploy_threads")"
   },
   "usage": {
     "php_container": "$(memory_json_escape "$_usage_php")",

@@ -29,20 +29,7 @@ deploy_bool() {
 }
 
 deploy_threads_detect() {
-    _cores=""
-    if command -v nproc >/dev/null 2>&1; then
-        _cores=$(nproc 2>/dev/null)
-    elif command -v getconf >/dev/null 2>&1; then
-        _cores=$(getconf _NPROCESSORS_ONLN 2>/dev/null)
-    fi
-
-    if ! [[ "$_cores" =~ ^[0-9]+$ ]]; then
-        _cores=4
-    fi
-
-    _threads=$(( _cores - 1 ))
-    [ "$_threads" -lt 1 ] && _threads=1
-    echo "$_threads"
+    warp_host_worker_threads_default
 }
 
 deploy_has_grunt_cfg() {
@@ -119,8 +106,9 @@ CONFIRM_PROD=1
 ALLOW_DIR_PERMS_FIX=0
 EOF
     else
-        _admin_i18n=$(warp_question_ask_default "ADMIN_I18N $(warp_message_info [en_US es_AR]) " "en_US es_AR")
-        _front_i18n=$(warp_question_ask_default "FRONT_I18N $(warp_message_info [es_AR en_US]) " "es_AR en_US")
+        warp_message "I18N: ingresa locales separados por espacios. Presiona Enter para aceptar el valor por defecto."
+        _admin_i18n=$(warp_question_ask_default "ADMIN_I18N default [en_US es_AR]: " "en_US es_AR")
+        _front_i18n=$(warp_question_ask_default "FRONT_I18N default [es_AR en_US]: " "es_AR en_US")
         _run_hyva=0
         deploy_has_hyva_cfg && _run_hyva=1
 

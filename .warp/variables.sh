@@ -76,6 +76,9 @@ WARP_BINARY_FILE="/usr/local/bin/warp"
 # SET STRONG PASSWORD LENGTH
 STRONG_PASSWORD_LENGTH=10
 
+# Host CPU thread reservation for deploy/static worker heuristics.
+WARP_HOST_THREADS_RESERVE_DEFAULT=1
+
 # Set minimum version for docker-compose (legacy binary path)
 DOCKER_COMPOSE_MINIMUM_VERSION=1.29
 

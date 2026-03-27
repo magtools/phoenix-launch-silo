@@ -8,6 +8,7 @@
 . "$WARPFOLDER/lib/net.sh"
 . "$WARPFOLDER/lib/question.sh"
 . "$WARPFOLDER/lib/check.sh"
+. "$WARPFOLDER/lib/host.sh"
 . "$WARPFOLDER/lib/banner.sh"
 . "$WARPFOLDER/lib/fallback.sh"
 . "$WARPFOLDER/lib/service_version.sh"
