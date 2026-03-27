@@ -177,6 +177,10 @@ function cache_main()
         ;;
 
         info)
+            if [ "$2" = "-h" ] || [ "$2" = "--help" ] || [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
+                redis_info_help
+                return 0
+            fi
             cache_load_context
             if [ "$WARP_CTX_MODE" = "external" ]; then
                 cache_info_external

@@ -21,6 +21,14 @@ deploy_help_usage() {
     warp_message_info " doctor             $(warp_message 'validate prerequisites and configuration')"
     warp_message ""
 
+    warp_message_info "Help:"
+    warp_message " if .deploy is missing, run/static trigger the guided setup first."
+    warp_message " prod setup asks ADMIN_I18N and FRONT_I18N as locales separated by spaces;"
+    warp_message " pressing Enter accepts the default shown in the prompt."
+    warp_message " THREADS is derived from logical host threads minus WARP_HOST_THREADS_RESERVE from .env"
+    warp_message " (default reserve: 1, minimum final THREADS: 1)."
+    warp_message ""
+
     warp_message_info "Examples:"
     warp_message " warp deploy"
     warp_message " warp deploy run --dry-run"

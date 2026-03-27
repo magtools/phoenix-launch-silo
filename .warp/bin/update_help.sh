@@ -17,12 +17,12 @@ function update_help_usage()
 
     warp_message ""
     warp_message_info "Help:"
-    warp_message " To update the framework you must enter the following link and download the latest version"
-    warp_message " https://github.com/magtools/phoenix-launch-silo"
-    warp_message " also can run the following command"
-    warp_message " curl -L -o warp https://raw.githubusercontent.com/magtools/phoenix-launch-silo/refs/heads/master/dist/warp && chmod 755 warp && ./warp update"
-
-    # TODO translate to English
+    warp_message " warp update downloads dist/version.md, dist/sha256sum.md and dist/warp from"
+    warp_message " https://github.com/magtools/phoenix-launch-silo and validates SHA-256 before replacing ./warp."
+    warp_message " warp update self / --self does not download remote artifacts: it applies the payload embedded in"
+    warp_message " the current local ./warp and is the correct command when the executable is newer than .warp."
+    warp_message " if Warp warns that the binary and installed framework are out of sync, run ./warp update --self."
+    warp_message " warp update --images only pulls Docker images and does not update the Warp framework."
 
     warp_message ""
 

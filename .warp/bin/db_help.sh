@@ -26,6 +26,11 @@ function db_help_usage()
 
     warp_message ""
     warp_message_info "Help:"
+    warp_message " if mysql service is missing in docker-compose, Warp can switch the project to external DB mode"
+    warp_message " after confirmation. It tries app/etc/env.php first and then persists MYSQL_VERSION=rds plus DATABASE_*"
+    warp_message " values in .env for subsequent runs."
+    warp_message " in external mode, connect / dump / tuner use the external host and import only prints the manual command."
+    warp_message ""
     warp_message " warp db dump --help"
     warp_message ""
 }

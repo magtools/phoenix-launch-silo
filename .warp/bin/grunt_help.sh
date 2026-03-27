@@ -24,7 +24,6 @@ function grunt_help_usage()
 
     warp_message_info "Example:"
     warp_message " warp grunt setup"
-    warp_message " WARP_GRUNT_PHP_CONTAINER=m2cortassa-php-1 warp grunt setup"
     warp_message " warp grunt exec"
     warp_message " warp grunt less"
     warp_message ""    

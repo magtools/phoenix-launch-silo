@@ -23,6 +23,10 @@ function elasticsearch_help_usage() {
     warp_message " search service uses ports 9200 and 9300 inside the containers"
     warp_message " the underlying engine can be OpenSearch or Elasticsearch depending on project configuration"
     warp_message " to use this service you must modify localhost:9200 by elasticsearch:9200 in the project"
+    warp_message " if search runs in external mode (SEARCH_MODE=external), Warp uses SEARCH_SCHEME / SEARCH_HOST /"
+    warp_message " SEARCH_PORT / SEARCH_USER / SEARCH_PASSWORD from .env instead of search containers."
+    warp_message " in external mode: info / flush run against the remote endpoint; ssh and switch are not available;"
+    warp_message " flush requires explicit y confirmation."
     warp_message ""
 }
 
@@ -49,7 +53,9 @@ elasticsearch_ssh_help() {
 
     warp_message ""
     warp_message_info "Help:"
-    warp_message " Connect to search container by ssh "
+    warp_message " Connect to search container by ssh"
+    warp_message " ssh is only available for local container mode; in external mode Warp blocks this command."
+    warp_message " use the HTTP API against SEARCH_SCHEME / SEARCH_HOST / SEARCH_PORT instead."
     warp_message ""
 
     warp_message_info "Example:"
@@ -70,6 +76,7 @@ elasticsearch_flush_help() {
     warp_message_info "Help:"
     warp_message " For delete search index data purposes. Use it to fix a cluster_block_exception "
     warp_message " also called as FORBIDDEN/12/index read-only / allow delete (api)]"
+    warp_message " in external mode flush runs against SEARCH_* endpoint variables from .env and requires explicit y confirmation."
     warp_message ""
 
     warp_message_info "Example:"
@@ -92,6 +99,7 @@ elasticsearch_switch_help () {
     warp_message ""
     warp_message_info "Help:"
     warp_message " this command allows to change the search engine version"
+    warp_message " switch is only available for local container mode; in external mode Warp blocks this command."
     warp_message " you can check OpenSearch versions here: $(warp_message_info '[ https://hub.docker.com/r/opensearchproject/opensearch/tags/ ]')"
     warp_message " Elasticsearch compatibility tags depend on project support and may use docker.elastic.co"
     warp_message ""
@@ -101,4 +109,18 @@ elasticsearch_switch_help () {
     warp_message " warp search switch 5.6.8"
     warp_message " warp search switch 6.4.2"
     warp_message ""    
+}
+
+elasticsearch_info_help() {
+    warp_message ""
+    warp_message_info "Usage:"
+    warp_message      " warp search info"
+    warp_message ""
+
+    warp_message ""
+    warp_message_info "Help:"
+    warp_message " show current search connectivity information."
+    warp_message " in external mode it checks the SEARCH_* endpoint from .env using GET / and GET /_cluster/health."
+    warp_message " curl must exist on the host for external mode."
+    warp_message ""
 }

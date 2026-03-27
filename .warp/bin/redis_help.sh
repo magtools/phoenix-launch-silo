@@ -23,6 +23,10 @@ function redis_help_usage()
     warp_message ""
     warp_message_info "Help:"
     warp_message " redis service used in ports 6379 inside containers"
+    warp_message " if cache runs in external mode (CACHE_MODE=external), Warp uses CACHE_HOST / CACHE_PORT / CACHE_USER /"
+    warp_message " CACHE_PASSWORD from .env instead of redis containers."
+    warp_message " in external mode: info / cli / monitor run against the remote endpoint; ssh is not available;"
+    warp_message " flush is allowed only with explicit y confirmation."
     warp_message " for more information about redis you can access the following link: https://redis.io/"
 
     warp_message ""
@@ -55,6 +59,8 @@ function redis_monitor_help_usage()
     warp_message_info "Help:"
     warp_message " monitor is a debugging command that streams back every command processed by the Redis server."
     warp_message " It can help in understanding what is happening to the database."
+    warp_message " in external mode it runs monitor against CACHE_HOST / CACHE_PORT from .env."
+    warp_message " redis-cli/valkey-cli must exist on the host for external mode."
     warp_message " for more information about redis you can access the following link: https://redis.io/commands/monitor"
 
     warp_message ""
@@ -85,6 +91,8 @@ function redis_cli_help_usage()
     warp_message_info "Help:"
     warp_message " redis-cli is the Redis command line interface, a simple program that allows to send commands to Redis,"
     warp_message " and read the replies sent by the server, directly from the terminal."
+    warp_message " in external mode it connects to CACHE_HOST / CACHE_PORT from .env using optional CACHE_USER / CACHE_PASSWORD."
+    warp_message " redis-cli/valkey-cli must exist on the host for external mode."
     warp_message " for more information about redis you can access the following link: https://redis.io/topics/rediscli"
 
     warp_message ""
@@ -102,6 +110,20 @@ function redis_help()
     warp_message_info   " cache              $(warp_message 'service of cache (redis/valkey)')"
     warp_message_info   " redis              $(warp_message 'alias of cache (legacy compatibility)')"
     warp_message_info   " valkey             $(warp_message 'alias of cache (engine compatibility)')"
+}
+
+redis_info_help() {
+    warp_message ""
+    warp_message_info "Usage:"
+    warp_message      " warp cache info"
+    warp_message ""
+
+    warp_message ""
+    warp_message_info "Help:"
+    warp_message " show current cache connectivity information."
+    warp_message " in external mode it checks CACHE_HOST / CACHE_PORT from .env using redis-cli/valkey-cli and reports"
+    warp_message " ping health plus detected server version."
+    warp_message ""
 }
 
 redis_ssh_help() {
@@ -126,7 +148,8 @@ redis_ssh_help() {
 
     warp_message ""
     warp_message_info "Help:"
-    warp_message " Connect to redis service by ssh "
+    warp_message " Connect to redis service by ssh"
+    warp_message " ssh is only available for local container mode; in external mode Warp blocks this command."
     warp_message ""
 
     warp_message_info "Example:"
@@ -161,6 +184,7 @@ redis_flush_help() {
     warp_message_info "Help:"
     warp_message " redis-cli is the Redis command line interface, a simple program that allows to send commands to Redis,"
     warp_message " and read the replies sent by the server, directly from the terminal."
+    warp_message " in external mode flush runs against the remote endpoint and requires explicit y confirmation."
     warp_message " for more information about redis you can access the following link: https://redis.io/topics/rediscli"
 
     warp_message ""

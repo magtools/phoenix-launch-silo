@@ -199,6 +199,10 @@ function search_main()
 
         info)
             shift
+            if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
+                elasticsearch_info_help
+                return 0
+            fi
             search_load_context
             if [ "$WARP_CTX_MODE" = "external" ]; then
                 search_external_require_http_client || return 1
