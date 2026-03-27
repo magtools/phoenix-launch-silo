@@ -36,7 +36,7 @@ main () {
         warp_check_docker_version
     fi;
 
-    # check if binary was updated
+    # prepare binary/framework sync notice for command end
     warp_check_binary_was_updated
 
     # Run update check at command end, so output remains visible.
@@ -508,6 +508,8 @@ warp_post_command_hook() {
         fi
     fi
 
+    warp_binary_sync_notice_show
+
     # show pending/error box at command end
     warp_pending_update_show
 }
@@ -917,6 +919,8 @@ function warp_check_binary_was_updated() {
     local _binary_version_int=""
     local _update_hint=""
 
+    WARP_BINARY_SYNC_NOTICE=""
+
     [ -d "$PROJECTPATH/.warp/lib" ] || return 0
     [ -f "$PROJECTPATH/.warp/lib/version.sh" ] || return 0
 
@@ -937,15 +941,18 @@ function warp_check_binary_was_updated() {
 
     _update_hint=$(warp_local_update_self_hint)
 
-    warp_message_warn "warp binary and installed framework are out of sync"
-    warp_message_warn "binary version: $_binary_version"
-    warp_message_warn "installed framework version: $_installed_version"
+    WARP_BINARY_SYNC_NOTICE="warp binary and installed framework are out of sync
+binary version: $_binary_version
+installed framework version: $_installed_version"
     if [ "$_binary_version_int" -gt "$_installed_version_int" ]; then
-        warp_message_warn "the local executable is newer than .warp"
+        WARP_BINARY_SYNC_NOTICE="${WARP_BINARY_SYNC_NOTICE}
+the local executable is newer than .warp"
     else
-        warp_message_warn "the installed .warp is newer than the local executable"
+        WARP_BINARY_SYNC_NOTICE="${WARP_BINARY_SYNC_NOTICE}
+the installed .warp is newer than the local executable"
     fi
-    warp_message_warn "run ${_update_hint} update --self to align the installed framework with this executable"
+    WARP_BINARY_SYNC_NOTICE="${WARP_BINARY_SYNC_NOTICE}
+run ${_update_hint} update --self to align the installed framework with this executable"
 }
 
 function warp_binary_script_version() {
@@ -958,7 +965,7 @@ function warp_installed_framework_version() {
     local _installed_version=""
 
     [ -f "$PROJECTPATH/.warp/lib/version.sh" ] || return 0
-    _installed_version=$(sed -n 's/^WARP_VERSION=\"\\{0,1\\}\\([0-9][0-9.]*\\)\"\\{0,1\\}$/\\1/p' "$PROJECTPATH/.warp/lib/version.sh" | head -n1)
+    _installed_version=$(grep '^WARP_VERSION=' "$PROJECTPATH/.warp/lib/version.sh" 2>/dev/null | head -n1 | cut -d '=' -f2 | tr -d '"')
     echo "$_installed_version"
 }
 
@@ -970,6 +977,20 @@ function warp_local_update_self_hint() {
     else
         echo "warp"
     fi
+}
+
+function warp_binary_sync_notice_show() {
+    local _line=""
+
+    [ -n "$WARP_BINARY_SYNC_NOTICE" ] || return 0
+
+    printf "\n"
+    while IFS= read -r _line; do
+        [ -n "$_line" ] || continue
+        warp_message_warn "$_line"
+    done <<EOF
+$WARP_BINARY_SYNC_NOTICE
+EOF
 }
 
 main "$@"
