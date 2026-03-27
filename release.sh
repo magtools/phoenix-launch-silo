@@ -17,7 +17,7 @@ printf "%s\n" "$BUILD_VERSION" > dist/version.md
 # cat warp.sh warparchive.tar.xz > warp
 #
 tar cJf warparchive.tar.xz --exclude=".DS_Store" .warp/.
-cat warp.sh > dist/warp
+sed -e "s/__BUILD_VERSION__/${BUILD_VERSION}/g" warp.sh > dist/warp
 cat warparchive.tar.xz >> dist/warp
 chmod +x dist/warp
 cp dist/warp dist/warp_$BUILD_VERSION

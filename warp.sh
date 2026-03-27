@@ -1,5 +1,7 @@
 #!/bin/bash
 
+WARP_BINARY_VERSION="__BUILD_VERSION__"
+
 main () {
     # PROJECTPATH contains the full
     # directory path of the project itself
@@ -909,25 +911,64 @@ function warp_setup() {
 }
 
 function warp_check_binary_was_updated() {
-    if [ -f "$ENVIRONMENTVARIABLESFILE" ] && [ -f "$ENVIRONMENTVARIABLESFILESAMPLE" ] && [ -d "$PROJECTPATH/.warp/lib" ]
-    then
-        WARP_ENV_VERSION=$(grep "^WARP_VERSION" "$ENVIRONMENTVARIABLESFILESAMPLE" | cut -d '=' -f2)
-        _WARP_ENV_VERSION=$(echo "$WARP_ENV_VERSION" | tr -d ".")
+    local _installed_version=""
+    local _installed_version_int=""
+    local _binary_version=""
+    local _binary_version_int=""
+    local _update_hint=""
 
-        . "$PROJECTPATH/.warp/lib/version.sh"
-        _WARP_VERSION=$(echo "$WARP_VERSION" | tr -d ".")
+    [ -d "$PROJECTPATH/.warp/lib" ] || return 0
+    [ -f "$PROJECTPATH/.warp/lib/version.sh" ] || return 0
 
-        if [ ! -z "$WARP_ENV_VERSION" ] && [[ "$_WARP_ENV_VERSION" =~ ^[0-9]+$ ]] && [[ "$_WARP_VERSION" =~ ^[0-9]+$ ]]
-        then
-            # .env.sample > version.sh and not equal
-            if [ $_WARP_ENV_VERSION -gt $_WARP_VERSION ] && [ ! $_WARP_ENV_VERSION -eq $_WARP_VERSION ]
-            then
-                # different version binary and current, only notify.
-                # Never trigger legacy setup-based update paths automatically.
-                warp_message_warn "binary and current version are different"
-                warp_message_warn "run ./warp update to apply the safe update process"
-            fi
-        fi
+    _binary_version=$(warp_binary_script_version)
+    [ -n "$_binary_version" ] || return 0
+
+    _installed_version=$(warp_installed_framework_version)
+    [ -n "$_installed_version" ] || return 0
+
+    _binary_version_int=$(warp_update_version_to_int "$_binary_version")
+    _installed_version_int=$(warp_update_version_to_int "$_installed_version")
+
+    if [[ ! "$_binary_version_int" =~ ^[0-9]+$ ]] || [[ ! "$_installed_version_int" =~ ^[0-9]+$ ]]; then
+        return 0
+    fi
+
+    [ "$_binary_version_int" -eq "$_installed_version_int" ] && return 0
+
+    _update_hint=$(warp_local_update_self_hint)
+
+    warp_message_warn "warp binary and installed framework are out of sync"
+    warp_message_warn "binary version: $_binary_version"
+    warp_message_warn "installed framework version: $_installed_version"
+    if [ "$_binary_version_int" -gt "$_installed_version_int" ]; then
+        warp_message_warn "the local executable is newer than .warp"
+    else
+        warp_message_warn "the installed .warp is newer than the local executable"
+    fi
+    warp_message_warn "run ${_update_hint} update --self to align the installed framework with this executable"
+}
+
+function warp_binary_script_version() {
+    if [[ "$WARP_BINARY_VERSION" =~ ^[0-9][0-9.]*$ ]]; then
+        echo "$WARP_BINARY_VERSION"
+    fi
+}
+
+function warp_installed_framework_version() {
+    local _installed_version=""
+
+    [ -f "$PROJECTPATH/.warp/lib/version.sh" ] || return 0
+    _installed_version=$(sed -n 's/^WARP_VERSION=\"\\{0,1\\}\\([0-9][0-9.]*\\)\"\\{0,1\\}$/\\1/p' "$PROJECTPATH/.warp/lib/version.sh" | head -n1)
+    echo "$_installed_version"
+}
+
+function warp_local_update_self_hint() {
+    if [ -x "$PROJECTPATH/warp" ]; then
+        echo "./warp"
+    elif [ -f "$PROJECTPATH/warp.sh" ]; then
+        echo "bash ./warp.sh"
+    else
+        echo "warp"
     fi
 }
 
