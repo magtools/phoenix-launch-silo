@@ -16,8 +16,45 @@
 ##
 function warp_env_read_var()
 {
-    [ -f "$ENVIRONMENTVARIABLESFILE" ] && _VAR=$(grep "^$1=" "$ENVIRONMENTVARIABLESFILE" | cut -d '=' -f2)
+    local _VAR=""
+    [ -f "$ENVIRONMENTVARIABLESFILE" ] && _VAR=$(grep "^$1=" "$ENVIRONMENTVARIABLESFILE" | cut -d '=' -f2-)
     echo "$_VAR"
+}
+
+function warp_env_file_set_var()
+{
+    local _file="$1"
+    local _key="$2"
+    local _value="$3"
+    local _tmp=""
+    local _safe=""
+
+    [ -n "$_file" ] || return 1
+    [ -n "$_key" ] || return 1
+
+    _tmp="${_file}.warp_tmp"
+    _safe=$(printf '%s' "$_value" | sed 's/[\/&]/\\&/g')
+
+    if [ -f "$_file" ] && grep -q "^${_key}=" "$_file" 2>/dev/null; then
+        sed -e "s#^${_key}=.*#${_key}=${_safe}#g" "$_file" > "$_tmp" || return 1
+        mv "$_tmp" "$_file" || return 1
+    else
+        [ -f "$_file" ] || : > "$_file" || return 1
+        {
+            echo ""
+            echo "${_key}=${_value}"
+        } >> "$_file" || return 1
+    fi
+}
+
+function warp_env_ensure_var()
+{
+    local _key="$1"
+    local _default="$2"
+
+    [ -f "$ENVIRONMENTVARIABLESFILE" ] || return 1
+    grep -q "^${_key}=" "$ENVIRONMENTVARIABLESFILE" 2>/dev/null && return 0
+    warp_env_file_set_var "$ENVIRONMENTVARIABLESFILE" "$_key" "$_default"
 }
 
 # Generate RANDOM Password

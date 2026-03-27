@@ -137,8 +137,14 @@ Prod:
 - `RUN_STATIC_FRONT`
 - `ADMIN_I18N`
 - `FRONT_I18N`
-- `THREADS`
+- `THREADS` (detectado desde threads lógicos del host menos `WARP_HOST_THREADS_RESERVE`; mínimo `1`)
 - `STATIC_EXTRA_FLAGS`
+
+Override de capacidad host:
+
+- `.env`: `WARP_HOST_THREADS_RESERVE`
+- default: `1`
+- si falta en `.env`, Warp lo agrega al final con el valor default cuando necesita calcular threads del host
 
 ## 7) Limitaciones de V1
 

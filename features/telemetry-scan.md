@@ -36,7 +36,9 @@ warp telemetry config
 ## 3.1 Host
 
 1. RAM total.
-2. Cores detectados.
+2. Topología CPU detectada.
+3. Cores físicos, threads lógicos, sockets y threads por core.
+4. `THREADS` sugeridos para deploy (`logical_threads - WARP_HOST_THREADS_RESERVE`, mínimo `1`).
 
 ## 3.2 Uso por servicios
 
@@ -139,6 +141,7 @@ El reporte incluye notas explícitas para facilitar interpretación:
 1. qué métricas se usaron (`used` como base y `peak` como guardrail),
 2. cuándo conviene tomar “seguridad mínima” en lugar de base,
 3. advertencias cuando no hay límites configurados.
+4. un resumen inicial de capacidades del host para validar rápido si Warp leyó bien la topología CPU.
 
 ## 7) JSON
 
@@ -149,3 +152,13 @@ El reporte incluye notas explícitas para facilitar interpretación:
 3. alertas por servicio,
 4. configuración actual detectada,
 5. sugerencias base y de seguridad mínima.
+
+Campos host añadidos:
+
+1. `cpu_summary`
+2. `physical_cores`
+3. `logical_threads`
+4. `threads_per_core`
+5. `sockets`
+6. `threads_reserve`
+7. `deploy_threads_suggested`
