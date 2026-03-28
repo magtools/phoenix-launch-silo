@@ -187,6 +187,107 @@ security_access_logs_list() {
     done | sort -u
 }
 
+security_has_rg() {
+    command -v rg >/dev/null 2>&1
+}
+
+security_warn_missing_rg_once() {
+    if security_has_rg; then
+        return 0
+    fi
+
+    [ "${WARP_SECURITY_RG_WARNED:-0}" -eq 1 ] && return 0
+
+    warp_message_warn "ripgrep (rg) not found; using grep fallback."
+    warp_message " package: ripgrep"
+    warp_message " install: apt install ripgrep | dnf install ripgrep | yum install ripgrep | apk add ripgrep | brew install ripgrep"
+    warp_message ""
+    WARP_SECURITY_RG_WARNED=1
+}
+
+security_search_tree() {
+    local _pattern="$1"
+    shift
+
+    if security_has_rg; then
+        rg -n -H -e "$_pattern" "$@" 2>/dev/null
+        return 0
+    fi
+
+    grep -RInE -- "$_pattern" "$@" 2>/dev/null
+}
+
+security_search_tree_i() {
+    local _pattern="$1"
+    shift
+
+    if security_has_rg; then
+        rg -n -H -i -e "$_pattern" "$@" 2>/dev/null
+        return 0
+    fi
+
+    grep -RInEi -- "$_pattern" "$@" 2>/dev/null
+}
+
+security_find_and_search() {
+    local _pattern="$1"
+    shift
+    local _find_args=("$@")
+
+    if security_has_rg; then
+        rg -n -H -e "$_pattern" "${_find_args[@]}" 2>/dev/null
+        return 0
+    fi
+
+    find "${_find_args[@]}" -type f 2>/dev/null | while IFS= read -r _file; do
+        [ -f "$_file" ] || continue
+        grep -nHE -- "$_pattern" "$_file" 2>/dev/null
+    done
+}
+
+security_find_named_and_search() {
+    local _pattern="$1"
+    shift
+    local _root_list=()
+    local _name_list=()
+    local _arg=""
+    local _file=""
+
+    while [ $# -gt 0 ]; do
+        _arg="$1"
+        shift
+        case "$_arg" in
+            --name)
+                [ $# -gt 0 ] || break
+                _name_list+=("$1")
+                shift
+                ;;
+            *)
+                _root_list+=("$_arg")
+                ;;
+        esac
+    done
+
+    if security_has_rg; then
+        local _rg_args=()
+        for _arg in "${_name_list[@]}"; do
+            _rg_args+=(-g "$_arg")
+        done
+        rg -n -H "${_rg_args[@]}" -e "$_pattern" "${_root_list[@]}" 2>/dev/null
+        return 0
+    fi
+
+    for _arg in "${_root_list[@]}"; do
+        [ -d "$_arg" ] || continue
+        for _file in "${_name_list[@]}"; do
+            find "$_arg" -type f -name "$_file" 2>/dev/null
+        done
+    done | while IFS= read -r _file; do
+        [ -f "$_file" ] || continue
+        grep -nHE -- "$_pattern" "$_file" 2>/dev/null
+    done
+}
+
 security_known_paths_usage() {
     if [ -f "$PROJECTPATH/.known-paths" ]; then
         warp_message ".known-paths:"
@@ -228,7 +329,8 @@ security_toolkit_fs() {
     security_toolkit_print_command 'find pub/media/custom_options -type f'
     security_toolkit_print_command 'find pub/media/customer_address -type f'
     security_toolkit_print_command 'find pub/media pub/static pub/opt -type f \( -name "*.php" -o -name "*.phtml" -o -name "*.phar" \) 2>/dev/null'
-    security_toolkit_print_command 'grep -RInE "<\?php|base64_decode\(|passthru\(|system\(|shell_exec\(|assert\(|proc_open\(" pub/media pub/opt pub/static'
+    security_toolkit_print_command 'grep -RInE "<\?php|base64_decode\(|passthru\(|system\(|shell_exec\(|assert\(|proc_open\(" pub/media pub/opt'
+    security_toolkit_print_command 'grep -RInE "<\?php|md5\(\$_COOKIE\["d"\]\)|md5\(\$_COOKIE\['\''d'\''\]\)|new Function\(event\.data\)|RTCPeerConnection|createDataChannel|new WebSocket|wss://" pub/static'
     security_toolkit_print_command 'grep -R --line-number '\''md5($_COOKIE\["d"\])'\'' .'
     security_toolkit_print_command 'grep -RInE '\''md5\(\$_COOKIE\["d"\]\)|md5\(\$_COOKIE\['\''d'\''\]\)|new Function\(event\.data\)|preg_replace\s*\(.*/e|create_function\(|hash_equals\(md5\(|\$_REQUEST\["password"\]'\'' app pub var generated'
     security_toolkit_print_command 'git status --porcelain --untracked-files=all -- pub'
@@ -349,7 +451,8 @@ security_toolkit_family_webshell() {
     security_toolkit_header "FAMILY: webshell"
     security_toolkit_section_analysis_begin
     security_toolkit_print_command 'find pub/media pub/static pub/opt -type f \( -name "*.php" -o -name "*.phtml" -o -name "*.phar" \) 2>/dev/null'
-    security_toolkit_print_command 'grep -RInE "<\?php|base64_decode\(|passthru\(|system\(|shell_exec\(|assert\(|proc_open\(" pub/media pub/opt pub/static'
+    security_toolkit_print_command 'grep -RInE "<\?php|base64_decode\(|passthru\(|system\(|shell_exec\(|assert\(|proc_open\(" pub/media pub/opt'
+    security_toolkit_print_command 'grep -RInE "<\?php|md5\(\$_COOKIE\["d"\]\)|md5\(\$_COOKIE\['\''d'\''\]\)|new Function\(event\.data\)|RTCPeerConnection|createDataChannel|new WebSocket|wss://" pub/static'
     security_toolkit_print_command 'grep -R --line-number '\''md5($_COOKIE\["d"\])'\'' .'
     security_toolkit_print_command 'git status --porcelain --untracked-files=all -- pub'
     security_toolkit_print_command 'git diff -- pub'
@@ -453,8 +556,8 @@ security_toolkit_collect_from_log() {
 
     if awk '
         BEGIN { in_section=0; has_findings=0 }
-        /^\[PHP_MARKERS_IN_PUB\]$/ { in_section=1; has_findings=0; next }
-        /^\[/ && $0 != "[PHP_MARKERS_IN_PUB]" { in_section=0 }
+        /^\[PHP_MARKERS_IN_UPLOADS\]$/ { in_section=1; has_findings=0; next }
+        /^\[/ && $0 != "[PHP_MARKERS_IN_UPLOADS]" { in_section=0 }
         in_section && $0 !~ /^(discovery:|cleanup:|No findings\.|=+|$)/ { has_findings=1 }
         END { exit(has_findings ? 0 : 1) }
     ' "$_log_file"; then
@@ -682,7 +785,7 @@ security_scan_fast_git() {
         WARP_SECURITY_SCAN_DRIFT=$((WARP_SECURITY_SCAN_DRIFT + 1))
         WARP_SECURITY_SCAN_FINDINGS=$((WARP_SECURITY_SCAN_FINDINGS + 1))
         WARP_SECURITY_SCAN_SCORE=$((WARP_SECURITY_SCAN_SCORE + 2))
-        WARP_SECURITY_SCAN_PATHS="${WARP_SECURITY_SCAN_PATHS}"$'\n'"${_effective_path}"
+        security_scan_append_attention "${_effective_path} - git drift [${_status}]"
 
         case "$_effective_path" in
             pub/*)
@@ -697,16 +800,21 @@ security_scan_fast_git() {
 security_scan_fast_code() {
     local _line=""
     local _path=""
+    local _indicator=""
+    local _class=""
 
     while IFS= read -r _line; do
         [ -n "$_line" ] || continue
+        security_scan_should_ignore_line "$_line" && continue
         _path="${_line%%:*}"
         [ -n "$_path" ] || continue
+        _indicator="$(security_scan_indicator_for_match "$_line")"
+        _class="$(security_scan_class_for_match "$_line")"
 
         WARP_SECURITY_SCAN_CODE=$((WARP_SECURITY_SCAN_CODE + 1))
         WARP_SECURITY_SCAN_FINDINGS=$((WARP_SECURITY_SCAN_FINDINGS + 1))
         WARP_SECURITY_SCAN_SCORE=$((WARP_SECURITY_SCAN_SCORE + 4))
-        WARP_SECURITY_SCAN_PATHS="${WARP_SECURITY_SCAN_PATHS}"$'\n'"${_path}"
+        security_scan_append_attention "${_path} - ${_indicator} [${_class}]"
 
         case "$_line" in
             *eval\(base64_decode*|*gzuncompress\(base64_decode*|*str_rot13*base64_decode*|*md5\(\$_COOKIE*|*hash_equals\(md5*|*\$_REQUEST*system\(*|*\$_COOKIE*system\(*|*\$_POST*system\(*)
@@ -718,31 +826,36 @@ security_scan_fast_code() {
                 security_append_screen_family "review"
                 ;;
         esac
-    done < <(rg -n -H \
-        -g '*.php' -g '*.phtml' -g '*.phar' -g '*.inc' \
-        -e 'eval\s*\(|base64_decode\s*\(|system\s*\(|shell_exec\s*\(|passthru\s*\(|assert\s*\(|proc_open\s*\(|preg_replace\s*\(.*/e|create_function\s*\(|eval\s*\(\s*base64_decode|gzuncompress\s*\(\s*base64_decode|str_rot13\s*\(.*base64_decode|md5\(\$_COOKIE|hash_equals\s*\(\s*md5\(|\$_REQUEST|\$_COOKIE|\$_POST' \
-        "$PROJECTPATH/pub" "$PROJECTPATH/app" "$PROJECTPATH/bin" "$PROJECTPATH/generated" "$PROJECTPATH/var" 2>/dev/null | sed "s#^$PROJECTPATH/##")
+    done < <(security_find_named_and_search \
+        'eval\s*\(|base64_decode\s*\(|system\s*\(|shell_exec\s*\(|passthru\s*\(|assert\s*\(|proc_open\s*\(|preg_replace\s*\(.*/e|create_function\s*\(|eval\s*\(\s*base64_decode|gzuncompress\s*\(\s*base64_decode|str_rot13\s*\(.*base64_decode|md5\(\$_COOKIE|hash_equals\s*\(\s*md5\(|\$_REQUEST|\$_COOKIE|\$_POST' \
+        "$PROJECTPATH/pub" "$PROJECTPATH/app" "$PROJECTPATH/bin" "$PROJECTPATH/generated" "$PROJECTPATH/var" \
+        --name '*.php' --name '*.phtml' --name '*.phar' --name '*.inc' | sed "s#^$PROJECTPATH/##")
 }
 
 security_scan_fast_js() {
     local _line=""
     local _path=""
+    local _indicator=""
+    local _class=""
 
     while IFS= read -r _line; do
         [ -n "$_line" ] || continue
+        security_scan_should_ignore_line "$_line" && continue
         _path="${_line%%:*}"
         [ -n "$_path" ] || continue
+        _indicator="$(security_scan_indicator_for_match "$_line")"
+        _class="$(security_scan_class_for_match "$_line")"
 
         WARP_SECURITY_SCAN_CODE=$((WARP_SECURITY_SCAN_CODE + 1))
         WARP_SECURITY_SCAN_FINDINGS=$((WARP_SECURITY_SCAN_FINDINGS + 1))
         WARP_SECURITY_SCAN_STRONG=$((WARP_SECURITY_SCAN_STRONG + 1))
         WARP_SECURITY_SCAN_SCORE=$((WARP_SECURITY_SCAN_SCORE + 20))
-        WARP_SECURITY_SCAN_PATHS="${WARP_SECURITY_SCAN_PATHS}"$'\n'"${_path}"
+        security_scan_append_attention "${_path} - ${_indicator} [${_class}]"
         security_append_screen_family "skimmer"
-    done < <(rg -n -H \
-        -g '*.js' -g '*.phtml' -g '*.html' \
-        -e 'RTCPeerConnection|createDataChannel|new WebSocket|wss://|event\.data|new Function\(event\.data\)' \
-        "$PROJECTPATH/pub" "$PROJECTPATH/app" 2>/dev/null | sed "s#^$PROJECTPATH/##")
+    done < <(security_find_named_and_search \
+        'RTCPeerConnection|createDataChannel|new WebSocket|wss://|event\.data|new Function\(event\.data\)' \
+        "$PROJECTPATH/pub" "$PROJECTPATH/app" \
+        --name '*.js' --name '*.phtml' --name '*.html' | sed "s#^$PROJECTPATH/##")
 }
 
 security_scan_fast_suspicion() {
@@ -762,6 +875,135 @@ security_scan_fast_suspicion() {
     fi
 
     echo "none"
+}
+
+security_scan_indicator_for_match() {
+    local _line="$1"
+
+    case "$_line" in
+        *eval\(base64_decode*) echo "eval(base64_decode)" ;;
+        *gzuncompress*base64_decode*|*base64_decode*gzuncompress*) echo "gzuncompress(base64_decode)" ;;
+        *str_rot13*base64_decode*|*base64_decode*str_rot13*) echo "str_rot13 + base64_decode" ;;
+        *md5\(\$_COOKIE*) echo 'md5($_COOKIE["d"])' ;;
+        *hash_equals\(md5*) echo "hash_equals(md5(...))" ;;
+        *base64_decode*) echo "base64_decode" ;;
+        *shell_exec*) echo "shell_exec" ;;
+        *passthru*) echo "passthru" ;;
+        *proc_open*) echo "proc_open" ;;
+        *system\(*) echo "system()" ;;
+        *assert\(*) echo "assert()" ;;
+        *preg_replace*) echo "preg_replace /e" ;;
+        *create_function*) echo "create_function" ;;
+        *RTCPeerConnection*) echo "RTCPeerConnection" ;;
+        *createDataChannel*) echo "createDataChannel" ;;
+        *new\ WebSocket*) echo "new WebSocket" ;;
+        *wss://*) echo "wss://" ;;
+        *new\ Function\(event.data\)*) echo "new Function(event.data)" ;;
+        *event.data*) echo "event.data" ;;
+        *\$_REQUEST*) echo '$_REQUEST' ;;
+        *\$_COOKIE*) echo '$_COOKIE' ;;
+        *\$_POST*) echo '$_POST' ;;
+        *) echo "heuristic match" ;;
+    esac
+}
+
+security_scan_class_for_match() {
+    local _line="$1"
+
+    case "$_line" in
+        *RTCPeerConnection*|*createDataChannel*|*new\ WebSocket*|*wss://*|*event.data*)
+            echo "js skimmer"
+            ;;
+        *md5\(\$_COOKIE*|*eval\(base64_decode*|*gzuncompress*base64_decode*|*hash_equals\(md5*|*preg_replace*|*create_function*)
+            echo "known IOC"
+            ;;
+        *base64_decode*|*shell_exec*|*passthru*|*proc_open*|*system\(*|*assert\(*|*\$_REQUEST*|*\$_COOKIE*|*\$_POST*)
+            echo "risky primitive"
+            ;;
+        *)
+            echo "review"
+            ;;
+    esac
+}
+
+security_scan_append_attention() {
+    local _entry="$1"
+
+    WARP_SECURITY_SCAN_PATHS="${WARP_SECURITY_SCAN_PATHS}"$'\n'"${_entry}"
+}
+
+security_scan_should_ignore_line() {
+    local _line="$1"
+    local _content=""
+
+    _content="${_line#*:}"
+    _content="${_content#*:}"
+
+    case "$_content" in
+        [[:space:]]*//*) return 0 ;;
+        [[:space:]]*/\**)
+            case "$_content" in
+                [[:space:]]*/\**/*) ;;
+                *) return 0 ;;
+            esac
+            ;;
+        [[:space:]]*\**)
+            case "$_content" in
+                [[:space:]]*\**/)
+                    ;;
+                [[:space:]]*\**)
+                    return 0
+                    ;;
+            esac
+            ;;
+    esac
+
+    return 1
+}
+
+security_process_line() {
+    local _label="$1"
+    printf '%-35s' "$_label"
+}
+
+security_process_notice() {
+    printf '%b\n' "${FYEL}[FOUND]${RS}"
+}
+
+security_process_ok_local() {
+    printf '%b\n' "${FGRN}[SAFE]${RS}"
+}
+
+security_process_fail_local() {
+    printf '%b\n' "${FRED}[FAIL]${RS}"
+}
+
+security_step_run() {
+    local _label="$1"
+    local _fn="$2"
+    local _before=0
+    local _after=0
+    local _delta=0
+    local _status=0
+
+    _before=$(( ${WARP_SECURITY_FINDINGS:-0} + ${WARP_SECURITY_SCAN_FINDINGS:-0} ))
+    security_process_line "$_label"
+    "$_fn"
+    _status=$?
+    if [ $_status -ne 0 ]; then
+        security_process_fail_local
+        return $_status
+    fi
+
+    _after=$(( ${WARP_SECURITY_FINDINGS:-0} + ${WARP_SECURITY_SCAN_FINDINGS:-0} ))
+    _delta=$((_after - _before))
+    if [ "$_delta" -gt 0 ]; then
+        security_process_notice
+    else
+        security_process_ok_local
+    fi
+
+    return 0
 }
 
 security_scan_fast_attention_paths() {
@@ -785,10 +1027,12 @@ security_scan_main() {
     WARP_SECURITY_SCAN_SCORE=0
     WARP_SECURITY_SCAN_PATHS=""
     WARP_SECURITY_FAMILIES=""
+    WARP_SECURITY_RG_WARNED=0
 
-    security_scan_fast_git
-    security_scan_fast_code
-    security_scan_fast_js
+    security_warn_missing_rg_once
+    security_step_run "Checking git drift..." security_scan_fast_git || return 1
+    security_step_run "Checking risky PHP primitives..." security_scan_fast_code || return 1
+    security_step_run "Checking JS skimmer signals..." security_scan_fast_js || return 1
 
     _suspicion="$(security_scan_fast_suspicion)"
     _status="$(security_level_status "$_suspicion")"
@@ -869,19 +1113,19 @@ security_scan_php_in_pub() {
 }
 
 security_scan_php_markers_in_pub() {
-    local _discover='grep -RInE "<\?php|base64_decode\(|passthru\(|system\(|shell_exec\(|assert\(|proc_open\(" pub/media pub/opt pub/static'
+    local _discover='grep -RInE "<\?php|base64_decode\(|passthru\(|system\(|shell_exec\(|assert\(|proc_open\(" pub/media pub/opt'
     local _cleanup='mkdir -p var/quarantine && mv <suspicious-file> var/quarantine/'
     local _line=""
 
     WARP_SECURITY_SECTION_FINDINGS=0
-    security_log_section_begin "PHP_MARKERS_IN_PUB" "$_discover" "$_cleanup"
+    security_log_section_begin "PHP_MARKERS_IN_UPLOADS" "$_discover" "$_cleanup"
 
     while IFS= read -r _line; do
         [ -n "$_line" ] || continue
         WARP_SECURITY_SECTION_FINDINGS=$((WARP_SECURITY_SECTION_FINDINGS + 1))
         security_add_score 15
         security_record_finding "$_line" "webshell"
-    done < <(rg -n -H -e '<\?php|base64_decode\(|passthru\(|system\(|shell_exec\(|assert\(|proc_open\(' "$PROJECTPATH/pub/media" "$PROJECTPATH/pub/opt" "$PROJECTPATH/pub/static" 2>/dev/null | sed "s#^$PROJECTPATH/##")
+    done < <(security_search_tree '<\?php|base64_decode\(|passthru\(|system\(|shell_exec\(|assert\(|proc_open\(' "$PROJECTPATH/pub/media" "$PROJECTPATH/pub/opt" | sed "s#^$PROJECTPATH/##")
 
     security_finish_section_empty_if_needed
 }
@@ -899,7 +1143,7 @@ security_scan_js_skimmer() {
         WARP_SECURITY_SECTION_FINDINGS=$((WARP_SECURITY_SECTION_FINDINGS + 1))
         security_add_score 20
         security_record_finding "$_line" "skimmer"
-    done < <(rg -n -H -e 'RTCPeerConnection|createDataChannel|new WebSocket|wss://|event\.data|new Function\(event\.data\)' "$PROJECTPATH/app" "$PROJECTPATH/pub" 2>/dev/null | sed "s#^$PROJECTPATH/##")
+    done < <(security_search_tree 'RTCPeerConnection|createDataChannel|new WebSocket|wss://|event\.data|new Function\(event\.data\)' "$PROJECTPATH/app" "$PROJECTPATH/pub" | sed "s#^$PROJECTPATH/##")
 
     security_finish_section_empty_if_needed
 }
@@ -927,7 +1171,7 @@ security_scan_known_ioc() {
         esac
         WARP_SECURITY_SECTION_FINDINGS=$((WARP_SECURITY_SECTION_FINDINGS + 1))
         security_record_finding "$_line" "$_family"
-    done < <(rg -n -H -e 'md5\(\$_COOKIE\["d"\]\)|md5\(\$_COOKIE\['"'"'d'"'"'\]\)|new Function\(event\.data\)|preg_replace\s*\(.*/e|create_function\(|hash_equals\(md5\(|\$_REQUEST\["password"\]' "$PROJECTPATH/app" "$PROJECTPATH/pub" "$PROJECTPATH/var" "$PROJECTPATH/generated" 2>/dev/null | sed "s#^$PROJECTPATH/##")
+    done < <(security_search_tree 'md5\(\$_COOKIE\["d"\]\)|md5\(\$_COOKIE\['"'"'d'"'"'\]\)|new Function\(event\.data\)|preg_replace\s*\(.*/e|create_function\(|hash_equals\(md5\(|\$_REQUEST\["password"\]' "$PROJECTPATH/app" "$PROJECTPATH/pub" "$PROJECTPATH/var" "$PROJECTPATH/generated" | sed "s#^$PROJECTPATH/##")
 
     security_finish_section_empty_if_needed
 }
@@ -963,7 +1207,7 @@ security_scan_access_logs() {
                     security_record_finding "  $_line" "webshell"
                     ;;
             esac
-        done < <(rg -n -H -i -e 'guest-carts/.*/items|customer/address_file/upload|estimate-shipping-methods|test-ambio|python-requests|Go-http-client' "$_log_file" 2>/dev/null)
+        done < <(security_search_tree_i 'guest-carts/.*/items|customer/address_file/upload|estimate-shipping-methods|test-ambio|python-requests|Go-http-client' "$_log_file")
         security_log_write ""
     done < <(security_access_logs_list)
 
@@ -988,7 +1232,7 @@ security_scan_host_persistence() {
         WARP_SECURITY_SECTION_FINDINGS=$((WARP_SECURITY_SECTION_FINDINGS + 1))
         security_add_score 25
         security_record_finding "crontab: $_line" "cosmicsting"
-    done < <(crontab -l 2>/dev/null | rg -n -i -e 'defunct|base64|gsocket|LD_PRELOAD')
+    done < <(crontab -l 2>/dev/null | grep -nEi 'defunct|base64|gsocket|LD_PRELOAD' 2>/dev/null)
 
     while IFS= read -r _path; do
         [ -n "$_path" ] || continue
@@ -1027,14 +1271,16 @@ security_check_main() {
     WARP_SECURITY_FAMILIES=""
     WARP_SECURITY_SECTION_FINDINGS=0
     WARP_SECURITY_SCORE=0
+    WARP_SECURITY_RG_WARNED=0
 
-    security_scan_git_pub_drift
-    security_scan_php_in_pub
-    security_scan_php_markers_in_pub
-    security_scan_js_skimmer
-    security_scan_known_ioc
-    security_scan_access_logs
-    security_scan_host_persistence
+    security_warn_missing_rg_once
+    security_step_run "Checking pub drift..." security_scan_git_pub_drift || return 1
+    security_step_run "Checking PHP in pub..." security_scan_php_in_pub || return 1
+    security_step_run "Checking PHP markers in uploads..." security_scan_php_markers_in_pub || return 1
+    security_step_run "Checking JS skimmer signals..." security_scan_js_skimmer || return 1
+    security_step_run "Checking known IOC..." security_scan_known_ioc || return 1
+    security_step_run "Checking access logs..." security_scan_access_logs || return 1
+    security_step_run "Checking host persistence..." security_scan_host_persistence || return 1
 
     security_log_archive_rotate
     _archive_log="${WARP_SECURITY_ARCHIVE_LOG:-}"
