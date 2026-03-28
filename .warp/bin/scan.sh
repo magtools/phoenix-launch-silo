@@ -61,7 +61,7 @@ scan_run_capture_with_spinner() {
 
     _tmp_file=$(mktemp 2>/dev/null)
     [ -n "$_tmp_file" ] || {
-        warp_message_error "could not create temporary file for scan output"
+        warp_message_error "could not create temporary file for audit output"
         return 1
     }
 
@@ -75,6 +75,54 @@ scan_run_capture_with_spinner() {
     rm -f "$_tmp_file"
 
     return $_status
+}
+
+scan_has_rg() {
+    command -v rg >/dev/null 2>&1
+}
+
+scan_search_named_content() {
+    local _pattern="$1"
+    shift
+    local _root="$1"
+    shift
+    local _names=("$@")
+    local _name=""
+
+    if scan_has_rg; then
+        local _rg_args=()
+        for _name in "${_names[@]}"; do
+            _rg_args+=(-g "$_name")
+        done
+        rg -n -H -e "$_pattern" "${_rg_args[@]}" "$_root" 2>/dev/null
+        return 0
+    fi
+
+    for _name in "${_names[@]}"; do
+        find "$_root" -type f -name "$_name" 2>/dev/null
+    done | while IFS= read -r _file; do
+        [ -f "$_file" ] || continue
+        grep -nHE -- "$_pattern" "$_file" 2>/dev/null
+    done
+}
+
+scan_should_ignore_risky_line() {
+    local _line="$1"
+    local _content=""
+    local _trimmed=""
+
+    _content="${_line#*:}"
+    _content="${_content#*:}"
+    _trimmed="${_content#"${_content%%[![:space:]]*}"}"
+
+    case "$_trimmed" in
+        //*) return 0 ;;
+        '/*'*) return 0 ;;
+        '*/'*) return 0 ;;
+        \**) return 0 ;;
+    esac
+
+    return 1
 }
 
 scan_framework_detect() {
@@ -105,18 +153,18 @@ scan_require_magento_context() {
             ;;
         laravel)
             warp_message_warn "framework detected: laravel"
-            warp_message_warn "scan hooks for laravel are not implemented yet"
+            warp_message_warn "audit hooks for laravel are not implemented yet"
             ;;
         wordpress)
             warp_message_warn "framework detected: wordpress"
-            warp_message_warn "scan hooks for wordpress are not implemented yet"
+            warp_message_warn "audit hooks for wordpress are not implemented yet"
             ;;
         *)
             warp_message_warn "framework not detected (magento/laravel/wordpress)"
             ;;
     esac
 
-    warp_message_error "warp scan currently supports Magento only"
+    warp_message_error "warp audit currently supports Magento only"
     exit 1
 }
 
@@ -165,7 +213,7 @@ scan_require_container_runtime() {
     fi
 
     if [ ! -f "$DOCKERCOMPOSEFILE" ]; then
-        warp_message_error "this scan action requires the php container runtime"
+        warp_message_error "this audit action requires the php container runtime"
         warp_message_error "docker-compose-warp.yml not found"
         return 1
     fi
@@ -231,8 +279,8 @@ scan_require_phpcs_bin() {
     [ -x "$PROJECTPATH/$SCAN_PHPCS_BIN" ] && return 0
 
     warp_message_error "missing binary: $SCAN_PHPCS_BIN"
-    warp_message_error "scan requires development executables installed in vendor/"
-    warp_message_error "if this environment was installed with --no-dev, warp scan cannot run here"
+    warp_message_error "audit requires development executables installed in vendor/"
+        warp_message_error "if this environment was installed with --no-dev, warp audit cannot run here"
     warp_message_error "run composer install (with require-dev) in the target environment first"
     return 1
 }
@@ -241,8 +289,8 @@ scan_require_phpcbf_bin() {
     [ -x "$PROJECTPATH/$SCAN_PHPCBF_BIN" ] && return 0
 
     warp_message_error "missing binary: $SCAN_PHPCBF_BIN"
-    warp_message_error "scan requires development executables installed in vendor/"
-    warp_message_error "if this environment was installed with --no-dev, warp scan cannot run here"
+    warp_message_error "audit requires development executables installed in vendor/"
+    warp_message_error "if this environment was installed with --no-dev, warp audit cannot run here"
     warp_message_error "run composer install (with require-dev) in the target environment first"
     return 1
 }
@@ -251,8 +299,8 @@ scan_require_phpmd_bin() {
     scan_phpmd_detect_bin && return 0
 
     warp_message_error "missing binary: vendor/phpmd/phpmd/(bin|src/bin)/phpmd"
-    warp_message_error "scan requires development executables installed in vendor/"
-    warp_message_error "if this environment was installed with --no-dev, warp scan cannot run here"
+    warp_message_error "audit requires development executables installed in vendor/"
+    warp_message_error "if this environment was installed with --no-dev, warp audit cannot run here"
     warp_message_error "run composer install (with require-dev) in the target environment first"
     return 1
 }
@@ -551,9 +599,9 @@ scan_report_result() {
     esac
 
     if [ "$_status" -ne 0 ]; then
-        warp_message_error "scan found issues"
+        warp_message_error "audit found issues"
     else
-        warp_message_ok "scan finished without issues"
+        warp_message_ok "audit finished without issues"
     fi
 
     warp_message ""
@@ -613,7 +661,7 @@ scan_run_testpr_suite() {
     local _target_version
     local _phpmd_status
 
-    _file=$(scan_output_file "scan" "${_output_suffix}")
+    _file=$(scan_output_file "audit" "${_output_suffix}")
     : > "$_file"
 
     _target_version=$(scan_phpcompat_target_version)
@@ -670,7 +718,7 @@ scan_run_phpcs_on_path() {
     scan_require_phpcs_bin || return 1
     _standard="vendor/magento/magento-coding-standard/Magento2"
     _safe=$(scan_build_safe_suffix "$_path")
-    _file=$(scan_output_file "scan" "phpcs_${_safe}")
+    _file=$(scan_output_file "audit" "phpcs_${_safe}")
 
     if scan_run_simple_tool_to_file "running phpcs on ${_path}" "$_file" scan_run_php_bin "$SCAN_PHPCS_BIN" --ignore=*/Test/Unit/* --standard="$_standard" "$_path"; then
         scan_report_result 0 "$_file"
@@ -689,7 +737,7 @@ scan_run_phpcbf_on_path() {
     scan_require_phpcbf_bin || return 1
     _standard="vendor/magento/magento-coding-standard/Magento2"
     _safe=$(scan_build_safe_suffix "$_path")
-    _file=$(scan_output_file "scan" "phpcbf_${_safe}")
+    _file=$(scan_output_file "audit" "phpcbf_${_safe}")
     if scan_run_simple_tool_to_file "running phpcbf on ${_path}" "$_file" scan_run_php_bin "$SCAN_PHPCBF_BIN" --ignore=*/Test/Unit/* --standard="$_standard" "$_path"; then
         scan_report_result 0 "$_file"
         return 0
@@ -711,7 +759,7 @@ scan_run_phpmd_on_path() {
     local _phpmd_status
 
     _safe=$(scan_build_safe_suffix "$_path")
-    _file=$(scan_output_file "scan" "phpmd_${_safe}")
+    _file=$(scan_output_file "audit" "phpmd_${_safe}")
 
     _ruleset_path="vendor/phpmd/phpmd/rulesets"
     [ -d "$PROJECTPATH/$_ruleset_path" ] || _ruleset_path="vendor/phpmd/phpmd/src/main/resources/rulesets"
@@ -762,7 +810,7 @@ scan_run_phpcompat_on_path() {
     fi
 
     _safe=$(scan_build_safe_suffix "$_path")
-    _file=$(scan_output_file "scan" "phpcompat_${_safe}")
+    _file=$(scan_output_file "audit" "phpcompat_${_safe}")
 
     if scan_run_simple_tool_to_file "running phpcompat on ${_path}" "$_file" scan_run_php_bin "$SCAN_PHPCS_BIN" --ignore=*/Test/Unit/* --extensions=php,phtml --standard=PHPCompatibility --runtime-set testVersion "$_target_version" "$_path"; then
         {
@@ -783,6 +831,34 @@ scan_run_phpcompat_on_path() {
     return 1
 }
 
+scan_run_risky_on_path() {
+    local _path="$1"
+    local _safe
+    local _file
+    local _status=0
+    local _line=""
+    local _found=0
+    local _pattern='eval\s*\(|base64_decode\s*\(|(^|[^[:alnum:]_])system\s*\(|shell_exec\s*\(|passthru\s*\(|assert\s*\(|proc_open\s*\(|preg_replace\s*\(.*/e|(^|[^[:alnum:]_])create_function\s*\(|hash_equals\s*\(\s*md5\(|md5\(\$_COOKIE|\$_REQUEST|\$_COOKIE|\$_POST'
+
+    _safe=$(scan_build_safe_suffix "$_path")
+    _file=$(scan_output_file "audit" "risky_${_safe}")
+    : > "$_file"
+
+    while IFS= read -r _line; do
+        [ -n "$_line" ] || continue
+        scan_should_ignore_risky_line "$_line" && continue
+        printf '%s\n' "$_line" >> "$_file"
+        _found=1
+    done < <(scan_search_named_content "$_pattern" "$PROJECTPATH/$_path" '*.php' '*.phtml' '*.phar' '*.inc' | sed "s#^$PROJECTPATH/##")
+
+    if [ "$_found" -eq 1 ]; then
+        _status=1
+    fi
+
+    scan_report_result "$_status" "$_file"
+    return $_status
+}
+
 scan_run_phpstan_default() {
     local _level="${1:-}"
     local _file
@@ -796,7 +872,7 @@ scan_run_phpstan_default() {
         _cmd+=(--level "$_level")
     fi
 
-    _file=$(scan_output_file "scan" "phpstan_default")
+    _file=$(scan_output_file "audit" "phpstan_default")
     if scan_run_simple_tool_to_file "running phpstan on default scope" "$_file" scan_run_php_bin "${_cmd[@]}"; then
         scan_report_result 0 "$_file"
         return 0
@@ -823,7 +899,7 @@ scan_run_phpstan_on_path() {
     _cmd+=("$_path")
 
     _safe=$(scan_build_safe_suffix "$_path")
-    _file=$(scan_output_file "scan" "phpstan_${_safe}")
+    _file=$(scan_output_file "audit" "phpstan_${_safe}")
 
     if scan_run_simple_tool_to_file "running phpstan on ${_path}" "$_file" scan_run_php_bin "${_cmd[@]}"; then
         scan_report_result 0 "$_file"
@@ -893,7 +969,7 @@ scan_select_path_menu() {
     scan_build_path_options
 
     _options=("cancel" "${SCAN_PATH_OPTIONS[@]}")
-    PS3="choose path to scan: "
+    PS3="choose path to audit: "
 
     while : ; do
         select _selected in "${_options[@]}"; do
@@ -902,7 +978,7 @@ scan_select_path_menu() {
                     return 1
                     ;;
                 "custom path")
-                    read -r -p "path to scan (inside project): " _custom_path
+                    read -r -p "path to audit (inside project): " _custom_path
                     if [ -z "$_custom_path" ]; then
                         warp_message_warn "path is required"
                         break
@@ -935,12 +1011,12 @@ scan_menu_tools_for_path() {
     local _rel="$1"
     local _options
     local _opt
-    PS3="choose scan action for ${_rel}: "
-    _options=("cancel" "phpcs" "phpcbf" "phpmd" "phpcompat" "phpstan" "test PR")
+    PS3="choose audit action for ${_rel}: "
+    _options=("cancel" "phpcs" "phpcbf" "phpmd" "phpcompat" "risky" "phpstan" "test PR")
     select _opt in "${_options[@]}"; do
         case "$_opt" in
             cancel)
-                warp_message_info "scan cancelled"
+                warp_message_info "audit cancelled"
                 return 0
                 ;;
             phpcs)
@@ -956,6 +1032,10 @@ scan_menu_tools_for_path() {
                 return $?
                 ;;
             phpcompat)
+                scan_run_selected_action "$_opt" "$_rel"
+                return $?
+                ;;
+            risky)
                 scan_run_selected_action "$_opt" "$_rel"
                 return $?
                 ;;
@@ -995,6 +1075,10 @@ scan_run_selected_action() {
             scan_run_phpcompat_on_path "$_path"
             return $?
             ;;
+        risky)
+            scan_run_risky_on_path "$_path"
+            return $?
+            ;;
         phpstan)
             if [ -n "$_path" ] && [ "$_path" != "." ]; then
                 scan_run_phpstan_on_path "$_path"
@@ -1014,7 +1098,7 @@ scan_run_selected_action() {
             return $?
             ;;
         *)
-            warp_message_error "unknown scan action: $_action"
+            warp_message_error "unknown audit action: $_action"
             return 1
             ;;
     esac
@@ -1026,7 +1110,7 @@ scan_menu_path() {
     local _rel_status
 
     if [ -z "$_input" ]; then
-        read -r -p "path to scan (inside project): " _input
+        read -r -p "path to audit (inside project): " _input
     fi
 
     _rel=$(scan_rel_path_from_project "$_input")
@@ -1059,6 +1143,7 @@ scan_warp_exec() {
 
 scan_run_integrity() {
     local _warp_exec
+    local _status=0
     scan_require_magento_context
     _warp_exec=$(scan_warp_exec)
 
@@ -1068,7 +1153,10 @@ scan_run_integrity() {
         return 1
     fi
 
-    scan_run_pr
+    scan_run_pr || _status=1
+    scan_run_risky_on_path "app/code" || _status=1
+    scan_run_phpstan_on_path "app/code" "1" || _status=1
+    return $_status
 }
 
 scan_menu_main() {
@@ -1077,31 +1165,36 @@ scan_menu_main() {
     scan_require_magento_context
     scan_ensure_output_dir
 
-    PS3="choose scan action: "
-    _options=("cancel" "phpcs" "phpcbf" "phpmd" "phpcompat" "phpstan" "test PR")
+    PS3="choose audit action: "
+    _options=("cancel" "phpcs" "phpcbf" "phpmd" "phpcompat" "risky" "phpstan" "test PR")
     select _opt in "${_options[@]}"; do
         case "$_opt" in
             cancel)
-                warp_message_info "scan cancelled"
+                warp_message_info "audit cancelled"
                 return 0
                 ;;
             phpcs)
-                scan_select_path_menu || { warp_message_info "scan cancelled"; return 0; }
+                scan_select_path_menu || { warp_message_info "audit cancelled"; return 0; }
                 scan_run_selected_action "$_opt" "$SCAN_SELECTED_PATH"
                 return $?
                 ;;
             phpcbf)
-                scan_select_path_menu || { warp_message_info "scan cancelled"; return 0; }
+                scan_select_path_menu || { warp_message_info "audit cancelled"; return 0; }
                 scan_run_selected_action "$_opt" "$SCAN_SELECTED_PATH"
                 return $?
                 ;;
             phpmd)
-                scan_select_path_menu || { warp_message_info "scan cancelled"; return 0; }
+                scan_select_path_menu || { warp_message_info "audit cancelled"; return 0; }
                 scan_run_selected_action "$_opt" "$SCAN_SELECTED_PATH"
                 return $?
                 ;;
             phpcompat)
-                scan_select_path_menu || { warp_message_info "scan cancelled"; return 0; }
+                scan_select_path_menu || { warp_message_info "audit cancelled"; return 0; }
+                scan_run_selected_action "$_opt" "$SCAN_SELECTED_PATH"
+                return $?
+                ;;
+            risky)
+                scan_select_path_menu || { warp_message_info "audit cancelled"; return 0; }
                 scan_run_selected_action "$_opt" "$SCAN_SELECTED_PATH"
                 return $?
                 ;;
@@ -1144,7 +1237,7 @@ scan_handle_path_scoped_action() {
 
     case "$1" in
         "")
-            scan_select_path_menu || { warp_message_info "scan cancelled"; return 0; }
+            scan_select_path_menu || { warp_message_info "audit cancelled"; return 0; }
             scan_run_selected_action "$_action" "$SCAN_SELECTED_PATH"
             return $?
             ;;
@@ -1241,6 +1334,11 @@ scan_command()
         phpcompat)
             shift
             scan_handle_path_scoped_action "phpcompat" "$@"
+            return $?
+            ;;
+        risky)
+            shift
+            scan_handle_path_scoped_action "risky" "$@"
             return $?
             ;;
         phpstan)

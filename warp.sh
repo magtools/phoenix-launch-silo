@@ -138,7 +138,7 @@ main () {
         hyva_main "$@"
         ;;
 
-        scan)
+        audit)
         shift 1
         scan_main "$@"
         exit $?
@@ -296,7 +296,7 @@ warp_runtime_mode_read_raw_from_env() {
 warp_command_supports_host_runtime() {
     _cmd="$1"
     case "$_cmd" in
-        ""|-h|--help|help|init|db|mysql|cache|redis|valkey|search|elasticsearch|opensearch|php|magento|ece-tools|ece-patches|telemetry|info|composer|scan|security)
+        ""|-h|--help|help|init|db|mysql|cache|redis|valkey|search|elasticsearch|opensearch|php|magento|ece-tools|ece-patches|telemetry|info|composer|audit|security)
             return 0
             ;;
         *)
