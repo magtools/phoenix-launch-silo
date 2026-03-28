@@ -25,7 +25,7 @@ Warp started as a tool to simplify development environments. The project is now 
 ### Operational tooling
 
 - `warp deploy` for repeatable deploy flows
-- `warp scan` for Magento-oriented code quality checks
+- `warp audit` for Magento-oriented code quality checks
 - `warp telemetry scan` for memory diagnostics and recommendations
 - `warp db`, `warp cache`, `warp search` for capability-first operations
 - `warp php --version` for runtime PHP inspection
@@ -106,8 +106,9 @@ Stop the environment when you are done:
 
 | Command | Description |
 | ------- | ----------- |
-| `warp scan` | Run code quality scans |
-| `warp scan phpstan` | Run PHPStan using the default project scope |
+| `warp audit` | Run code quality audits |
+| `warp audit risky --path <path>` | Search risky primitives on a specific path |
+| `warp audit phpstan` | Run PHPStan using the default project scope |
 | `warp telemetry scan` | Show memory usage and recommendations |
 | `warp php --version` | Print the effective runtime PHP version |
 
@@ -124,9 +125,10 @@ Stop the environment when you are done:
 ### Run code analysis
 
 ```bash
-./warp scan
-./warp scan phpstan
-./warp scan phpcompat --path app/code/Vendor/Module
+./warp audit
+./warp audit risky --path app/code/Vendor/Module
+./warp audit phpstan
+./warp audit phpcompat --path app/code/Vendor/Module
 ```
 
 ### Check runtime PHP version
@@ -147,7 +149,7 @@ Stop the environment when you are done:
 For more detailed functional documentation, see:
 
 - [Warp Latest (ES)](features/warp-latest.md), [Warp Latest (EN)](features/warp-latest-en.md)
-- [Warp Scan](features/warp-scan.md)
+- [Warp Audit](features/warp-scan.md)
 - [Warp Fallback](features/warp-fallback.md)
 - [Warp Service Version](features/warp-service-version.md)
 

@@ -416,6 +416,69 @@ Regla importante:
 2. pero no desactiva reglas de contenido peligroso dentro del path,
 3. en particular, si hay PHP dentro de un path conocido bajo `pub/`, sigue siendo hallazgo.
 
+Creación:
+
+1. `warp security scan` y `warp security check` crean `.known-paths` si no existe.
+
+## 5.2.2 Archivo `.known-files`
+
+Se propone un archivo versionable en root del proyecto:
+
+1. `.known-files`
+
+Contrato:
+
+1. un archivo relativo por línea,
+2. comentarios con `#`,
+3. sin glob patterns,
+4. pensado para archivos esperados del proyecto que no deben contar por sí solos como “PHP inesperado”.
+
+Uso inicial:
+
+1. entrypoints core en `pub/`, por ejemplo:
+   - `pub/cron.php`
+   - `pub/get.php`
+   - `pub/health_check.php`
+   - `pub/index.php`
+   - `pub/static.php`
+
+Regla importante:
+
+1. que un archivo exista en `.known-files` evita marcarlo solo por existir como PHP esperado,
+2. no desactiva reglas de IOC o contenido sospechoso,
+3. si ese archivo aparece modificado según Git, Warp lo reporta en una verificación separada.
+
+Creación:
+
+1. `warp security scan` y `warp security check` crean `.known-files` si no existe.
+
+## 5.2.3 Archivo `.known-findings`
+
+Se propone un archivo versionable en root del proyecto:
+
+1. `.known-findings`
+
+Contrato:
+
+1. un finding conocido por línea,
+2. formato: `path|indicator|class`,
+3. comentarios con `#`,
+4. pensado para hallazgos aceptables y específicos, sin blanquear todo el archivo.
+
+Ejemplo:
+
+1. `pub/errors/processor.php|$_POST|risky primitive`
+
+Regla importante:
+
+1. `.known-findings` aplica a findings derivados de contenido en `scan` y `check`,
+2. no desactiva otros indicadores del mismo archivo,
+3. no reemplaza `.known-paths` ni `.known-files`; los complementa.
+
+Creación:
+
+1. `warp security scan` y `warp security check` crean `.known-findings` si no existe.
+
 ## 5.3 Magento DB
 
 Buscar:
@@ -526,9 +589,10 @@ Análisis:
 9. `git status --porcelain --untracked-files=all -- pub`
 10. `find pub/media pub/static pub/opt -type f \( -name "*.php" -o -name "*.phtml" -o -name "*.phar" \) 2>/dev/null`
 11. `cat .known-paths`
-12. `grep -RInE "<\\?php|base64_decode\\(|passthru\\(|system\\(|shell_exec\\(|assert\\(|proc_open\\(" pub/media pub/opt pub/static`
+12. `grep -RInE "<\\?php|base64_decode\\(|passthru\\(|system\\(|shell_exec\\(|assert\\(|proc_open\\(" pub/media pub/opt`
+13. `grep -RInE "<\\?php|md5\\(\\$_COOKIE\\[\"d\"\\]\\)|md5\\(\\$_COOKIE\\['d'\\]\\)|new Function\\(event\\.data\\)|RTCPeerConnection|createDataChannel|new WebSocket|wss://" pub/static`
 13. `grep -R --line-number 'md5($_COOKIE\\["d"\\])' .`
-14. `grep -RInE 'md5\\(\\$_COOKIE\\["d"\\]\\)|md5\\(\\$_COOKIE\\['\''d'\''\\]\\)|new Function\\(event\\.data\\)|preg_replace\\s*\\(.*/e|create_function\\(|hash_equals\\(md5\\(|\\$_REQUEST\\["password"\\]' app pub var generated`
+14. `grep -RInE 'md5\\(\\$_COOKIE\\["d"\\]\\)|md5\\(\\$_COOKIE\\['\''d'\''\\]\\)|new Function\\(event\\.data\\)|preg_replace\\s*\\(.*/e|(^|[^[:alnum:]_])create_function\\s*\\(|hash_equals\\(md5\\(|\\$_REQUEST\\["password"\\]' app pub var generated`
 
 Limpieza manual:
 
@@ -713,7 +777,10 @@ Contrato:
 4. usa `.known-paths` solo para suavizar `??` conocidos,
 5. no suaviza `M`, `D`, `R` aunque el path esté en `.known-paths`,
 6. corre un grep heurístico relajado sobre funciones de ejecución/ofuscación en código PHP,
-7. suma una señal JS liviana para `WebSocket` / `WebRTC` / `event.data`.
+7. suma una señal JS liviana para `WebSocket` / `WebRTC`.
+8. excluye señales genéricas de `new WebSocket` en librerías conocidas de `pub/static`, como `jquery/uppy`, pero mantiene alertas si aparece `wss://`, `RTCPeerConnection`, `createDataChannel` o `new Function(event.data)`.
+9. suma un check rápido de PHP bajo `pub/` excluyendo `pub/errors` y cualquier archivo listado en `.known-files`; ese check solo eleva score y marca `[FOUND]`, sin listar paths en `attention paths`.
+10. suma además un check rápido para detectar si archivos listados en `.known-files` fueron modificados según Git; también eleva score sin listar paths.
 
 Salida esperada:
 
@@ -722,8 +789,9 @@ Salida esperada:
 3. `score: N`
 4. `drift signals: N`
 5. `code signals: N`
-6. hasta `5` attention paths
-7. si el umbral es `medium` o `high`, sugerir `warp security check`
+6. hasta `30` attention paths
+7. si hay más, agrega `showing 30/N`
+8. si el umbral es `medium` o `high`, sugerir `warp security check`
 
 ## 8.1 Pipeline de ejecución
 
@@ -737,8 +805,9 @@ Salida esperada:
 2. inicializar log detallado en `var/log/warp-security.log`
 3. ejecutar reglas read-only por superficie:
    - git drift en `pub/`
+   - drift específico de archivos listados en `.known-files`
    - filesystem en `pub/media`, `pub/static`, `pub/opt`
-   - señales JS modernas en `app` y `pub` (`WebSocket`, `WebRTC`, `event.data`)
+   - señales JS modernas en `app` y `pub` (`WebSocket`, `WebRTC`)
    - firmas IOC en `app`, `pub`, `var`, `generated`
    - access logs legibles en rutas típicas
    - persistencia básica de host (`crontab`, `~/.config/htop`, `/dev/shm`, `ps`)
@@ -876,11 +945,12 @@ Objetivo:
 
 Comando base:
 
-1. `grep -RInE 'md5\\(\\$_COOKIE\\["d"\\]\\)|md5\\(\\$_COOKIE\\['\''d'\''\\]\\)|new Function\\(event\\.data\\)|preg_replace\\s*\\(.*/e|create_function\\(|hash_equals\\(md5\\(|\\$_REQUEST\\["password"\\]' app pub var generated`
+1. `grep -RInE 'md5\\(\\$_COOKIE\\["d"\\]\\)|md5\\(\\$_COOKIE\\['\''d'\''\\]\\)|new Function\\(event\\.data\\)|preg_replace\\s*\\(.*/e|(^|[^[:alnum:]_])create_function\\s*\\(|hash_equals\\(md5\\(|\\$_REQUEST\\["password"\\]' app pub var generated`
 
 Match:
 
 1. cualquier ocurrencia de estas firmas fuera de vendor permitido.
+2. esta regla debe ignorar superficies de build/log de bajo valor operativo para IOC, por ejemplo `*/node_modules/*`, `var/log/*` y `var/hyva*/*`.
 
 Score:
 
@@ -946,7 +1016,8 @@ Objetivo:
 
 Comando base:
 
-1. `grep -RInE "<\\?php|base64_decode\\(|passthru\\(|system\\(|shell_exec\\(|assert\\(|proc_open\\(" pub/media pub/opt pub/static`
+1. `grep -RInE "<\\?php|base64_decode\\(|passthru\\(|system\\(|shell_exec\\(|assert\\(|proc_open\\(" pub/media pub/opt`
+2. en `pub/static`, evitar firmas genéricas de JS como `assert(`; limitarse a PHP real o IOCs conocidas de webshell/skimmer
 
 Match:
 
@@ -1034,6 +1105,12 @@ Comando base:
 Match:
 
 1. ocurrencia en templates, CMS export, JS custom o static assets del proyecto.
+2. `new WebSocket` aislado en librerías conocidas de `pub/static` como `jquery/uppy` no se trata como hallazgo por sí solo.
+3. si esa misma librería contiene además `wss://`, `RTCPeerConnection`, `createDataChannel` o `new Function(event.data)`, la señal se mantiene.
+
+Nota:
+
+1. `event.data` genérico ya no se usa como finding por sí solo en `scan`/`check`, porque produce demasiado ruido legítimo en módulos custom y de terceros.
 
 Score:
 
@@ -1058,6 +1135,7 @@ Match:
 1. `defunct`, `defunct.dat`, `php-shared`
 2. crons con base64 o relanzado persistente
 3. procesos disfrazados con nombres tipo kernel thread
+4. nombres como `[kswapd0]` o `[raid5wq]` no deben contar por sí solos; solo se consideran hallazgo si ya hay otros indicios host-level en la misma sección.
 
 Score:
 

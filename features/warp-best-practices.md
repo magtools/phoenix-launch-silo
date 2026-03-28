@@ -61,7 +61,7 @@ En `scan.sh`, esto causó que:
 - un módulo con findings devolviera error
 - luego otro módulo limpio devolviera `0`
 - el segundo estado pisara el primero
-- el wrapper terminara mostrando `scan finished without issues`
+- el wrapper terminara mostrando `audit finished without issues`
 
 aunque el archivo de salida tenía findings reales.
 
@@ -165,7 +165,7 @@ El estado final siempre debe depender del proceso esperado, no del spinner.
 
 #### Impacto real observado
 
-`testPR` y `warp scan pr` daban verde falso mientras el pipeline fallaba.
+`testPR` y `warp audit pr` daban verde falso mientras el pipeline fallaba.
 
 #### Solución aplicada
 
@@ -588,7 +588,7 @@ Ejemplo:
 ```text
 phpmd found issues in app/code/Ecommerce66/Gtm
 output: var/static/scan_testpr_20260325-201409.txt
-next: review ProductList.php and rerun warp scan pr
+next: review ProductList.php and rerun warp audit pr
 ```
 
 ---

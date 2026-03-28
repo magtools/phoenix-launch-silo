@@ -61,34 +61,38 @@ Commands:
 - `warp hyva watch[:theme]`: watch mode for development.
 - `warp hyva list`: shows detected themes.
 
-## More complete Magento code quality coverage (`warp scan`)
+## More complete Magento code quality coverage (`warp audit`)
 
-`warp scan` is no longer just a basic PHPCS/PHPMD helper and now covers more of the daily technical workflow.
+`warp audit` is now the canonical name for the Magento code quality helper, replacing `warp scan`, and it covers more of the daily technical workflow.
 
 What it brings to the team:
 
 - direct execution per tool or through a menu,
-- the same UX for `phpcs`, `phpcbf`, `phpmd`, `phpcompat`, and `phpstan`,
+- the same UX for `phpcs`, `phpcbf`, `phpmd`, `phpcompat`, `risky`, and `phpstan`,
 - support for a specific path with `--path <path>` without prompting for the path again,
 - `PHPCompatibility` integration to validate PHP version compatibility,
+- a focused `risky primitive` audit for quick review of potentially dangerous PHP patterns,
 - `PHPStan` integration using the project's base configuration,
 - cleaner and more readable CLI and log output,
-- more useful PR checks by adding PHP compatibility checks on `app/code`.
+- more useful PR checks by adding PHP compatibility checks on `app/code`,
+- a stronger `integrity` flow by adding risky primitive review and `PHPStan --level 1` on `app/code`.
 
 Commands:
 
-- `warp scan`: main scan menu.
-- `warp scan --path <path>`: tool menu for a specific path.
-- `warp scan pr` / `warp scan --pr`: PR checks on the project's default paths.
-- `warp scan integrity` / `warp scan -i`: `setup:di:compile` + PR checks.
-- `warp scan phpcs --path <path>`: direct PHPCS on a path.
-- `warp scan phpcbf --path <path>`: direct PHPCBF on a path.
-- `warp scan phpmd --path <path>`: direct PHPMD on a path.
-- `warp scan phpcompat --path <path>`: direct PHPCompatibility on a path.
-- `warp scan phpstan`: PHPStan on the default scope from `phpstan.neon.dist`.
-- `warp scan phpstan --path <path>`: PHPStan on a specific path.
-- `warp scan phpstan --level <n>`: one-off level override for a run.
-- `warp scan phpstan --level <n> --path <path>`: one-off level override on a specific path.
+- `warp audit`: main audit menu.
+- `warp audit --path <path>`: tool menu for a specific path.
+- `warp audit pr` / `warp audit --pr`: PR checks on the project's default paths.
+- `warp audit integrity` / `warp audit -i`: `setup:di:compile` + PR checks.
+- `warp audit phpcs --path <path>`: direct PHPCS on a path.
+- `warp audit phpcbf --path <path>`: direct PHPCBF on a path.
+- `warp audit phpmd --path <path>`: direct PHPMD on a path.
+- `warp audit phpcompat --path <path>`: direct PHPCompatibility on a path.
+- `warp audit risky --path <path>`: direct risky primitive audit on a path.
+- `warp audit phpstan`: PHPStan on the default scope from `phpstan.neon.dist`.
+- `warp audit phpstan --path <path>`: PHPStan on a specific path.
+- `warp audit phpstan --level <n>`: one-off level override for a run.
+- `warp audit phpstan --level <n> --path <path>`: one-off level override on a specific path.
+- `warp audit integrity`: now also runs risky primitive audit on `app/code` and `phpstan --level 1` on `app/code`.
 
 Functional impact:
 
@@ -218,6 +222,26 @@ What it brings to the team:
 - quick visibility into drift between real usage and configuration,
 - clear separation between container usage and internal service usage,
 - text and JSON output for troubleshooting and documentation,
+
+## More useful security scan and check (`warp security`)
+
+`warp security` continued tightening the balance between real signal and operational noise.
+
+What it brings to the team:
+
+- `warp security scan` now explains more clearly why a file was flagged (`path - indicator [class]`),
+- `warp security check` keeps detailed output in `var/log/warp-security.log` plus a rotated historical copy,
+- an incorrect discard of lines with inline comments (`// phpcs:ignore`) was fixed, which had been hiding real signals such as `base64_decode()` in `app/code`,
+- a generic `new WebSocket` inside known `pub/static` libraries such as `jquery/uppy` is no longer treated as a skimmer by itself,
+- `warp security scan` also adds a fast PHP-under-`pub` check excluding `pub/errors` and Magento core entrypoints, plus a separate verification to detect whether those core entrypoints were modified,
+- `warp security scan` and `warp security check` now create `.known-paths`, `.known-files`, and `.known-findings` when missing, so expected paths/files and accepted findings live in project files instead of hardcoded scanner logic,
+- that exclusion does not silence stronger signals: if `wss://`, `RTCPeerConnection`, `createDataChannel`, or `new Function(event.data)` appear, the finding remains.
+
+Functional impact:
+
+- fewer false positives in legitimate frontend assets,
+- better visibility into risky primitives outside `pub`,
+- more confidence in the score and `attention paths` shown by `scan`.
 - better signals to prevent saturation before business impact.
 
 Commands:

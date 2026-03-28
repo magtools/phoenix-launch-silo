@@ -61,9 +61,9 @@ Comandos:
 - `warp hyva watch[:theme]`: modo watch para desarrollo.
 - `warp hyva list`: muestra themes detectados.
 
-## Calidad de código Magento más completa (`warp scan`)
+## Calidad de código Magento más completa (`warp audit`)
 
-`warp scan` dejó de ser solo un helper básico de PHPCS/PHPMD y pasó a cubrir más chequeos del flujo técnico diario.
+`warp audit` pasó a ser el nombre canónico del helper de calidad de código Magento, reemplazando a `warp scan`, y cubre más chequeos del flujo técnico diario.
 
 Qué aporta al equipo:
 
@@ -77,18 +77,20 @@ Qué aporta al equipo:
 
 Comandos:
 
-- `warp scan`: menú principal de scans.
-- `warp scan --path <ruta>`: menú de herramientas sobre una ruta puntual.
-- `warp scan pr` / `warp scan --pr`: PR checks sobre defaults del proyecto.
-- `warp scan integrity` / `warp scan -i`: `setup:di:compile` + PR checks.
-- `warp scan phpcs --path <ruta>`: PHPCS directo sobre una ruta.
-- `warp scan phpcbf --path <ruta>`: PHPCBF directo sobre una ruta.
-- `warp scan phpmd --path <ruta>`: PHPMD directo sobre una ruta.
-- `warp scan phpcompat --path <ruta>`: PHPCompatibility directo sobre una ruta.
-- `warp scan phpstan`: PHPStan sobre el scope default de `phpstan.neon.dist`.
-- `warp scan phpstan --path <ruta>`: PHPStan sobre una ruta puntual.
-- `warp scan phpstan --level <n>`: override puntual de level para una corrida.
-- `warp scan phpstan --level <n> --path <ruta>`: override puntual de level sobre una ruta puntual.
+- `warp audit`: menú principal de auditoría.
+- `warp audit --path <ruta>`: menú de herramientas sobre una ruta puntual.
+- `warp audit pr` / `warp audit --pr`: PR checks sobre defaults del proyecto.
+- `warp audit integrity` / `warp audit -i`: `setup:di:compile` + PR checks.
+- `warp audit phpcs --path <ruta>`: PHPCS directo sobre una ruta.
+- `warp audit phpcbf --path <ruta>`: PHPCBF directo sobre una ruta.
+- `warp audit phpmd --path <ruta>`: PHPMD directo sobre una ruta.
+- `warp audit phpcompat --path <ruta>`: PHPCompatibility directo sobre una ruta.
+- `warp audit risky --path <ruta>`: búsqueda de primitives riesgosas sobre una ruta.
+- `warp audit phpstan`: PHPStan sobre el scope default de `phpstan.neon.dist`.
+- `warp audit phpstan --path <ruta>`: PHPStan sobre una ruta puntual.
+- `warp audit phpstan --level <n>`: override puntual de level para una corrida.
+- `warp audit phpstan --level <n> --path <ruta>`: override puntual de level sobre una ruta puntual.
+- `warp audit integrity` ahora también corre risky primitive audit en `app/code` y `phpstan --level 1` sobre `app/code`.
 
 Impacto funcional:
 
@@ -218,6 +220,26 @@ Qué aporta al equipo:
 - visibilidad rápida de desalineaciones entre uso real y configuración,
 - separación clara entre uso de contenedor y uso interno de servicio,
 - salida en texto y JSON para troubleshooting y documentación,
+
+## Security scan y check más útiles (`warp security`)
+
+`warp security` siguió ajustando el balance entre señal real y ruido operativo.
+
+Qué aporta al equipo:
+
+- `warp security scan` ahora explica mejor por qué un archivo fue marcado (`path - indicator [class]`),
+- `warp security check` mantiene el detalle en `var/log/warp-security.log` y copia histórica rotada,
+- se corrigió un descarte incorrecto de líneas con comentarios inline (`// phpcs:ignore`) que ocultaba señales reales como `base64_decode()` en `app/code`,
+- se evita marcar como skimmer un `new WebSocket` genérico dentro de librerías conocidas de `pub/static` como `jquery/uppy`,
+- `warp security scan` suma además un check rápido de PHP bajo `pub/` excluyendo `pub/errors` y los entrypoints core de Magento, y una verificación aparte para detectar si esos entrypoints fueron modificados,
+- `warp security scan` y `warp security check` crean `.known-paths`, `.known-files` y `.known-findings` si faltan, para que la lógica de paths/archivos esperados y findings aceptados viva en archivos del proyecto y no en hardcodes,
+- esa exclusión no silencia señales más fuertes: si aparecen `wss://`, `RTCPeerConnection`, `createDataChannel` o `new Function(event.data)`, el hallazgo se mantiene.
+
+Impacto funcional:
+
+- menos falsos positivos en assets frontend legítimos,
+- mejor visibilidad de primitives riesgosas fuera de `pub`,
+- mayor confianza en el score y en los `attention paths` mostrados por `scan`.
 - mejores señales para prevenir saturación antes de impacto al negocio.
 
 Comandos:
