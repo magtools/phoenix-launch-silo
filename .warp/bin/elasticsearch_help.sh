@@ -25,6 +25,8 @@ function elasticsearch_help_usage() {
     warp_message " to use this service you must modify localhost:9200 by elasticsearch:9200 in the project"
     warp_message " if search runs in external mode (SEARCH_MODE=external), Warp uses SEARCH_SCHEME / SEARCH_HOST /"
     warp_message " SEARCH_PORT / SEARCH_USER / SEARCH_PASSWORD from .env instead of search containers."
+    warp_message " if local search containers are missing and SEARCH_* is still unset, Warp can bootstrap external mode"
+    warp_message " from app/etc/env.php, then persist the detected endpoint in .env."
     warp_message " in external mode: info / flush run against the remote endpoint; ssh and switch are not available;"
     warp_message " flush requires explicit y confirmation."
     warp_message ""
@@ -121,6 +123,7 @@ elasticsearch_info_help() {
     warp_message_info "Help:"
     warp_message " show current search connectivity information."
     warp_message " in external mode it checks the SEARCH_* endpoint from .env using GET / and GET /_cluster/health."
+    warp_message " if SEARCH_* is missing and no local search service exists, Warp first tries to read app/etc/env.php."
     warp_message " curl must exist on the host for external mode."
     warp_message ""
 }

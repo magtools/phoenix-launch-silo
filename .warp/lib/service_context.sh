@@ -14,6 +14,7 @@ warp_service_context_reset() {
     WARP_CTX_USER=""
     WARP_CTX_PASSWORD=""
     WARP_CTX_DBNAME=""
+    WARP_CTX_DB_INDEX=""
     WARP_CTX_SCHEME=""
 }
 
@@ -53,23 +54,22 @@ warp_service_context_load_db() {
     WARP_CTX_USER="$_user"
     WARP_CTX_PASSWORD="$_password"
     WARP_CTX_DBNAME="$_dbname"
+    WARP_CTX_DB_INDEX=""
     WARP_CTX_SCHEME=""
 }
 
 warp_service_context_load_cache() {
+    _scope_override="${WARP_CACHE_SCOPE_OVERRIDE:-}"
     _mode=$(warp_fallback_env_get CACHE_MODE)
     [ -z "$_mode" ] && _mode=$(warp_fallback_detect_cache_mode)
 
     _engine=$(warp_fallback_env_get CACHE_ENGINE)
     [ -z "$_engine" ] && _engine=$(warp_fallback_detect_cache_engine)
 
-    _scope=$(warp_fallback_env_get CACHE_SCOPE)
+    _scope="$_scope_override"
+    [ -z "$_scope" ] && _scope=$(warp_fallback_env_get CACHE_SCOPE)
     if [ -z "$_scope" ]; then
-        if [ "$_mode" = "external" ]; then
-            _scope="remote"
-        else
-            _scope="cache"
-        fi
+        _scope="cache"
     fi
 
     _has_cache=$(warp_fallback_compose_has_service redis-cache)
@@ -80,10 +80,11 @@ warp_service_context_load_cache() {
         _local_present="true"
     fi
 
-    _host=$(warp_fallback_env_get CACHE_HOST)
-    _port=$(warp_fallback_env_get CACHE_PORT)
-    _user=$(warp_fallback_env_get CACHE_USER)
-    _password=$(warp_fallback_env_get CACHE_PASSWORD)
+    _host=""
+    _port=""
+    _user=""
+    _password=""
+    _db_index=""
 
     if [ "$_mode" = "local" ]; then
         case "$_scope" in
@@ -95,9 +96,44 @@ warp_service_context_load_cache() {
                 [ -z "$_host" ] && _host="redis-fpc"
                 [ -z "$_port" ] && _port=$(warp_fallback_env_get REDIS_FPC_BINDED_PORT)
                 ;;
-            cache|*)
+            cache|remote|*)
                 [ -z "$_host" ] && _host="redis-cache"
                 [ -z "$_port" ] && _port=$(warp_fallback_env_get REDIS_CACHE_BINDED_PORT)
+                ;;
+        esac
+    else
+        case "$_scope" in
+            session)
+                _host=$(warp_fallback_env_get CACHE_SESSION_HOST)
+                _port=$(warp_fallback_env_get CACHE_SESSION_PORT)
+                _user=$(warp_fallback_env_get CACHE_SESSION_USER)
+                _password=$(warp_fallback_env_get CACHE_SESSION_PASSWORD)
+                _db_index=$(warp_fallback_env_get CACHE_SESSION_DB)
+                [ -z "$_user" ] && _user=$(warp_fallback_env_get CACHE_USER)
+                [ -z "$_password" ] && _password=$(warp_fallback_env_get CACHE_PASSWORD)
+                [ -z "$_db_index" ] && _db_index="2"
+                ;;
+            fpc)
+                _host=$(warp_fallback_env_get CACHE_FPC_HOST)
+                _port=$(warp_fallback_env_get CACHE_FPC_PORT)
+                _user=$(warp_fallback_env_get CACHE_FPC_USER)
+                _password=$(warp_fallback_env_get CACHE_FPC_PASSWORD)
+                _db_index=$(warp_fallback_env_get CACHE_FPC_DB)
+                [ -z "$_user" ] && _user=$(warp_fallback_env_get CACHE_USER)
+                [ -z "$_password" ] && _password=$(warp_fallback_env_get CACHE_PASSWORD)
+                [ -z "$_db_index" ] && _db_index="1"
+                ;;
+            cache|remote|*)
+                _host=$(warp_fallback_env_get CACHE_CACHE_HOST)
+                [ -z "$_host" ] && _host=$(warp_fallback_env_get CACHE_HOST)
+                _port=$(warp_fallback_env_get CACHE_CACHE_PORT)
+                [ -z "$_port" ] && _port=$(warp_fallback_env_get CACHE_PORT)
+                _user=$(warp_fallback_env_get CACHE_CACHE_USER)
+                [ -z "$_user" ] && _user=$(warp_fallback_env_get CACHE_USER)
+                _password=$(warp_fallback_env_get CACHE_CACHE_PASSWORD)
+                [ -z "$_password" ] && _password=$(warp_fallback_env_get CACHE_PASSWORD)
+                _db_index=$(warp_fallback_env_get CACHE_CACHE_DB)
+                [ -z "$_db_index" ] && _db_index="0"
                 ;;
         esac
     fi
@@ -114,6 +150,7 @@ warp_service_context_load_cache() {
     WARP_CTX_USER="$_user"
     WARP_CTX_PASSWORD="$_password"
     WARP_CTX_DBNAME=""
+    WARP_CTX_DB_INDEX="$_db_index"
     WARP_CTX_SCHEME=""
 }
 
@@ -153,6 +190,7 @@ warp_service_context_load_search() {
     WARP_CTX_USER="$_user"
     WARP_CTX_PASSWORD="$_password"
     WARP_CTX_DBNAME=""
+    WARP_CTX_DB_INDEX=""
     WARP_CTX_SCHEME="$_scheme"
 }
 
@@ -189,6 +227,7 @@ warp_service_context_load() {
     export WARP_CTX_USER
     export WARP_CTX_PASSWORD
     export WARP_CTX_DBNAME
+    export WARP_CTX_DB_INDEX
     export WARP_CTX_SCHEME
 
     if [ "$WARP_CTX_MODE" = "unknown" ] && [ "$WARP_CTX_LOCAL_SERVICE_PRESENT" = "false" ]; then

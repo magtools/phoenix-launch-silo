@@ -109,21 +109,68 @@ mysql_env_set_var() {
     fi
 }
 
-mysql_read_envphp_field() {
+mysql_read_envphp_db_default_field() {
     _file="$1"
     _field="$2"
-    grep -m1 -E "'${_field}'[[:space:]]*=>[[:space:]]*'" "$_file" 2>/dev/null | sed -E "s/.*'${_field}'[[:space:]]*=>[[:space:]]*'([^']*)'.*/\1/"
+
+    awk -v field="$_field" '
+        function line_delta(text,    opens, closes, tmp) {
+            tmp = text
+            opens = gsub(/\[/, "[", tmp)
+            tmp = text
+            closes = gsub(/\]/, "]", tmp)
+            return opens - closes
+        }
+
+        {
+            delta = line_delta($0)
+
+            if (!in_db && $0 ~ /'\''db'\''[[:space:]]*=>[[:space:]]*\[/) {
+                in_db = 1
+                db_depth = depth + delta
+            } else if (in_db && !in_connection && $0 ~ /'\''connection'\''[[:space:]]*=>[[:space:]]*\[/) {
+                in_connection = 1
+                connection_depth = depth + delta
+            } else if (in_connection && !in_default && $0 ~ /'\''default'\''[[:space:]]*=>[[:space:]]*\[/) {
+                in_default = 1
+                default_depth = depth + delta
+            }
+
+            if (in_default) {
+                pattern = "'"'"'" field "'\''[[:space:]]*=>[[:space:]]*'\''([^'\'']*)'\''"
+                if (match($0, pattern)) {
+                    value = substr($0, RSTART, RLENGTH)
+                    sub(/^.*=>[[:space:]]*'\''/, "", value)
+                    sub(/'\''$/, "", value)
+                    print value
+                    exit
+                }
+            }
+
+            depth += delta
+
+            if (in_default && depth < default_depth) {
+                in_default = 0
+            }
+            if (in_connection && depth < connection_depth) {
+                in_connection = 0
+            }
+            if (in_db && depth < db_depth) {
+                in_db = 0
+            }
+        }
+    ' "$_file" 2>/dev/null
 }
 
 mysql_external_collect_from_envphp() {
     _envphp="$PROJECTPATH/app/etc/env.php"
     [ -f "$_envphp" ] || return 1
 
-    _host=$(mysql_read_envphp_field "$_envphp" "host")
-    _port=$(mysql_read_envphp_field "$_envphp" "port")
-    _dbname=$(mysql_read_envphp_field "$_envphp" "dbname")
-    _user=$(mysql_read_envphp_field "$_envphp" "username")
-    _password=$(mysql_read_envphp_field "$_envphp" "password")
+    _host=$(mysql_read_envphp_db_default_field "$_envphp" "host")
+    _port=$(mysql_read_envphp_db_default_field "$_envphp" "port")
+    _dbname=$(mysql_read_envphp_db_default_field "$_envphp" "dbname")
+    _user=$(mysql_read_envphp_db_default_field "$_envphp" "username")
+    _password=$(mysql_read_envphp_db_default_field "$_envphp" "password")
 
     if [ -z "$_port" ] && [[ "$_host" == *:* ]]; then
         _host_port="${_host##*:}"
@@ -330,6 +377,21 @@ mysql_load_external_conn_values() {
     [ -z "$DB_PORT" ] && DB_PORT=3306
 }
 
+mysql_print_external_connection_details() {
+    _reason="$1"
+
+    warp_message ""
+    warp_message_warn "External DB connection failed."
+    [ -n "$_reason" ] && warp_message_warn "Reason: $_reason"
+    warp_message "Host:                       $(warp_message_info ${DB_HOST:-[not set]})"
+    warp_message "Port:                       $(warp_message_info ${DB_PORT:-3306})"
+    warp_message "Database:                   $(warp_message_info ${DB_NAME:-[not set]})"
+    [ -n "$DB_USER" ] && warp_message "User:                       $(warp_message_info ${DB_USER})" || warp_message "User:                       $(warp_message_warn [not set])"
+    [ -n "$DB_PASSWORD" ] && warp_message "Password:                   $(warp_message_info ********)" || warp_message "Password:                   $(warp_message_warn [not set])"
+    warp_message_warn "Review the DB connection settings in $(basename "$ENVIRONMENTVARIABLESFILE")."
+    warp_message ""
+}
+
 function mysql_connect()
 {
 
@@ -354,7 +416,11 @@ function mysql_connect()
         [ -z "$DB_USER" ] && warp_message_error "DATABASE_USER is empty in .env" && exit 1
         [ -z "$DB_PASSWORD" ] && warp_message_error "DATABASE_PASSWORD is empty in .env" && exit 1
         "$MYSQL_CLIENT_BIN" -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USER" -p"$DB_PASSWORD" "$DB_NAME"
-        return 0
+        _rc=$?
+        if [ "$_rc" -ne 0 ]; then
+            mysql_print_external_connection_details "$MYSQL_CLIENT_BIN returned exit code ${_rc}."
+        fi
+        return "$_rc"
     fi
 
     if [ $(warp_check_is_running) = false ]; then
