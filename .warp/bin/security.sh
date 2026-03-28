@@ -792,9 +792,9 @@ security_scan_fast_git() {
                 security_append_screen_family "webshell"
                 WARP_SECURITY_SCAN_SCORE=$((WARP_SECURITY_SCAN_SCORE + 4))
                 ;;
-            app/*|bin/*|generated/*|var/*) security_append_screen_family "review" ;;
+            app/*|bin/*|generated/*) security_append_screen_family "review" ;;
         esac
-    done < <(git status --porcelain --untracked-files=all -- pub app bin generated var 2>/dev/null)
+    done < <(git status --porcelain --untracked-files=all -- pub app bin generated 2>/dev/null)
 }
 
 security_scan_fast_code() {
@@ -827,8 +827,8 @@ security_scan_fast_code() {
                 ;;
         esac
     done < <(security_find_named_and_search \
-        'eval\s*\(|base64_decode\s*\(|system\s*\(|shell_exec\s*\(|passthru\s*\(|assert\s*\(|proc_open\s*\(|preg_replace\s*\(.*/e|create_function\s*\(|eval\s*\(\s*base64_decode|gzuncompress\s*\(\s*base64_decode|str_rot13\s*\(.*base64_decode|md5\(\$_COOKIE|hash_equals\s*\(\s*md5\(|\$_REQUEST|\$_COOKIE|\$_POST' \
-        "$PROJECTPATH/pub" "$PROJECTPATH/app" "$PROJECTPATH/bin" "$PROJECTPATH/generated" "$PROJECTPATH/var" \
+        'eval\s*\(|base64_decode\s*\(|(^|[^[:alnum:]_])system\s*\(|shell_exec\s*\(|passthru\s*\(|assert\s*\(|proc_open\s*\(|preg_replace\s*\(.*/e|create_function\s*\(|eval\s*\(\s*base64_decode|gzuncompress\s*\(\s*base64_decode|str_rot13\s*\(.*base64_decode|md5\(\$_COOKIE|hash_equals\s*\(\s*md5\(|\$_REQUEST|\$_COOKIE|\$_POST' \
+        "$PROJECTPATH/pub" "$PROJECTPATH/app" "$PROJECTPATH/bin" \
         --name '*.php' --name '*.phtml' --name '*.phar' --name '*.inc' | sed "s#^$PROJECTPATH/##")
 }
 
@@ -841,6 +841,7 @@ security_scan_fast_js() {
     while IFS= read -r _line; do
         [ -n "$_line" ] || continue
         security_scan_should_ignore_line "$_line" && continue
+        security_scan_should_ignore_known_js_library_match "$_line" && continue
         _path="${_line%%:*}"
         [ -n "$_path" ] || continue
         _indicator="$(security_scan_indicator_for_match "$_line")"
@@ -853,7 +854,7 @@ security_scan_fast_js() {
         security_scan_append_attention "${_path} - ${_indicator} [${_class}]"
         security_append_screen_family "skimmer"
     done < <(security_find_named_and_search \
-        'RTCPeerConnection|createDataChannel|new WebSocket|wss://|event\.data|new Function\(event\.data\)' \
+        'RTCPeerConnection|createDataChannel|new WebSocket|wss://|new Function\(event\.data\)' \
         "$PROJECTPATH/pub" "$PROJECTPATH/app" \
         --name '*.js' --name '*.phtml' --name '*.html' | sed "s#^$PROJECTPATH/##")
 }
@@ -899,7 +900,6 @@ security_scan_indicator_for_match() {
         *new\ WebSocket*) echo "new WebSocket" ;;
         *wss://*) echo "wss://" ;;
         *new\ Function\(event.data\)*) echo "new Function(event.data)" ;;
-        *event.data*) echo "event.data" ;;
         *\$_REQUEST*) echo '$_REQUEST' ;;
         *\$_COOKIE*) echo '$_COOKIE' ;;
         *\$_POST*) echo '$_POST' ;;
@@ -911,7 +911,7 @@ security_scan_class_for_match() {
     local _line="$1"
 
     case "$_line" in
-        *RTCPeerConnection*|*createDataChannel*|*new\ WebSocket*|*wss://*|*event.data*)
+        *RTCPeerConnection*|*createDataChannel*|*new\ WebSocket*|*wss://*|*new\ Function\(event.data\)*)
             echo "js skimmer"
             ;;
         *md5\(\$_COOKIE*|*eval\(base64_decode*|*gzuncompress*base64_decode*|*hash_equals\(md5*|*preg_replace*|*create_function*)
@@ -926,6 +926,31 @@ security_scan_class_for_match() {
     esac
 }
 
+security_scan_should_ignore_known_js_library_match() {
+    local _line="$1"
+    local _path=""
+
+    _path="${_line%%:*}"
+    [ -n "$_path" ] || return 1
+
+    case "$_path" in
+        pub/static/*jquery/uppy/*)
+            case "$_line" in
+                *new\ WebSocket*)
+                    case "$_line" in
+                        *wss://*|*RTCPeerConnection*|*createDataChannel*|*new\ Function\(event.data\)*)
+                            return 1
+                            ;;
+                    esac
+                    return 0
+                    ;;
+            esac
+            ;;
+    esac
+
+    return 1
+}
+
 security_scan_append_attention() {
     local _entry="$1"
 
@@ -935,27 +960,17 @@ security_scan_append_attention() {
 security_scan_should_ignore_line() {
     local _line="$1"
     local _content=""
+    local _trimmed=""
 
     _content="${_line#*:}"
     _content="${_content#*:}"
+    _trimmed="${_content#"${_content%%[![:space:]]*}"}"
 
-    case "$_content" in
-        [[:space:]]*//*) return 0 ;;
-        [[:space:]]*/\**)
-            case "$_content" in
-                [[:space:]]*/\**/*) ;;
-                *) return 0 ;;
-            esac
-            ;;
-        [[:space:]]*\**)
-            case "$_content" in
-                [[:space:]]*\**/)
-                    ;;
-                [[:space:]]*\**)
-                    return 0
-                    ;;
-            esac
-            ;;
+    case "$_trimmed" in
+        //*) return 0 ;;
+        '/*'*) return 0 ;;
+        '*/'*) return 0 ;;
+        \**) return 0 ;;
     esac
 
     return 1
@@ -967,7 +982,7 @@ security_process_line() {
 }
 
 security_process_notice() {
-    printf '%b\n' "${FYEL}[FOUND]${RS}"
+    printf '%b\n' "${FRED}[FOUND]${RS}"
 }
 
 security_process_ok_local() {
@@ -975,7 +990,7 @@ security_process_ok_local() {
 }
 
 security_process_fail_local() {
-    printf '%b\n' "${FRED}[FAIL]${RS}"
+    printf '%b\n' "${FYEL}[FAIL]${RS}"
 }
 
 security_step_run() {
@@ -1007,13 +1022,19 @@ security_step_run() {
 }
 
 security_scan_fast_attention_paths() {
-    printf '%s\n' "$WARP_SECURITY_SCAN_PATHS" | sed '/^$/d' | sort -u | head -n 5
+    printf '%s\n' "$WARP_SECURITY_SCAN_PATHS" | sed '/^$/d' | sort -u | head -n 30
+}
+
+security_scan_attention_paths_total() {
+    printf '%s\n' "$WARP_SECURITY_SCAN_PATHS" | sed '/^$/d' | sort -u | wc -l | awk '{print $1}'
 }
 
 security_scan_main() {
     local _suspicion=""
     local _path=""
     local _status=""
+    local _shown_count=0
+    local _total_count=0
 
     if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
         security_help_usage
@@ -1048,8 +1069,13 @@ security_scan_main() {
         warp_message " attention paths:"
         while IFS= read -r _path; do
             [ -n "$_path" ] || continue
+            _shown_count=$((_shown_count + 1))
             warp_message "  $_path"
         done < <(security_scan_fast_attention_paths)
+        _total_count="$(security_scan_attention_paths_total)"
+        if [ "$_total_count" -gt "$_shown_count" ]; then
+            warp_message "  showing ${_shown_count}/${_total_count}"
+        fi
     fi
 
     case "$_suspicion" in
@@ -1140,6 +1166,7 @@ security_scan_js_skimmer() {
 
     while IFS= read -r _line; do
         [ -n "$_line" ] || continue
+        security_scan_should_ignore_known_js_library_match "$_line" && continue
         WARP_SECURITY_SECTION_FINDINGS=$((WARP_SECURITY_SECTION_FINDINGS + 1))
         security_add_score 20
         security_record_finding "$_line" "skimmer"
