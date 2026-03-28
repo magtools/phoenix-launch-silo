@@ -169,6 +169,8 @@ Impacto funcional:
 
 - `warp db`/`warp mysql` ya contemplan mejor escenarios RDS/external,
 - `warp cache` y `warp search` avanzan hacia un comportamiento consistente entre modo local y externo,
+- `warp cache` ahora puede bootstrappear `cache/fpc/session` remotos desde `app/etc/env.php` y resolver DB por scope,
+- `warp search` ahora puede bootstrappear `SEARCH_*` desde `app/etc/env.php` cuando falta el servicio local,
 - se endurecieron guardas para operaciones sensibles en modo externo, especialmente `flush`.
 
 Resultado práctico:
@@ -224,6 +226,28 @@ Comandos:
 - `warp telemetry scan --no-suggest`: muestra uso + config actual sin recomendaciones.
 - `warp telemetry scan --json`: salida estructurada para automatización.
 - `warp telemetry config`: guía rápida de dónde configurar memoria por servicio (Redis, Search, PHP-FPM) y referencia MySQL/MariaDB con MySQLTuner.
+
+## Base inicial para seguridad operativa (`warp security`)
+
+Warp ahora incorpora una superficie inicial para triage de seguridad:
+
+- `warp security`: entrada principal y ayuda
+- `warp security scan`: pasada rápida heurística para decidir si conviene correr `check`
+- `warp security check`: corre una fase read-only sobre filesystem, IOC, logs y host; escribe `var/log/warp-security.log` y una copia rotada
+- `warp security toolkit`: lista comandos manuales de análisis y limpieza por familia/superficie
+
+Qué aporta al equipo:
+
+- una base homogénea para investigar indicios de compromiso,
+- separación explícita entre análisis read-only y cleanup manual,
+- salida operativa breve con score, severity/suspicion y línea de estado,
+- guía operativa para familias recientes como PolyShell, SessionReaper y CosmicSting.
+
+Impacto funcional:
+
+- Warp no ejecuta limpieza destructiva en esta feature,
+- `toolkit` prioriza comandos seguros de inspección y cuarentena,
+- `.known-paths` permite documentar paths no trackeados esperados sin blanquear PHP peligroso dentro de `pub/`.
 
 ## Redis más configurable por entorno
 

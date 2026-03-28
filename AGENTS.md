@@ -16,6 +16,13 @@ Objetivo principal del agente en este repo:
 - Preservar compatibilidad de inicialización (`warp init`) y operación (`warp start/stop`).
 - Evitar cambios riesgosos o destructivos sin confirmación explícita.
 
+Nota de identidad del proyecto:
+
+- `warp` toma su nombre del motor de curvatura de Zefram Cochrane.
+- Existe un lore mínimo inspirado en la consola/computadora de `Star Trek`.
+- Ese tono puede aparecer en nombres y mensajes operativos (`scan`, `telemetry`, `security`, etc.).
+- Mantenerlo sutil: priorizar mensajes claros y útiles por encima de frases teatrales o excesivas.
+
 ## 2) Arquitectura base
 
 Puntos de entrada y capas:
