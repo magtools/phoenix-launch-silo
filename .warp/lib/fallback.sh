@@ -113,6 +113,9 @@ warp_fallback_detect_cache_mode() {
     fi
 
     _cache_host=$(warp_fallback_env_get CACHE_HOST)
+    [ -z "$_cache_host" ] && _cache_host=$(warp_fallback_env_get CACHE_CACHE_HOST)
+    [ -z "$_cache_host" ] && _cache_host=$(warp_fallback_env_get CACHE_FPC_HOST)
+    [ -z "$_cache_host" ] && _cache_host=$(warp_fallback_env_get CACHE_SESSION_HOST)
     [ -n "$_cache_host" ] && { echo "external"; return 0; }
 
     echo "unknown"

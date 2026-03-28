@@ -1,30 +1,38 @@
-# Warp Scan
+# Warp Audit
 
 Fecha: 2026-03-24
 Estado: Magento implementado con `phpcompat` y `phpstan`
 
 ## Objetivo
 
-Agregar `warp scan` para ejecutar chequeos de calidad de código con foco en Magento, dejando una base para enchufar otros frameworks PHP.
+Definir `warp audit` como comando canónico para ejecutar chequeos de calidad de código con foco en Magento, dejando una base para enchufar otros frameworks PHP.
+
+Nota de naming:
+
+1. `warp audit` reemplaza a `warp scan` como nombre CLI.
+2. esta feature mantiene su archivo histórico `warp-scan.md`, pero el comando funcional vigente pasa a ser `warp audit`.
 
 ## Alcance MVP
 
-1. `warp scan` muestra menú de acciones.
-2. `warp scan pr` y `warp scan --pr` ejecutan PR checks:
+1. `warp audit` muestra menú de acciones.
+2. `warp audit pr` y `warp audit --pr` ejecutan PR checks:
    - PHPCS (`severity>=7`) sobre `app/code` y `app/design`.
    - PHPMD con `TestPR.xml`.
    - PHPCompatibility sobre `app/code`.
-3. `warp scan integrity` / `warp scan -i`:
+3. `warp audit integrity` / `warp audit -i`:
    - corre `warp magento setup:di:compile` usando el mismo patrón de resolución de entrypoint local ya fijado en `deploy` (`./warp`, `warp.sh` o `warp` en `PATH`).
-   - luego corre `warp scan pr`.
-4. `warp scan --path <ruta>` abre menú de acciones sobre una ruta arbitraria dentro del proyecto sin volver a mostrar menú de paths.
-5. `warp scan phpcs --path <ruta>` ejecuta `PHPCS` directo sobre la ruta indicada.
-6. `warp scan phpcbf --path <ruta>` ejecuta `PHPCBF` directo sobre la ruta indicada.
-7. `warp scan phpmd --path <ruta>` ejecuta `PHPMD` directo sobre la ruta indicada.
-8. `warp scan phpcompat --path <ruta>` ejecuta `PHPCompatibility` sobre la ruta indicada.
-9. `warp scan phpstan` ejecuta el scope default definido por `phpstan.neon.dist`.
-10. `warp scan phpstan --path <ruta>` ejecuta `PHPStan` sobre una ruta puntual.
-11. `warp scan phpstan --level <n>` permite override puntual del level sin tocar `phpstan.neon.dist`.
+   - luego corre `warp audit pr`.
+   - luego corre `warp audit risky --path app/code`.
+   - luego corre `warp audit phpstan --level 1 --path app/code`.
+4. `warp audit --path <ruta>` abre menú de acciones sobre una ruta arbitraria dentro del proyecto sin volver a mostrar menú de paths.
+5. `warp audit phpcs --path <ruta>` ejecuta `PHPCS` directo sobre la ruta indicada.
+6. `warp audit phpcbf --path <ruta>` ejecuta `PHPCBF` directo sobre la ruta indicada.
+7. `warp audit phpmd --path <ruta>` ejecuta `PHPMD` directo sobre la ruta indicada.
+8. `warp audit phpcompat --path <ruta>` ejecuta `PHPCompatibility` sobre la ruta indicada.
+9. `warp audit risky --path <ruta>` ejecuta una auditoría de risky primitives sobre la ruta indicada.
+10. `warp audit phpstan` ejecuta el scope default definido por `phpstan.neon.dist`.
+11. `warp audit phpstan --path <ruta>` ejecuta `PHPStan` sobre una ruta puntual.
+12. `warp audit phpstan --level <n>` permite override puntual del level sin tocar `phpstan.neon.dist`.
 
 ## Reglas TestPR
 
@@ -44,7 +52,7 @@ Resolución en ejecución:
 
 ## Compatibilidad PHPMD
 
-`warp scan` detecta automáticamente:
+`warp audit` detecta automáticamente:
 
 1. `vendor/phpmd/phpmd/bin/phpmd` (Magento 2.4.8+),
 2. `vendor/phpmd/phpmd/src/bin/phpmd` (Magento <=2.4.7),
@@ -71,10 +79,11 @@ Política actual:
 
 ### Objetivo
 
-`warp scan` ya expone dos acciones nuevas:
+`warp audit` ya expone tres acciones nuevas:
 
 1. `phpcompat`
 2. `phpstan`
+3. `risky`
 
 Estas capacidades se integran sin degradar el comportamiento existente de:
 
@@ -86,7 +95,7 @@ Estas capacidades se integran sin degradar el comportamiento existente de:
 
 `features/codeanalyzer.sh` se toma como ejemplo funcional de uso.
 `features/php-compat.md` se toma como contexto de implementación y comportamiento esperado.
-No se busca portar literalmente ese script a Warp, sino integrar estas capacidades dentro de la arquitectura y runtime propios de `warp scan`.
+No se busca portar literalmente ese script a Warp, sino integrar estas capacidades dentro de la arquitectura y runtime propios de `warp audit`.
 
 ### Restricción operativa
 
@@ -94,26 +103,26 @@ Estas dos acciones se ejecutan dentro del contenedor PHP, igual que `phpcs` y `p
 
 Por lo tanto:
 
-1. `warp scan phpcompat` requiere contenedor PHP corriendo.
-2. `warp scan phpstan` requiere contenedor PHP corriendo.
+1. `warp audit phpcompat` requiere contenedor PHP corriendo.
+2. `warp audit phpstan` requiere contenedor PHP corriendo.
 
-No se usa host-mode para estas dos acciones dentro de `warp scan`.
+No se usa host-mode para estas dos acciones dentro de `warp audit`.
 
 Esto mantiene consistencia con el enfoque actual del comando y evita diferencias de entorno entre host y contenedor.
 
 ### Principios de diseño
 
-1. No degradar `warp scan` actual.
+1. No degradar `warp audit` actual.
 2. Mantener el runtime centralizado de Warp:
    - `docker-compose exec -T php ...`
    - o `docker exec -i <container> ...` cuando exista override explícito por `WARP_SCAN_PHP_CONTAINER`
 3. Validar dependencias por acción, no con un gate global único.
 4. No sobrescribir configuración existente del proyecto.
-5. Mantener reportes bajo `var/static` con el mismo patrón general de salida de `warp scan`.
+5. Mantener reportes bajo `var/static` con el mismo patrón general de salida de `warp audit`.
 
 ### Acciones implementadas
 
-#### 1. `warp scan phpcompat`
+#### 1. `warp audit phpcompat`
 
 Valida compatibilidad de PHP sobre una ruta del proyecto.
 
@@ -161,7 +170,19 @@ Si falta el standard, el mensaje debe sugerir:
 ./warp composer exec -- phpcs -i
 ```
 
-#### 2. `warp scan phpstan`
+#### 2. `warp audit phpstan`
+
+#### 3. `warp audit risky`
+
+Realiza una auditoría rápida de primitives riesgosas sobre una ruta puntual.
+
+Comportamiento esperado:
+
+1. Busca patrones como `eval(`, `base64_decode(`, `system(`, `shell_exec(`, `passthru(`, `assert(`, `proc_open(`, `preg_replace(.../e)`, `create_function(`, `hash_equals(md5(` y uso directo de superglobals sensibles.
+2. Limita el análisis a archivos PHP-like (`php`, `phtml`, `phar`, `inc`).
+3. Ignora líneas que son comentario puro para evitar ruido obvio.
+4. Genera reporte en `var/static`.
+5. Soporta ejecución por path puntual igual que `phpcs` o `phpmd`.
 
 Ejecuta análisis estático con PHPStan.
 
@@ -174,17 +195,17 @@ Comportamiento esperado:
 
 Estrategia de ejecución actual:
 
-1. `warp scan phpstan`
+1. `warp audit phpstan`
    - ejecuta `phpstan analyse`
    - usa el scope default definido por `phpstan.neon.dist`
-2. `warp scan phpstan --path <ruta>`
+2. `warp audit phpstan --path <ruta>`
    - ejecuta `phpstan analyse <path>`
-3. `warp scan phpstan --level <n>`
+3. `warp audit phpstan --level <n>`
    - aplica un override puntual de `level` para esa corrida
-4. `warp scan phpstan --level <n> --path <ruta>`
+4. `warp audit phpstan --level <n> --path <ruta>`
    - combina override de `level` con una ruta puntual
 5. en el menú principal, `phpstan` ejecuta directamente el scope default
-6. en `warp scan --path <ruta>`, `phpstan` corre sobre la ruta elegida
+6. en `warp audit --path <ruta>`, `phpstan` corre sobre la ruta elegida
 
 Referencia:
 
@@ -212,7 +233,7 @@ Si falta el binario, el mensaje debe sugerir:
 
 ### Configuración base versionada para PHPStan
 
-`warp scan` debe manejar una plantilla base de PHPStan con la misma filosofía de bootstrap ya usada para `TestPR.xml`.
+`warp audit` debe manejar una plantilla base de PHPStan con la misma filosofía de bootstrap ya usada para `TestPR.xml`.
 
 Fuente versionada propuesta:
 
@@ -248,13 +269,13 @@ Para `phpstan.neon.dist` no se propone replicar el mismo destino físico, sino e
 2. el archivo se materializa automáticamente solo si falta
 3. no se sobrescribe configuración existente del proyecto
 
-### Criterios de implementación en `warp scan`
+### Criterios de implementación en `warp audit`
 
 La integración robusta de `phpcompat` y `phpstan` desacopla las validaciones de dependencias por acción.
 
 Cambio estructural aplicado:
 
-1. `warp scan` ya no usa un gate global único orientado a `PHPCS + PHPMD`
+1. `warp audit` ya no usa un gate global único orientado a `PHPCS + PHPMD`
 2. cada acción valida sus dependencias reales
 
 Modelo actual:
@@ -333,33 +354,34 @@ Esto permite:
 
 ### Riesgos que se deben evitar
 
-1. No volver `warp scan` dependiente siempre de PHPMD.
+1. No volver `warp audit` dependiente siempre de PHPMD.
 2. No sobrescribir `phpstan.neon.dist` si el proyecto ya lo define.
 3. No hardcodear configuración de PHPStan en varias capas a la vez.
 4. No mezclar `phpcompat` o `phpstan` dentro de `pr` sin un contrato nuevo explícito.
-5. No ejecutar `phpcompat` ni `phpstan` fuera del contenedor dentro de `warp scan`.
+5. No ejecutar `phpcompat` ni `phpstan` fuera del contenedor dentro de `warp audit`.
 
 Comportamiento de `--path`:
 
-1. `warp scan --path <ruta>` no vuelve a mostrar menú de paths
+1. `warp audit --path <ruta>` no vuelve a mostrar menú de paths
 2. abre directamente el menú de herramientas sobre esa ruta
 3. `phpcs`, `phpcbf`, `phpmd`, `phpcompat` y `phpstan` usan la ruta seleccionada
 4. `test PR` sobre `--path` ejecuta los checks PR solo sobre esa ruta
 
 Subcomandos directos expuestos actualmente:
 
-1. `warp scan phpcs --path <ruta>`
-2. `warp scan phpcbf --path <ruta>`
-3. `warp scan phpmd --path <ruta>`
-4. `warp scan phpcompat --path <ruta>`
-5. `warp scan phpstan`
-6. `warp scan phpstan --path <ruta>`
-7. `warp scan phpstan --level <n>`
-8. `warp scan phpstan --level <n> --path <ruta>`
+1. `warp audit phpcs --path <ruta>`
+2. `warp audit phpcbf --path <ruta>`
+3. `warp audit phpmd --path <ruta>`
+4. `warp audit phpcompat --path <ruta>`
+5. `warp audit risky --path <ruta>`
+6. `warp audit phpstan`
+7. `warp audit phpstan --path <ruta>`
+8. `warp audit phpstan --level <n>`
+9. `warp audit phpstan --level <n> --path <ruta>`
 
 ### Resultado esperado
 
-Con esta extensión, `warp scan` gana dos chequeos nuevos de valor real:
+Con esta extensión, `warp audit` gana tres chequeos nuevos de valor real:
 
 1. `phpcompat` para compatibilidad de versión de PHP
 2. `phpstan` para análisis estático y bugs probables

@@ -40,15 +40,21 @@ No existe fallback estandar a Redis/Valkey externo.
 
 ## 2.3 Elasticsearch
 
-`warp search` (alias `warp elasticsearch`/`warp opensearch`) hoy depende de:
+`warp search` (alias `warp elasticsearch`/`warp opensearch`) ya soporta modo externo con contexto canonico:
 
-1. servicio en compose (`elasticsearch`),
-2. contenedores corriendo,
-3. accesos via `docker-compose exec` y `localhost:<puerto mapeado>`.
+1. detecta si faltan servicios `elasticsearch|opensearch` en compose,
+2. si `SEARCH_*` no esta configurado, puede preguntar si el servicio es externo,
+3. intenta bootstrap desde `app/etc/env.php`,
+4. persiste en `.env` (`SEARCH_MODE`, `SEARCH_ENGINE`, `SEARCH_SCHEME`, `SEARCH_HOST`, `SEARCH_PORT`, `SEARCH_USER`, `SEARCH_PASSWORD`),
+5. opera `info`/`flush` contra HTTP externo y bloquea `ssh`/`switch`.
 
-No existe fallback estandar a OpenSearch/Elasticsearch externo.
+El bootstrap desde `app/etc/env.php` prioriza:
 
-Nota: el naming canónico ya migro a `search`, pero la logica operativa sigue en backend local (`.warp/bin/elasticsearch.sh`), sin fallback external aplicado todavia.
+1. `system.default.smile_elasticsuite_core_base_settings.es_client.*`,
+2. `system.default.catalog.search.opensearch_*`,
+3. `system.default.catalog.search.elasticsearch7_*`.
+
+También soporta endpoints en formato `host:port` o `scheme://host:port`.
 
 ## 2.4 PHP/Magento/Telemetry en modo host
 
@@ -128,16 +134,18 @@ Canonico:
 
 1. `CACHE_MODE=local|external`
 2. `CACHE_ENGINE=redis|valkey`
-3. `CACHE_SCOPE=cache|session|fpc|remote`
+3. `CACHE_SCOPE=cache|session|fpc`
 
-Conexion (scope inicial simple):
+Conexion externa por scope:
 
-1. `CACHE_HOST`
-2. `CACHE_PORT`
-3. `CACHE_USER` (opcional, ACL)
-4. `CACHE_PASSWORD` (opcional)
+1. `CACHE_CACHE_HOST`, `CACHE_CACHE_PORT`, `CACHE_CACHE_DB`, `CACHE_CACHE_USER`, `CACHE_CACHE_PASSWORD`
+2. `CACHE_FPC_HOST`, `CACHE_FPC_PORT`, `CACHE_FPC_DB`, `CACHE_FPC_USER`, `CACHE_FPC_PASSWORD`
+3. `CACHE_SESSION_HOST`, `CACHE_SESSION_PORT`, `CACHE_SESSION_DB`, `CACHE_SESSION_USER`, `CACHE_SESSION_PASSWORD`
 
-Decision actual: para externo usar un unico endpoint (`CACHE_HOST/CACHE_PORT/CACHE_PASSWORD`), no 3 endpoints.
+Compatibilidad:
+
+1. `CACHE_HOST`, `CACHE_PORT`, `CACHE_USER`, `CACHE_PASSWORD` se mantienen como fallback legacy del scope `cache`.
+2. Si el proyecto usa un solo Redis remoto, Warp simplemente repite host/port/credenciales y cambia `*_DB` por scope.
 
 ## 6.3 Elastic/OpenSearch (nuevo)
 
@@ -195,8 +203,10 @@ Conexion:
 Estado actual:
 
 1. `cache.sh` enruta external/local por contexto.
-2. `cache flush` external usa confirmacion explicita `y|Y`.
-3. `cache ssh` external se bloquea con mensaje de uso alternativo.
+2. `cache` external resuelve endpoints separados para `cache`, `fpc` y `session`.
+3. `cache flush` external usa confirmacion explicita `y|Y` y `FLUSHDB` sobre la DB del scope seleccionado.
+4. `cache ssh` external se bloquea con mensaje de uso alternativo.
+5. si falta config `CACHE_*`, intenta bootstrapear desde `app/etc/env.php`.
 
 ## Fase C (fallback runtime search) - en progreso
 
@@ -209,15 +219,18 @@ Estado actual:
 1. `search.sh` enruta external/local por contexto.
 2. `search flush` external usa confirmacion explicita `y|Y` y bloquea `--force`.
 3. `search ssh` y `search switch` en external se bloquean por politica.
+4. si falta config `SEARCH_*`, intenta autocompletarla desde `app/etc/env.php` antes de pedir datos manuales.
 
 ## 11) Checklist tecnica siguiente iteracion
 
 1. `cache info` external: conectividad real (`PING`) y version de servidor ya implementadas.
-2. `cache cli/monitor` external: soporte de `CACHE_USER`/`CACHE_PASSWORD` implementado (compatibilidad ACL basica).
+2. `cache cli/monitor` external: soporte de ACL y DB por scope implementado.
 3. `search info` external: health por `GET /` y `GET /_cluster/health` implementado.
 4. `search flush` external: parseo HTTP/errores JSON robusto implementado (incluye `index_not_found_exception`).
-5. mover gradualmente logica legacy de `redis.sh`/`elasticsearch.sh` al canónico para reducir duplicacion.
-6. agregar smoke de runtime external controlado (fixtures `.env` con `CACHE_MODE=external` y `SEARCH_MODE=external`).
+5. `cache` external: bootstrap desde `app/etc/env.php` implementado con `cache/default`, `page_cache` y `session.redis`.
+6. `search` external: bootstrap desde `app/etc/env.php` implementado con soporte `host:port`.
+7. mover gradualmente logica legacy de `redis.sh`/`elasticsearch.sh` al canónico para reducir duplicacion.
+8. agregar smoke de runtime external controlado (fixtures `.env` con `CACHE_MODE=external` y `SEARCH_MODE=external`).
 
 ## 12) Apendice: Hallazgos y Propuestas
 

@@ -28,6 +28,11 @@ function mysql_help_usage()
 
     warp_message ""
     warp_message_info "Help:"
+    warp_message " if mysql service is missing in docker-compose, Warp can switch the project to external DB mode"
+    warp_message " after confirmation. It tries app/etc/env.php first and then persists MYSQL_VERSION=rds plus DATABASE_*"
+    warp_message " values in .env for subsequent runs."
+    warp_message " in external mode, connect / dump / tuner use the external host and import only prints the manual command."
+    warp_message ""
     warp_message " warp db dump --help"
 
     warp_message ""
@@ -45,6 +50,8 @@ function mysql_tuner_help()
     warp_message_info "Help:"
     warp_message " Download mysqltuner.pl to ./var (or /tmp) if needed, ensure perl is available,"
     warp_message " and run MySQLTuner using current project database connection."
+    warp_message " in external mode it uses DATABASE_HOST / DATABASE_BINDED_PORT / DATABASE_USER / DATABASE_PASSWORD"
+    warp_message " from .env instead of docker exec mysql."
     warp_message " By default log scan output is hidden. Use -vvv to include log details."
     warp_message ""
 
@@ -66,6 +73,8 @@ function mysql_import_help()
     warp_message ""
     warp_message_info "Help:"
     warp_message " Allow to recover a database inside the container, indicating a path of your local machine"
+    warp_message " in external mode (MYSQL_VERSION=rds) Warp does not execute import against the remote server;"
+    warp_message " it prints the suggested mysql command so you can run it manually with the target credentials."
     warp_message ""
 
     warp_message_info "Example:"
@@ -95,6 +104,8 @@ function mysql_dump_help()
     warp_message_info "Help:"
     warp_message " Create a backup of a database and save it local machine"
     warp_message " if needed, use -s / --strip-definers to remove DEFINER clauses from the streamed dump output"
+    warp_message " in external mode, dump runs against DATABASE_HOST / DATABASE_BINDED_PORT / DATABASE_USER / DATABASE_PASSWORD"
+    warp_message " from .env using local SQL client tools."
     warp_message ""
 
     warp_message_info "Example:"
@@ -117,7 +128,9 @@ function mysql_connect_help()
 
     warp_message ""
     warp_message_info "Help:"
-    warp_message " Connect to mysql command line "
+    warp_message " Connect to mysql command line"
+    warp_message " if mysql service is missing and you confirm external DB, Warp persists MYSQL_VERSION=rds plus DATABASE_*"
+    warp_message " values in .env and next runs connect against that external host using local SQL client tools."
     warp_message ""
 
     warp_message_info "Example:"
