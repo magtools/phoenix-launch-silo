@@ -40,10 +40,83 @@ security_known_paths_file() {
     echo "$PROJECTPATH/.known-paths"
 }
 
+security_known_files_file() {
+    echo "$PROJECTPATH/.known-files"
+}
+
+security_known_findings_file() {
+    echo "$PROJECTPATH/.known-findings"
+}
+
+security_known_metadata_bootstrap() {
+    local _paths_file=""
+    local _files_file=""
+    local _findings_file=""
+
+    _paths_file="$(security_known_paths_file)"
+    if [ ! -f "$_paths_file" ]; then
+        cat > "$_paths_file" <<'EOF'
+# Expected relative paths, one per line.
+# Used to soften untracked drift only.
+# Presence here never whitelists dangerous content.
+#
+# Examples:
+# pub/.well-known
+# pub/media/tmp
+EOF
+    fi
+
+    _files_file="$(security_known_files_file)"
+    if [ ! -f "$_files_file" ]; then
+        cat > "$_files_file" <<'EOF'
+# Expected relative files, one per line.
+# Used for project-known files that should not count as unexpected PHP by themselves.
+# Modified files can still be reported separately.
+pub/cron.php
+pub/get.php
+pub/health_check.php
+pub/index.php
+pub/static.php
+EOF
+    fi
+
+    _findings_file="$(security_known_findings_file)"
+    if [ ! -f "$_findings_file" ]; then
+        cat > "$_findings_file" <<'EOF'
+# Expected findings, one per line.
+# Format: path|indicator|class
+# Example:
+# pub/errors/processor.php|$_POST|risky primitive
+EOF
+    fi
+}
+
 security_known_paths_list() {
     local _file
 
     _file="$(security_known_paths_file)"
+    if [ ! -f "$_file" ]; then
+        return 0
+    fi
+
+    sed -e 's/#.*$//' -e 's/[[:space:]]*$//' -e '/^[[:space:]]*$/d' "$_file"
+}
+
+security_known_files_list() {
+    local _file
+
+    _file="$(security_known_files_file)"
+    if [ ! -f "$_file" ]; then
+        return 0
+    fi
+
+    sed -e 's/#.*$//' -e 's/[[:space:]]*$//' -e '/^[[:space:]]*$/d' "$_file"
+}
+
+security_known_findings_list() {
+    local _file
+
+    _file="$(security_known_findings_file)"
     if [ ! -f "$_file" ]; then
         return 0
     fi
@@ -63,6 +136,42 @@ security_path_is_known() {
                 ;;
         esac
     done < <(security_known_paths_list)
+
+    return 1
+}
+
+security_file_is_known() {
+    local _path="$1"
+    local _known=""
+
+    while IFS= read -r _known; do
+        [ -n "$_known" ] || continue
+        [ "$_path" = "$_known" ] && return 0
+    done < <(security_known_files_list)
+
+    return 1
+}
+
+security_finding_is_known() {
+    local _path="$1"
+    local _indicator="$2"
+    local _class="$3"
+    local _entry=""
+    local _known_path=""
+    local _known_indicator=""
+    local _known_class=""
+
+    while IFS= read -r _entry; do
+        [ -n "$_entry" ] || continue
+        IFS='|' read -r _known_path _known_indicator _known_class <<EOF
+$_entry
+EOF
+        [ -n "$_known_path" ] || continue
+        [ "$_path" = "$_known_path" ] || continue
+        [ "$_indicator" = "$_known_indicator" ] || continue
+        [ "$_class" = "$_known_class" ] || continue
+        return 0
+    done < <(security_known_findings_list)
 
     return 1
 }
@@ -289,6 +398,8 @@ security_find_named_and_search() {
 }
 
 security_known_paths_usage() {
+    security_known_metadata_bootstrap
+
     if [ -f "$PROJECTPATH/.known-paths" ]; then
         warp_message ".known-paths:"
         sed 's/^/  /' "$PROJECTPATH/.known-paths"
@@ -298,6 +409,22 @@ security_known_paths_usage() {
         warp_message "  create .known-paths with one relative path per line, for example:"
         warp_message "  pub/.well-known"
         warp_message "  pub/media/tmp"
+    fi
+    warp_message ""
+    if [ -f "$PROJECTPATH/.known-files" ]; then
+        warp_message ".known-files:"
+        sed 's/^/  /' "$PROJECTPATH/.known-files"
+    else
+        warp_message ".known-files:"
+        warp_message "  (file not found)"
+    fi
+    warp_message ""
+    if [ -f "$PROJECTPATH/.known-findings" ]; then
+        warp_message ".known-findings:"
+        sed 's/^/  /' "$PROJECTPATH/.known-findings"
+    else
+        warp_message ".known-findings:"
+        warp_message "  (file not found)"
     fi
     warp_message ""
 }
@@ -546,6 +673,16 @@ security_toolkit_collect_from_log() {
 
     if awk '
         BEGIN { in_section=0; has_findings=0 }
+        /^\[CORE_PUB_ENTRYPOINTS\]$/ { in_section=1; has_findings=0; next }
+        /^\[/ && $0 != "[CORE_PUB_ENTRYPOINTS]" { in_section=0 }
+        in_section && $0 !~ /^(discovery:|cleanup:|No findings\.|=+|$)/ { has_findings=1 }
+        END { exit(has_findings ? 0 : 1) }
+    ' "$_log_file"; then
+        printf '%s\n' "webshell"
+    fi
+
+    if awk '
+        BEGIN { in_section=0; has_findings=0 }
         /^\[PHP_IN_PUB\]$/ { in_section=1; has_findings=0; next }
         /^\[/ && $0 != "[PHP_IN_PUB]" { in_section=0 }
         in_section && $0 !~ /^(discovery:|cleanup:|No findings\.|=+|$)/ { has_findings=1 }
@@ -578,7 +715,7 @@ security_toolkit_collect_from_log() {
         BEGIN { in_section=0; found=0 }
         /^\[KNOWN_IOC\]$/ { in_section=1; next }
         /^\[/ && $0 != "[KNOWN_IOC]" { in_section=0 }
-        in_section && $0 !~ /^(discovery:|cleanup:|No findings\.|=+|$)/ && /RTCPeerConnection|new Function\(event\.data\)|event\.data/ { found=1 }
+        in_section && $0 !~ /^(discovery:|cleanup:|No findings\.|=+|$)/ && /RTCPeerConnection|new Function\(event\.data\)/ { found=1 }
         END { exit(found ? 0 : 1) }
     ' "$_log_file"; then
         printf '%s\n' "skimmer"
@@ -797,6 +934,53 @@ security_scan_fast_git() {
     done < <(git status --porcelain --untracked-files=all -- pub app bin generated 2>/dev/null)
 }
 
+security_scan_fast_php_in_pub() {
+    local _found=""
+    local _path=""
+
+    while IFS= read -r _path; do
+        [ -n "$_path" ] || continue
+        _path="${_path#$PROJECTPATH/}"
+        security_file_is_known "$_path" && continue
+        _found="$_path"
+        break
+    done < <(find "$PROJECTPATH/pub" \
+        -path "$PROJECTPATH/pub/errors" -prune -o \
+        -type f \( -name '*.php' -o -name '*.phtml' -o -name '*.phar' \) \
+        -print 2>/dev/null)
+
+    [ -n "$_found" ] || return 0
+
+    WARP_SECURITY_SCAN_CODE=$((WARP_SECURITY_SCAN_CODE + 1))
+    WARP_SECURITY_SCAN_FINDINGS=$((WARP_SECURITY_SCAN_FINDINGS + 1))
+    WARP_SECURITY_SCAN_SCORE=$((WARP_SECURITY_SCAN_SCORE + 20))
+    security_append_screen_family "webshell"
+    return 0
+}
+
+security_scan_fast_core_pub_entrypoints() {
+    local _line=""
+    local _file_args=()
+
+    while IFS= read -r _line; do
+        [ -n "$_line" ] || continue
+        _file_args+=("$_line")
+    done < <(security_known_files_list)
+
+    [ "${#_file_args[@]}" -gt 0 ] || return 0
+
+    while IFS= read -r _line; do
+        [ -n "$_line" ] || continue
+        WARP_SECURITY_SCAN_CODE=$((WARP_SECURITY_SCAN_CODE + 1))
+        WARP_SECURITY_SCAN_FINDINGS=$((WARP_SECURITY_SCAN_FINDINGS + 1))
+        WARP_SECURITY_SCAN_SCORE=$((WARP_SECURITY_SCAN_SCORE + 10))
+        security_append_screen_family "review"
+        return 0
+    done < <(git status --porcelain --untracked-files=all -- "${_file_args[@]}" 2>/dev/null)
+
+    return 0
+}
+
 security_scan_fast_code() {
     local _line=""
     local _path=""
@@ -810,6 +994,7 @@ security_scan_fast_code() {
         [ -n "$_path" ] || continue
         _indicator="$(security_scan_indicator_for_match "$_line")"
         _class="$(security_scan_class_for_match "$_line")"
+        security_finding_is_known "$_path" "$_indicator" "$_class" && continue
 
         WARP_SECURITY_SCAN_CODE=$((WARP_SECURITY_SCAN_CODE + 1))
         WARP_SECURITY_SCAN_FINDINGS=$((WARP_SECURITY_SCAN_FINDINGS + 1))
@@ -846,6 +1031,7 @@ security_scan_fast_js() {
         [ -n "$_path" ] || continue
         _indicator="$(security_scan_indicator_for_match "$_line")"
         _class="$(security_scan_class_for_match "$_line")"
+        security_finding_is_known "$_path" "$_indicator" "$_class" && continue
 
         WARP_SECURITY_SCAN_CODE=$((WARP_SECURITY_SCAN_CODE + 1))
         WARP_SECURITY_SCAN_FINDINGS=$((WARP_SECURITY_SCAN_FINDINGS + 1))
@@ -951,6 +1137,22 @@ security_scan_should_ignore_known_js_library_match() {
     return 1
 }
 
+security_scan_should_ignore_known_ioc_path() {
+    local _line="$1"
+    local _path=""
+
+    _path="${_line%%:*}"
+    [ -n "$_path" ] || return 1
+
+    case "$_path" in
+        */node_modules/*|var/log/*|var/hyva*/*)
+            return 0
+            ;;
+    esac
+
+    return 1
+}
+
 security_scan_append_attention() {
     local _entry="$1"
 
@@ -1029,6 +1231,10 @@ security_scan_attention_paths_total() {
     printf '%s\n' "$WARP_SECURITY_SCAN_PATHS" | sed '/^$/d' | sort -u | wc -l | awk '{print $1}'
 }
 
+security_known_references_note() {
+    warp_message " known refs: .known-paths .known-files .known-findings"
+}
+
 security_scan_main() {
     local _suspicion=""
     local _path=""
@@ -1041,6 +1247,7 @@ security_scan_main() {
         return 0
     fi
 
+    security_known_metadata_bootstrap
     WARP_SECURITY_SCAN_FINDINGS=0
     WARP_SECURITY_SCAN_DRIFT=0
     WARP_SECURITY_SCAN_CODE=0
@@ -1052,6 +1259,8 @@ security_scan_main() {
 
     security_warn_missing_rg_once
     security_step_run "Checking git drift..." security_scan_fast_git || return 1
+    security_step_run "Checking PHP in pub..." security_scan_fast_php_in_pub || return 1
+    security_step_run "Checking core pub entrypoints..." security_scan_fast_core_pub_entrypoints || return 1
     security_step_run "Checking risky PHP primitives..." security_scan_fast_code || return 1
     security_step_run "Checking JS skimmer signals..." security_scan_fast_js || return 1
 
@@ -1064,6 +1273,7 @@ security_scan_main() {
     warp_message " score: $WARP_SECURITY_SCAN_SCORE"
     warp_message " drift signals: $WARP_SECURITY_SCAN_DRIFT"
     warp_message " code signals: $WARP_SECURITY_SCAN_CODE"
+    security_known_references_note
 
     if [ "$WARP_SECURITY_SCAN_FINDINGS" -gt 0 ]; then
         warp_message " attention paths:"
@@ -1138,16 +1348,58 @@ security_scan_php_in_pub() {
     security_finish_section_empty_if_needed
 }
 
+security_scan_core_pub_entrypoints() {
+    local _line=""
+    local _status=""
+    local _path=""
+    local _discover='git status --porcelain --untracked-files=all -- $(cat .known-files)'
+    local _cleanup='git diff -- $(cat .known-files)'
+    local _file_args=()
+
+    WARP_SECURITY_SECTION_FINDINGS=0
+    security_log_section_begin "CORE_PUB_ENTRYPOINTS" "$_discover" "$_cleanup"
+
+    while IFS= read -r _line; do
+        [ -n "$_line" ] || continue
+        _file_args+=("$_line")
+    done < <(security_known_files_list)
+
+    [ "${#_file_args[@]}" -gt 0 ] || {
+        security_finish_section_empty_if_needed
+        return 0
+    }
+
+    while IFS= read -r _line; do
+        [ -n "$_line" ] || continue
+        _status="${_line:0:2}"
+        _path="${_line:3}"
+        [ -n "$_path" ] || continue
+        WARP_SECURITY_SECTION_FINDINGS=$((WARP_SECURITY_SECTION_FINDINGS + 1))
+        security_add_score 20
+        security_record_finding "${_status} ${_path}" "webshell"
+    done < <(git status --porcelain --untracked-files=all -- "${_file_args[@]}" 2>/dev/null)
+
+    security_finish_section_empty_if_needed
+}
+
 security_scan_php_markers_in_pub() {
     local _discover='grep -RInE "<\?php|base64_decode\(|passthru\(|system\(|shell_exec\(|assert\(|proc_open\(" pub/media pub/opt'
     local _cleanup='mkdir -p var/quarantine && mv <suspicious-file> var/quarantine/'
     local _line=""
+    local _path=""
+    local _indicator=""
+    local _class=""
 
     WARP_SECURITY_SECTION_FINDINGS=0
     security_log_section_begin "PHP_MARKERS_IN_UPLOADS" "$_discover" "$_cleanup"
 
     while IFS= read -r _line; do
         [ -n "$_line" ] || continue
+        _path="${_line%%:*}"
+        [ -n "$_path" ] || continue
+        _indicator="$(security_scan_indicator_for_match "$_line")"
+        _class="$(security_scan_class_for_match "$_line")"
+        security_finding_is_known "$_path" "$_indicator" "$_class" && continue
         WARP_SECURITY_SECTION_FINDINGS=$((WARP_SECURITY_SECTION_FINDINGS + 1))
         security_add_score 15
         security_record_finding "$_line" "webshell"
@@ -1157,9 +1409,12 @@ security_scan_php_markers_in_pub() {
 }
 
 security_scan_js_skimmer() {
-    local _discover='grep -RInE "RTCPeerConnection|createDataChannel|new WebSocket|wss://|event\.data|new Function\(event\.data\)" app pub'
+    local _discover='grep -RInE "RTCPeerConnection|createDataChannel|new WebSocket|wss://|new Function\(event\.data\)" app pub'
     local _cleanup='restore known-good JS/template content before removing suspicious snippets'
     local _line=""
+    local _path=""
+    local _indicator=""
+    local _class=""
 
     WARP_SECURITY_SECTION_FINDINGS=0
     security_log_section_begin "JS_SKIMMER" "$_discover" "$_cleanup"
@@ -1167,25 +1422,39 @@ security_scan_js_skimmer() {
     while IFS= read -r _line; do
         [ -n "$_line" ] || continue
         security_scan_should_ignore_known_js_library_match "$_line" && continue
+        _path="${_line%%:*}"
+        [ -n "$_path" ] || continue
+        _indicator="$(security_scan_indicator_for_match "$_line")"
+        _class="$(security_scan_class_for_match "$_line")"
+        security_finding_is_known "$_path" "$_indicator" "$_class" && continue
         WARP_SECURITY_SECTION_FINDINGS=$((WARP_SECURITY_SECTION_FINDINGS + 1))
         security_add_score 20
         security_record_finding "$_line" "skimmer"
-    done < <(security_search_tree 'RTCPeerConnection|createDataChannel|new WebSocket|wss://|event\.data|new Function\(event\.data\)' "$PROJECTPATH/app" "$PROJECTPATH/pub" | sed "s#^$PROJECTPATH/##")
+    done < <(security_search_tree 'RTCPeerConnection|createDataChannel|new WebSocket|wss://|new Function\(event\.data\)' "$PROJECTPATH/app" "$PROJECTPATH/pub" | sed "s#^$PROJECTPATH/##")
 
     security_finish_section_empty_if_needed
 }
 
 security_scan_known_ioc() {
-    local _discover='grep -RInE '\''md5\(\$_COOKIE\["d"\]\)|md5\(\$_COOKIE\['\''d'\''\]\)|new Function\(event\.data\)|preg_replace\s*\(.*/e|create_function\(|hash_equals\(md5\(|\$_REQUEST\["password"\]'\'' app pub var generated'
+    local _discover='grep -RInE '\''md5\(\$_COOKIE\["d"\]\)|md5\(\$_COOKIE\['\''d'\''\]\)|new Function\(event\.data\)|preg_replace\s*\(.*/e|(^|[^[:alnum:]_])create_function\s*\(|hash_equals\(md5\(|\$_REQUEST\["password"\]'\'' app pub var generated'
     local _cleanup='mkdir -p var/quarantine && mv <suspicious-file> var/quarantine/'
     local _line=""
     local _family=""
+    local _path=""
+    local _indicator=""
+    local _class=""
 
     WARP_SECURITY_SECTION_FINDINGS=0
     security_log_section_begin "KNOWN_IOC" "$_discover" "$_cleanup"
 
     while IFS= read -r _line; do
         [ -n "$_line" ] || continue
+        security_scan_should_ignore_known_ioc_path "$_line" && continue
+        _path="${_line%%:*}"
+        [ -n "$_path" ] || continue
+        _indicator="$(security_scan_indicator_for_match "$_line")"
+        _class="$(security_scan_class_for_match "$_line")"
+        security_finding_is_known "$_path" "$_indicator" "$_class" && continue
         _family="webshell"
         case "$_line" in
             *RTCPeerConnection*|*new\ Function*|*event.data*)
@@ -1198,7 +1467,7 @@ security_scan_known_ioc() {
         esac
         WARP_SECURITY_SECTION_FINDINGS=$((WARP_SECURITY_SECTION_FINDINGS + 1))
         security_record_finding "$_line" "$_family"
-    done < <(security_search_tree 'md5\(\$_COOKIE\["d"\]\)|md5\(\$_COOKIE\['"'"'d'"'"'\]\)|new Function\(event\.data\)|preg_replace\s*\(.*/e|create_function\(|hash_equals\(md5\(|\$_REQUEST\["password"\]' "$PROJECTPATH/app" "$PROJECTPATH/pub" "$PROJECTPATH/var" "$PROJECTPATH/generated" | sed "s#^$PROJECTPATH/##")
+    done < <(security_search_tree 'md5\(\$_COOKIE\["d"\]\)|md5\(\$_COOKIE\['"'"'d'"'"'\]\)|new Function\(event\.data\)|preg_replace\s*\(.*/e|(^|[^[:alnum:]_])create_function\s*\(|hash_equals\(md5\(|\$_REQUEST\["password"\]' "$PROJECTPATH/app" "$PROJECTPATH/pub" "$PROJECTPATH/var" "$PROJECTPATH/generated" | sed "s#^$PROJECTPATH/##")
 
     security_finish_section_empty_if_needed
 }
@@ -1250,12 +1519,14 @@ security_scan_host_persistence() {
     local _cleanup='crontab -e ; kill -9 <pid> ; mv <artifact> var/quarantine/'
     local _line=""
     local _path=""
+    local _host_correlated=0
 
     WARP_SECURITY_SECTION_FINDINGS=0
     security_log_section_begin "HOST_PERSISTENCE" "$_discover" "$_cleanup"
 
     while IFS= read -r _line; do
         [ -n "$_line" ] || continue
+        _host_correlated=1
         WARP_SECURITY_SECTION_FINDINGS=$((WARP_SECURITY_SECTION_FINDINGS + 1))
         security_add_score 25
         security_record_finding "crontab: $_line" "cosmicsting"
@@ -1263,6 +1534,7 @@ security_scan_host_persistence() {
 
     while IFS= read -r _path; do
         [ -n "$_path" ] || continue
+        _host_correlated=1
         WARP_SECURITY_SECTION_FINDINGS=$((WARP_SECURITY_SECTION_FINDINGS + 1))
         security_add_score 25
         security_record_finding "artifact: ${_path#$HOME/}" "cosmicsting"
@@ -1270,9 +1542,20 @@ security_scan_host_persistence() {
 
     while IFS= read -r _line; do
         [ -n "$_line" ] || continue
-        WARP_SECURITY_SECTION_FINDINGS=$((WARP_SECURITY_SECTION_FINDINGS + 1))
-        security_add_score 25
-        security_record_finding "process: $_line" "cosmicsting"
+        case "$_line" in
+            *gsocket*|*defunct*)
+                WARP_SECURITY_SECTION_FINDINGS=$((WARP_SECURITY_SECTION_FINDINGS + 1))
+                security_add_score 25
+                security_record_finding "process: $_line" "cosmicsting"
+                ;;
+            *"[raid5wq]"*|*"[kswapd0]"*)
+                if [ "$_host_correlated" -eq 1 ]; then
+                    WARP_SECURITY_SECTION_FINDINGS=$((WARP_SECURITY_SECTION_FINDINGS + 1))
+                    security_add_score 25
+                    security_record_finding "process: $_line" "cosmicsting"
+                fi
+                ;;
+        esac
     done < <(ps auxww 2>/dev/null | awk 'BEGIN{IGNORECASE=1} /(\[raid5wq\]|\[kswapd0\]|defunct|gsocket)/ && $0 !~ /awk/ {print}')
 
     security_finish_section_empty_if_needed
@@ -1294,6 +1577,7 @@ security_check_main() {
     mkdir -p "$PROJECTPATH/var/log"
     : > "$_log_file"
 
+    security_known_metadata_bootstrap
     WARP_SECURITY_FINDINGS=0
     WARP_SECURITY_FAMILIES=""
     WARP_SECURITY_SECTION_FINDINGS=0
@@ -1302,6 +1586,7 @@ security_check_main() {
 
     security_warn_missing_rg_once
     security_step_run "Checking pub drift..." security_scan_git_pub_drift || return 1
+    security_step_run "Checking core pub entrypoints..." security_scan_core_pub_entrypoints || return 1
     security_step_run "Checking PHP in pub..." security_scan_php_in_pub || return 1
     security_step_run "Checking PHP markers in uploads..." security_scan_php_markers_in_pub || return 1
     security_step_run "Checking JS skimmer signals..." security_scan_js_skimmer || return 1
@@ -1329,6 +1614,7 @@ security_check_main() {
             warp_message " toolkit: warp security toolkit --family ${_families_display%% *}"
         fi
     fi
+    security_known_references_note
     warp_message " log: var/log/warp-security.log"
     [ -n "$_archive_log" ] && warp_message " archive: $_archive_log"
     warp_message ""

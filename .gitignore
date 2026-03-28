@@ -16,3 +16,4 @@ dist/*
 /deploy
 /.codex/config.toml
 /var
+.known-*

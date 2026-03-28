@@ -19,13 +19,16 @@ security_help_usage() {
 
     warp_message_info "Help:"
     warp_message " security is a Magento/PHP-focused intrusion triage entrypoint."
-    warp_message " scan is the quick pass: broad git/code heuristics, short summary, no detailed log."
+    warp_message " scan is the quick pass: broad git/code heuristics, a fast PHP-in-pub check excluding pub/errors and files listed in .known-files, plus a drift check for those known files."
     warp_message " scan and check both report a derived score/severity plus an operational status line."
     warp_message " check runs non-destructive scans over pub/, JS skimmer signals, IOC signatures, access logs and basic host persistence indicators."
     warp_message " check prints a short summary on screen, writes var/log/warp-security.log and also keeps a timestamped copy."
     warp_message " toolkit is available now and prints operator-run commands only."
     warp_message " cleanup commands shown by toolkit are informative/manual: Warp does not execute them."
+    warp_message " scan/check create .known-paths, .known-files and .known-findings if they do not exist."
     warp_message " known untracked paths can be documented in .known-paths, one relative path per line."
+    warp_message " known project files can be documented in .known-files, one relative file per line."
+    warp_message " known findings can be documented in .known-findings as path|indicator|class."
     warp_message ""
 
     warp_message_info "Examples:"
