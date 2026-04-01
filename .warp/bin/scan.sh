@@ -122,6 +122,10 @@ scan_should_ignore_risky_line() {
         \**) return 0 ;;
     esac
 
+    case "$_content" in
+        *"// audit:ignore"*) return 0 ;;
+    esac
+
     return 1
 }
 
