@@ -42,10 +42,12 @@ warp_source_optional_marked() {
 warp_source_optional_glob() {
     local _warp_glob_dir="$1"
     local _warp_glob_pattern="$2"
+    local _warp_skip_file="${3:-}"
     local _warp_glob_file=""
 
     for _warp_glob_file in "$_warp_glob_dir"/$_warp_glob_pattern; do
         [ -e "$_warp_glob_file" ] || continue
+        [ -n "$_warp_skip_file" ] && [ "$(basename "$_warp_glob_file")" = "$_warp_skip_file" ] && continue
         [ "${WARP_LOADED_FILES["$_warp_glob_file"]+set}" = "set" ] && continue
         warp_source_optional_marked "$_warp_glob_file" || return 1
     done
@@ -63,6 +65,7 @@ warp_source_required_marked "$WARPFOLDER/lib/banner.sh" || return 1
 
 # Optional libs can evolve between Warp versions. Keep priority order only where
 # there are known dependencies, then autoload the rest tolerantly.
+# Exclude binary.sh because it is an executable helper script, not a library to source.
 warp_source_optional_marked "$WARPFOLDER/lib/version.sh" || return 1
 warp_source_optional_marked "$WARPFOLDER/lib/commit.sh" || return 1
 warp_source_optional_marked "$WARPFOLDER/lib/host.sh" || return 1
@@ -70,7 +73,7 @@ warp_source_optional_marked "$WARPFOLDER/lib/fallback.sh" || return 1
 warp_source_optional_marked "$WARPFOLDER/lib/service_version.sh" || return 1
 warp_source_optional_marked "$WARPFOLDER/lib/app_context.sh" || return 1
 warp_source_optional_marked "$WARPFOLDER/lib/service_context.sh" || return 1
-warp_source_optional_glob "$WARPFOLDER/lib" "*.sh" || return 1
+warp_source_optional_glob "$WARPFOLDER/lib" "*.sh" "binary.sh" || return 1
 
 # Commands are loaded tolerantly so a newer binary can self-repair an older
 # installed framework via `warp update` / `warp update --self`.
