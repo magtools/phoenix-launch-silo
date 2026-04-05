@@ -562,7 +562,7 @@ warp_checksum_file_sha256() {
 
 warp_fetch_latest_version() {
     warp_remote_base_url="https://raw.githubusercontent.com/magtools/phoenix-launch-silo/refs/heads/master/dist"
-    _fetch_output=$(curl --silent --show-error --fail --location "${warp_remote_base_url}/version.md" 2>&1)
+    _fetch_output=$(curl --silent --show-error --fail --location --connect-timeout 3 --max-time 3 "${warp_remote_base_url}/version.md" 2>&1)
     _fetch_status=$?
 
     if [ $_fetch_status -ne 0 ]; then
