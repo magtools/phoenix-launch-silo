@@ -29,6 +29,7 @@ function scan_help_usage()
     warp_message " Use WARP_SCAN_PHP_CONTAINER=<container_name> to force execution in a specific PHP container."
     warp_message " --pr and integrity/-i run without interactive menu."
     warp_message " integrity runs setup:di:compile, PR checks, risky primitive audit on app/code and phpstan level 1 on app/code."
+    warp_message " Risky audit inline ignore accepts audit:ignore anywhere inside an inline // comment."
     warp_message " Canonical command: warp audit"
     warp_message ""
 

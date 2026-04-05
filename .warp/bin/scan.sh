@@ -123,7 +123,7 @@ scan_should_ignore_risky_line() {
     esac
 
     case "$_content" in
-        *"// audit:ignore"*) return 0 ;;
+        *"//"*"audit:ignore"*) return 0 ;;
     esac
 
     return 1

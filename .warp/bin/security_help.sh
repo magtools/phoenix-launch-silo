@@ -29,6 +29,7 @@ security_help_usage() {
     warp_message " known untracked paths can be documented in .known-paths, one relative path per line."
     warp_message " known project files can be documented in .known-files, one relative file per line."
     warp_message " known findings can be documented in .known-findings as path|indicator|class."
+    warp_message " Inline ignore accepts audit:ignore anywhere inside an inline // comment."
     warp_message ""
 
     warp_message_info "Examples:"
