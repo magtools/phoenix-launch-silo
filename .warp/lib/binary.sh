@@ -7,3 +7,9 @@ chmod 775 "$WARP_BINARY_FILE"
 echo "#!/bin/bash +x" >> "$WARP_BINARY_FILE"
 echo "" >> "$WARP_BINARY_FILE"
 echo "bash ./warp \"\$@\"" >> "$WARP_BINARY_FILE"
+#!/bin/bash +x
+
+bash ./warp "$@"
+#!/bin/bash +x
+
+bash ./warp "$@"

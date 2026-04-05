@@ -1,58 +1,77 @@
 #!/bin/bash
 
-# INCLUDE WARP FRAMEWORK
-[ -f "$WARPFOLDER/lib/version.sh" ] && . "$WARPFOLDER/lib/version.sh"
-[ -f "$WARPFOLDER/lib/commit.sh" ] && . "$WARPFOLDER/lib/commit.sh"
-. "$WARPFOLDER/lib/env.sh"
-. "$WARPFOLDER/lib/message.sh"
-. "$WARPFOLDER/lib/net.sh"
-. "$WARPFOLDER/lib/question.sh"
-. "$WARPFOLDER/lib/check.sh"
-. "$WARPFOLDER/lib/host.sh"
-. "$WARPFOLDER/lib/banner.sh"
-. "$WARPFOLDER/lib/fallback.sh"
-. "$WARPFOLDER/lib/service_version.sh"
-. "$WARPFOLDER/lib/app_context.sh"
-. "$WARPFOLDER/lib/service_context.sh"
+warp_source_required() {
+    local _warp_source_file="$1"
 
-# INCLUDE COMMANDS
-. "$WARPFOLDER/bin/mysql.sh"
-. "$WARPFOLDER/bin/db.sh"
-. "$WARPFOLDER/bin/start.sh"
-. "$WARPFOLDER/bin/stop.sh"
-. "$WARPFOLDER/bin/composer.sh"
-. "$WARPFOLDER/bin/reset.sh"
-. "$WARPFOLDER/bin/php.sh"
-. "$WARPFOLDER/bin/ps.sh"
-. "$WARPFOLDER/bin/magento.sh"
-. "$WARPFOLDER/bin/oro.sh"
-. "$WARPFOLDER/bin/logs.sh"
-. "$WARPFOLDER/bin/elasticsearch.sh"
-. "$WARPFOLDER/bin/search.sh"
-. "$WARPFOLDER/bin/selenium.sh"
-. "$WARPFOLDER/bin/restart.sh"
-. "$WARPFOLDER/bin/init.sh"
-. "$WARPFOLDER/bin/redis.sh"
-. "$WARPFOLDER/bin/cache.sh"
-. "$WARPFOLDER/bin/rabbit.sh"
-. "$WARPFOLDER/bin/webserver.sh"
-. "$WARPFOLDER/bin/npm.sh"
-. "$WARPFOLDER/bin/grunt.sh"
-. "$WARPFOLDER/bin/hyva.sh"
-. "$WARPFOLDER/bin/scan.sh"
-. "$WARPFOLDER/bin/security.sh"
-. "$WARPFOLDER/bin/memory.sh"
-. "$WARPFOLDER/bin/deploy.sh"
-. "$WARPFOLDER/bin/crontab.sh"
-. "$WARPFOLDER/bin/fix.sh"
-. "$WARPFOLDER/bin/mailhog.sh"
-. "$WARPFOLDER/bin/xdebug.sh"
-. "$WARPFOLDER/bin/ioncube.sh"
-. "$WARPFOLDER/bin/sync.sh"
-. "$WARPFOLDER/bin/docker.sh"
-. "$WARPFOLDER/bin/build.sh"
-. "$WARPFOLDER/bin/varnish.sh"
-. "$WARPFOLDER/bin/postgres.sh"
-. "$WARPFOLDER/bin/sandbox.sh"
-. "$WARPFOLDER/bin/volume.sh"
-. "$WARPFOLDER/bin/rsync.sh"
+    [ -f "$_warp_source_file" ] || {
+        echo >&2 "warp framework missing required file: $_warp_source_file"
+        return 1
+    }
+
+    . "$_warp_source_file"
+}
+
+warp_source_optional() {
+    local _warp_source_file="$1"
+
+    [ -f "$_warp_source_file" ] || return 0
+    . "$_warp_source_file"
+}
+
+warp_mark_loaded() {
+    local _warp_loaded_file="$1"
+
+    WARP_LOADED_FILES["$_warp_loaded_file"]=1
+}
+
+warp_source_required_marked() {
+    local _warp_source_file="$1"
+
+    warp_source_required "$_warp_source_file" || return 1
+    warp_mark_loaded "$_warp_source_file"
+}
+
+warp_source_optional_marked() {
+    local _warp_source_file="$1"
+
+    [ -f "$_warp_source_file" ] || return 0
+    warp_source_optional "$_warp_source_file" || return 1
+    warp_mark_loaded "$_warp_source_file"
+}
+
+warp_source_optional_glob() {
+    local _warp_glob_dir="$1"
+    local _warp_glob_pattern="$2"
+    local _warp_glob_file=""
+
+    for _warp_glob_file in "$_warp_glob_dir"/$_warp_glob_pattern; do
+        [ -e "$_warp_glob_file" ] || continue
+        [ "${WARP_LOADED_FILES["$_warp_glob_file"]+set}" = "set" ] && continue
+        warp_source_optional_marked "$_warp_glob_file" || return 1
+    done
+}
+
+declare -A WARP_LOADED_FILES=()
+
+# Minimal core required to consider .warp installed.
+warp_source_required_marked "$WARPFOLDER/lib/env.sh" || return 1
+warp_source_required_marked "$WARPFOLDER/lib/message.sh" || return 1
+warp_source_required_marked "$WARPFOLDER/lib/net.sh" || return 1
+warp_source_required_marked "$WARPFOLDER/lib/question.sh" || return 1
+warp_source_required_marked "$WARPFOLDER/lib/check.sh" || return 1
+warp_source_required_marked "$WARPFOLDER/lib/banner.sh" || return 1
+
+# Optional libs can evolve between Warp versions. Keep priority order only where
+# there are known dependencies, then autoload the rest tolerantly.
+warp_source_optional_marked "$WARPFOLDER/lib/version.sh" || return 1
+warp_source_optional_marked "$WARPFOLDER/lib/commit.sh" || return 1
+warp_source_optional_marked "$WARPFOLDER/lib/host.sh" || return 1
+warp_source_optional_marked "$WARPFOLDER/lib/fallback.sh" || return 1
+warp_source_optional_marked "$WARPFOLDER/lib/service_version.sh" || return 1
+warp_source_optional_marked "$WARPFOLDER/lib/app_context.sh" || return 1
+warp_source_optional_marked "$WARPFOLDER/lib/service_context.sh" || return 1
+warp_source_optional_glob "$WARPFOLDER/lib" "*.sh" || return 1
+
+# Commands are loaded tolerantly so a newer binary can self-repair an older
+# installed framework via `warp update` / `warp update --self`.
+warp_source_optional_glob "$WARPFOLDER/bin" "*.sh" || return 1

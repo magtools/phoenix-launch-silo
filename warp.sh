@@ -47,178 +47,178 @@ main () {
     case "$1" in
         init)
         shift 1
-        setup_main "$@"
+        warp_run_loaded_command setup_main "init" "$@"
         ;;
 
         db|mysql)
         shift 1
-        db_main "$@"
+        warp_run_loaded_command db_main "db" "$@"
         ;;
 
         postgres)
         shift 1
-        postgres_main "$@"
+        warp_run_loaded_command postgres_main "postgres" "$@"
         ;;
 
         php)
         shift 1
-        php_main "$@"
+        warp_run_loaded_command php_main "php" "$@"
         ;;
 
         start)
-        start_main "$@"
+        warp_run_loaded_command start_main "start" "$@"
         ;;
 
         fix)
-        fix_main "$@"
+        warp_run_loaded_command fix_main "fix" "$@"
         ;;
 
         xdebug)
         shift 1
-        xdebug_main "$@"
+        warp_run_loaded_command xdebug_main "xdebug" "$@"
         ;;
 
         volume)
         shift 1
-        volume_main "$@"
+        warp_run_loaded_command volume_main "volume" "$@"
         ;;
 
         ioncube)
         shift 1
-        ioncube_main "$@"
+        warp_run_loaded_command ioncube_main "ioncube" "$@"
         ;;
 
         restart)
-        restart_main "$@"
+        warp_run_loaded_command restart_main "restart" "$@"
         ;;
 
         stop)
-        stop_main "$@"
+        warp_run_loaded_command stop_main "stop" "$@"
         ;;
 
         ps)
-        ps_main "$@"
+        warp_run_loaded_command ps_main "ps" "$@"
         ;;
 
         info)
         shift 1
-        warp_info "$@"
+        warp_run_loaded_command warp_info "info" "$@"
         ;;
 
         composer)
-        composer_main "$@"
+        warp_run_loaded_command composer_main "composer" "$@"
         ;;
 
         magento)
-        magento_main "$@"
+        warp_run_loaded_command magento_main "magento" "$@"
         ;;
 
         ece-tools|ece-patches)
-        magento_main "$@"
+        warp_run_loaded_command magento_main "$1" "$@"
         ;;
 
         oro)
-        oro_main "$@"
+        warp_run_loaded_command oro_main "oro" "$@"
         ;;
 
         crontab)
-        crontab_main "$@"
+        warp_run_loaded_command crontab_main "crontab" "$@"
         ;;
 
         npm)
-        npm_main "$@"
+        warp_run_loaded_command npm_main "npm" "$@"
         ;;
 
         grunt)
-        grunt_main "$@"
+        warp_run_loaded_command grunt_main "grunt" "$@"
         ;;
 
         hyva)
         shift 1
-        hyva_main "$@"
+        warp_run_loaded_command hyva_main "hyva" "$@"
         ;;
 
         audit)
         shift 1
-        scan_main "$@"
+        warp_run_loaded_command scan_main "audit" "$@"
         exit $?
         ;;
 
         security)
         shift 1
-        security_main "$@"
+        warp_run_loaded_command security_main "security" "$@"
         exit $?
         ;;
 
         deploy)
         shift 1
-        deploy_main "$@"
+        warp_run_loaded_command deploy_main "deploy" "$@"
         ;;
 
         telemetry)
         shift 1
-        telemetry_main "$@"
+        warp_run_loaded_command telemetry_main "telemetry" "$@"
         ;;
 
         logs)
-        logs_main "$@"
+        warp_run_loaded_command logs_main "logs" "$@"
         ;;
 
         docker)
-        docker_main "$@"
+        warp_run_loaded_command docker_main "docker" "$@"
         ;;
 
         build)
-        build_main "$@"
+        warp_run_loaded_command build_main "build" "$@"
         ;;
 
         search|elasticsearch|opensearch)
         shift 1
-        search_main "$@"
+        warp_run_loaded_command search_main "$ORIGINAL_COMMAND" "$@"
         ;;
 
         varnish)
         shift 1
-        varnish_main "$@"
+        warp_run_loaded_command varnish_main "varnish" "$@"
         ;;
 
         cache|redis|valkey)
         shift 1
-        cache_main "$@"
+        warp_run_loaded_command cache_main "$ORIGINAL_COMMAND" "$@"
         ;;
 
         sync)
         shift 1
-        sync_main "$@"
+        warp_run_loaded_command sync_main "sync" "$@"
         ;;
 
         rsync)
         shift 1
-        rsync_main "$@"
+        warp_run_loaded_command rsync_main "rsync" "$@"
         ;;
 
         rabbit)
         shift 1
-        rabbit_main "$@"
+        warp_run_loaded_command rabbit_main "rabbit" "$@"
         ;;
 
         selenium)
         shift 1
-        selenium_main "$@"
+        warp_run_loaded_command selenium_main "selenium" "$@"
         ;;
 
         mailhog)
         shift 1
-        mailhog_main "$@"
+        warp_run_loaded_command mailhog_main "mailhog" "$@"
         ;;
 
         sandbox | sb)
         shift 1
-        setup_sandbox_main "$@"
+        warp_run_loaded_command setup_sandbox_main "$ORIGINAL_COMMAND" "$@"
         ;;
 
         reset)
-        reset_main "$@"
+        warp_run_loaded_command reset_main "reset" "$@"
         ;;
 
         update)
@@ -228,7 +228,7 @@ main () {
 
         nginx)
         shift
-        webserver_main "$@"
+        warp_run_loaded_command webserver_main "nginx" "$@"
         ;;
 
         *)
@@ -237,6 +237,22 @@ main () {
     esac
 
     exit 0
+}
+
+warp_run_loaded_command() {
+    local _function_name="$1"
+    local _command_name="$2"
+
+    shift 2
+
+    if ! declare -F "$_function_name" >/dev/null 2>&1; then
+        warp_message_warn "command unavailable: $_command_name"
+        warp_message_warn "the installed framework seems outdated"
+        warp_message_warn "run $(warp_local_update_self_hint) update --self to align the installed framework with this executable"
+        exit 1
+    fi
+
+    "$_function_name" "$@"
 }
 
 warp_compose_bootstrap() {
