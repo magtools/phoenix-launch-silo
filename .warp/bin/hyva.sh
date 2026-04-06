@@ -307,10 +307,26 @@ hyva_npm_exec() {
     local run_as_root="$3"
     local -a npm_cmd
 
-    if ! mapfile -d '' -t npm_cmd < <(hyva_npm_command_from_action "$tailwind_path" "$npm_action"); then
-        warp_message_error "unsupported npm action: $npm_action"
-        return 1
-    fi
+    # Keep argv construction explicit here: Amazon Linux 2 ships a Bash that
+    # does not support `mapfile -d`, and this wrapper runs on the host.
+    case "$npm_action" in
+        install)
+            npm_cmd=(npm --prefix "$tailwind_path" install)
+            ;;
+        "run generate")
+            npm_cmd=(npm --prefix "$tailwind_path" run generate)
+            ;;
+        "run build")
+            npm_cmd=(npm --prefix "$tailwind_path" run build)
+            ;;
+        "run watch")
+            npm_cmd=(npm --prefix "$tailwind_path" run watch)
+            ;;
+        *)
+            warp_message_error "unsupported npm action: $npm_action"
+            return 1
+            ;;
+    esac
 
     if [ -n "$WARP_HYVA_PHP_CONTAINER" ]; then
         if [ "$run_as_root" = "1" ]; then
