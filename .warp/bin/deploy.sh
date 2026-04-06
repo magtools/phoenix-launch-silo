@@ -75,6 +75,18 @@ deploy_ensure_gitignore() {
     fi
 }
 
+deploy_ensure_optional_defaults() {
+    [ -f "$DEPLOY_FILE" ] || return 0
+
+    grep -Eq '^FRONT_STATIC_THEMES=' "$DEPLOY_FILE" 2>/dev/null
+    if [ $? -ne 0 ]; then
+        {
+            echo ""
+            echo 'FRONT_STATIC_THEMES='
+        } >> "$DEPLOY_FILE"
+    fi
+}
+
 deploy_set_write_file() {
     _env="$1"
     _threads=$(deploy_threads_detect)
@@ -126,6 +138,7 @@ RUN_STATIC_ADMIN=1
 RUN_STATIC_FRONT=1
 ADMIN_I18N="$_admin_i18n"
 FRONT_I18N="$_front_i18n"
+FRONT_STATIC_THEMES=
 THREADS=$_threads
 STATIC_EXTRA_FLAGS="-f"
 RUN_SEARCH_FLUSH=1
@@ -136,6 +149,21 @@ CONFIRM_PROD=1
 ALLOW_DIR_PERMS_FIX=0
 EOF
     fi
+}
+
+deploy_front_static_theme_args() {
+    local _themes_raw="${FRONT_STATIC_THEMES:-}"
+    local _theme
+    local _out=""
+
+    [ -n "$_themes_raw" ] || return 0
+
+    for _theme in $_themes_raw; do
+        [ -n "$_theme" ] || continue
+        _out="$_out $(printf "%q" "--theme") $(printf "%q" "$_theme")"
+    done
+
+    printf "%s" "$_out"
 }
 
 deploy_set_interactive() {
@@ -151,6 +179,8 @@ deploy_load_config() {
     if [ ! -f "$DEPLOY_FILE" ]; then
         deploy_set_interactive
     fi
+
+    deploy_ensure_optional_defaults
 
     # shellcheck disable=SC1090
     . "$DEPLOY_FILE"
@@ -217,6 +247,11 @@ deploy_doctor() {
         [[ "$THREADS" =~ ^[0-9]+$ ]] && [ "$THREADS" -ge 1 ] && warp_message "* THREADS: $(warp_message_ok [ok])" || { warp_message "* THREADS: $(warp_message_error [error])"; _ok=0; }
         [ -n "${ADMIN_I18N:-}" ] && warp_message "* ADMIN_I18N: $(warp_message_ok [ok])" || { warp_message "* ADMIN_I18N: $(warp_message_error [error])"; _ok=0; }
         [ -n "${FRONT_I18N:-}" ] && warp_message "* FRONT_I18N: $(warp_message_ok [ok])" || { warp_message "* FRONT_I18N: $(warp_message_error [error])"; _ok=0; }
+        if [ -n "${FRONT_STATIC_THEMES:-}" ]; then
+            warp_message "* FRONT_STATIC_THEMES: $(warp_message_ok [subset]) ${FRONT_STATIC_THEMES}"
+        else
+            warp_message "* FRONT_STATIC_THEMES: $(warp_message_info [all])"
+        fi
     fi
 
     if [ $_ok -eq 1 ]; then
@@ -260,6 +295,7 @@ deploy_run_frontend_prod() {
     _hyva_build=$(deploy_bool "${HYVA_BUILD:-1}")
     _run_static_admin=$(deploy_bool "${RUN_STATIC_ADMIN:-1}")
     _run_static_front=$(deploy_bool "${RUN_STATIC_FRONT:-1}")
+    _front_static_theme_args="$(deploy_front_static_theme_args)"
 
     if [ "$_run_hyva" = "1" ] && [ "$_hyva_build" = "1" ] && deploy_has_hyva_cfg; then
         deploy_cmd_run "hyva build" "$_warp_exec hyva build"
@@ -270,7 +306,7 @@ deploy_run_frontend_prod() {
     fi
 
     if [ "$_run_static_front" = "1" ]; then
-        deploy_cmd_run "static content deploy (frontend)" "$_warp_exec magento setup:static-content:deploy ${FRONT_I18N:-en_US} -a frontend -j ${THREADS:-4} ${STATIC_EXTRA_FLAGS:--f}"
+        deploy_cmd_run "static content deploy (frontend)" "$_warp_exec magento setup:static-content:deploy ${FRONT_I18N:-en_US} -a frontend -j ${THREADS:-4} ${STATIC_EXTRA_FLAGS:--f}${_front_static_theme_args}"
     fi
 }
 

@@ -44,7 +44,17 @@ Reglas:
 
 1. se genera con `warp deploy set`,
 2. se agrega a `.gitignore` automáticamente (`/.deploy`),
-3. se versiona con `DEPLOY_SCHEMA_VERSION=1`.
+3. se versiona con `DEPLOY_SCHEMA_VERSION=1`,
+4. al cargar un `.deploy` viejo, Warp agrega defaults opcionales faltantes como `FRONT_STATIC_THEMES=`.
+
+Override opcional para estáticos frontend en `prod`:
+
+- `FRONT_STATIC_THEMES` vacío: deploya todos los themes frontend.
+- `FRONT_STATIC_THEMES` con valores: deploya solo el subset indicado.
+- Formato: códigos de theme separados por espacios, por ejemplo:
+  `FRONT_STATIC_THEMES="Cortassa/hyva-parfumerie Cortassa/hyva-website"`
+- si el subset contiene un child theme, Magento resuelve el fallback del parent automáticamente.
+- incluir también el parent solo cuando ese parent se usa directamente en otro website/store.
 
 ## 4) Detección de entorno (`ENV`)
 
@@ -106,6 +116,7 @@ Ejecuta solo pasos de frontend/estáticos:
 2. `ENV=prod`:
    - `hyva build` si aplica,
    - `setup:static-content:deploy` admin/frontend según flags (`RUN_STATIC_ADMIN`, `RUN_STATIC_FRONT`).
+   - si `FRONT_STATIC_THEMES` está definido, el deploy de `frontend` agrega `--theme <code>` por cada theme configurado.
 
 ## 6) Variables principales soportadas
 
@@ -137,6 +148,7 @@ Prod:
 - `RUN_STATIC_FRONT`
 - `ADMIN_I18N`
 - `FRONT_I18N`
+- `FRONT_STATIC_THEMES` (opcional; vacío = todos los themes frontend)
 - `THREADS` (detectado desde threads lógicos del host menos `WARP_HOST_THREADS_RESERVE`; mínimo `1`)
 - `STATIC_EXTRA_FLAGS`
 
