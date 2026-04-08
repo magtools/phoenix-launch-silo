@@ -444,8 +444,12 @@ help() {
 }
 
 warp_should_skip_update_check() {
+    if [ "${WARP_SKIP_UPDATE_CHECK:-0}" = "1" ]; then
+        return 0
+    fi
+
     case "$1" in
-        mysql|db|start|stop)
+        mysql|db|start|stop|deploy)
             return 0
         ;;
         *)

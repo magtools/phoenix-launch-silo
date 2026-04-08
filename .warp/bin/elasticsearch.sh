@@ -2,7 +2,21 @@
 
     # IMPORT HELP
 
-    . "$PROJECTPATH/.warp/bin/elasticsearch_help.sh"
+. "$PROJECTPATH/.warp/bin/elasticsearch_help.sh"
+
+elasticsearch_local_container_id() {
+    [ -f "$DOCKERCOMPOSEFILE" ] || return 1
+    docker-compose -f "$DOCKERCOMPOSEFILE" ps -q elasticsearch 2>/dev/null | head -n1
+}
+
+elasticsearch_local_port_9200() {
+    local _cid=""
+
+    _cid=$(elasticsearch_local_container_id)
+    [ -n "$_cid" ] || return 1
+
+    docker inspect --format='{{(index (index .NetworkSettings.Ports "9200/tcp") 0).HostPort}}' "$_cid" 2>/dev/null
+}
 
 function elasticsearch_info()
 {
@@ -16,7 +30,7 @@ function elasticsearch_info()
     ES_VERSION=$(warp_env_read_var ES_VERSION)
     ES_MEMORY=$(warp_env_read_var ES_MEMORY)
     if [ "$(warp_check_is_running)" = true ] && [[ -n $ES_VERSION ]]; then
-        ES_HOST2CONTAINER_PORT=$(docker inspect --format='{{(index (index .NetworkSettings.Ports "9200/tcp") 0).HostPort}}' "$(warp docker ps -q elasticsearch)")
+        ES_HOST2CONTAINER_PORT=$(elasticsearch_local_port_9200)
     fi
 
     MODE_SANDBOX=$(warp_env_read_var MODE_SANDBOX)
@@ -107,7 +121,11 @@ elasticsearch_flush() {
             exit 1
         fi
         # Parsing ES dynamic binded port:
-        ES_HOST2CONTAINER_PORT=$(docker inspect --format='{{(index (index .NetworkSettings.Ports "9200/tcp") 0).HostPort}}' $(warp docker ps -q elasticsearch))
+        ES_HOST2CONTAINER_PORT=$(elasticsearch_local_port_9200)
+        if [[ -z "$ES_HOST2CONTAINER_PORT" ]]; then
+            warp_message_error "Could not resolve elasticsearch published port"
+            exit 1
+        fi
         if [[ -n $(curl --silent -X GET http://localhost:$ES_HOST2CONTAINER_PORT/_cat/indices) ]]; then
             # Unlocking indexes:
             ACK=$(curl --silent -X PUT -H "Content-Type: application/json" http://localhost:$ES_HOST2CONTAINER_PORT/_all/_settings -d '{"index.blocks.read_only_allow_delete": null}')
@@ -294,11 +312,13 @@ elasticsearch_make_snapshot() {
 }
 
 elasticsearch_snapshot_repo_rebuild() {
-    ES_HOST2CONTAINER_PORT=$(docker inspect --format='{{(index (index .NetworkSettings.Ports "9200/tcp") 0).HostPort}}' $(warp docker ps -q elasticsearch))
+    ES_HOST2CONTAINER_PORT=$(elasticsearch_local_port_9200)
+    [ -n "$ES_HOST2CONTAINER_PORT" ] || { warp_process_FAIL ; exit 1; }
     curl --silent -X DELETE "localhost:$ES_HOST2CONTAINER_PORT/_snapshot/backup" &> /dev/null
     warp_process_message "Registering a Snapshot Repository..."
     
-    ES_HOST2CONTAINER_PORT=$(docker inspect --format='{{(index (index .NetworkSettings.Ports "9200/tcp") 0).HostPort}}' $(warp docker ps -q elasticsearch))
+    ES_HOST2CONTAINER_PORT=$(elasticsearch_local_port_9200)
+    [ -n "$ES_HOST2CONTAINER_PORT" ] || { warp_process_FAIL ; exit 1; }
     curl --silent -X PUT "http://localhost:$ES_HOST2CONTAINER_PORT/_snapshot/backup?pretty" -H 'Content-Type: application/json' -d'
     {
         "type": "fs",
