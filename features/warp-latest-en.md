@@ -81,7 +81,8 @@ Commands:
 
 - `warp audit`: main audit menu.
 - `warp audit --path <path>`: tool menu for a specific path.
-- `warp audit pr` / `warp audit --pr`: PR checks on the project's default paths.
+- `warp audit pr`: opens a PR scope menu (`custom path`, `default`, or vendor-level paths).
+- `warp audit --pr`: non-interactive PR checks on the project's default paths.
 - `warp audit integrity` / `warp audit -i`: `setup:di:compile` + PR checks.
 - `warp audit phpcs --path <path>`: direct PHPCS on a path.
 - `warp audit phpcbf --path <path>`: direct PHPCBF on a path.

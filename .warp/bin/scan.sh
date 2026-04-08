@@ -963,6 +963,41 @@ scan_build_path_options() {
     fi
 }
 
+scan_testpr_path_option_add() {
+    local _candidate="$1"
+    local _existing
+    [ -n "$_candidate" ] || return 0
+
+    for _existing in "${SCAN_TESTPR_PATH_OPTIONS[@]}"; do
+        [ "$_existing" = "$_candidate" ] && return 0
+    done
+
+    SCAN_TESTPR_PATH_OPTIONS+=("$_candidate")
+}
+
+scan_testpr_path_option_add_children() {
+    local _base="$1"
+    local _dir
+    local _rel
+
+    [ -d "$PROJECTPATH/$_base" ] || return 0
+
+    while IFS= read -r _dir; do
+        _rel="${_dir#$PROJECTPATH/}"
+        scan_testpr_path_option_add "$_rel"
+    done <<EOF
+$(find "$PROJECTPATH/$_base" -mindepth 1 -maxdepth 1 -type d | sort)
+EOF
+}
+
+scan_build_testpr_path_options() {
+    SCAN_TESTPR_PATH_OPTIONS=()
+
+    scan_testpr_path_option_add_children "app/code"
+    scan_testpr_path_option_add_children "app/design/adminhtml"
+    scan_testpr_path_option_add_children "app/design/frontend"
+}
+
 scan_select_path_menu() {
     local _options
     local _selected
@@ -1056,6 +1091,87 @@ scan_menu_tools_for_path() {
                 ;;
         esac
     done
+}
+
+scan_select_testpr_scope_menu() {
+    local _options
+    local _selected
+    local _custom_path
+    local _rel
+    local _rel_status
+
+    SCAN_SELECTED_PATH=""
+    SCAN_TESTPR_SCOPE_MODE=""
+    scan_build_testpr_path_options
+
+    _options=("cancel" "custom path" "default" "${SCAN_TESTPR_PATH_OPTIONS[@]}")
+    PS3="choose PR audit scope: "
+
+    while : ; do
+        select _selected in "${_options[@]}"; do
+            case "$_selected" in
+                "cancel")
+                    return 1
+                    ;;
+                "custom path")
+                    read -r -p "path to audit (inside project): " _custom_path
+                    if [ -z "$_custom_path" ]; then
+                        warp_message_warn "path is required"
+                        break
+                    fi
+
+                    _rel=$(scan_rel_path_from_project "$_custom_path")
+                    _rel_status=$?
+                    if [ $_rel_status -ne 0 ]; then
+                        [ $_rel_status -eq 1 ] && warp_message_error "path not found: $_custom_path"
+                        break
+                    fi
+
+                    SCAN_SELECTED_PATH="$_rel"
+                    SCAN_TESTPR_SCOPE_MODE="path"
+                    return 0
+                    ;;
+                "default")
+                    SCAN_TESTPR_SCOPE_MODE="default"
+                    return 0
+                    ;;
+                "")
+                    warp_message_warn "invalid option"
+                    break
+                    ;;
+                *)
+                    SCAN_SELECTED_PATH="$_selected"
+                    SCAN_TESTPR_SCOPE_MODE="path"
+                    return 0
+                    ;;
+            esac
+        done
+    done
+}
+
+scan_run_testpr_scope_menu() {
+    scan_require_magento_context
+    scan_ensure_output_dir
+
+    scan_select_testpr_scope_menu || {
+        warp_message_info "audit cancelled"
+        return 0
+    }
+
+    case "$SCAN_TESTPR_SCOPE_MODE" in
+        default)
+            scan_run_pr
+            return $?
+            ;;
+        path)
+            scan_run_testpr_on_path "$SCAN_SELECTED_PATH"
+            return $?
+            ;;
+        *)
+            warp_message_error "unknown test PR scope mode: $SCAN_TESTPR_SCOPE_MODE"
+            return 1
+            ;;
+    esac
 }
 
 scan_run_selected_action() {
@@ -1207,7 +1323,7 @@ scan_menu_main() {
                 return $?
                 ;;
             "test PR")
-                scan_run_selected_action "$_opt"
+                scan_run_testpr_scope_menu
                 return $?
                 ;;
             *)
@@ -1308,10 +1424,16 @@ scan_command()
             scan_help_usage
             return 0
             ;;
-        --pr|pr)
+        --pr)
             shift
             [ "$#" -eq 0 ] || { warp_message_error "pr/--pr does not accept extra arguments"; return 1; }
             scan_run_pr
+            return $?
+            ;;
+        pr)
+            shift
+            [ "$#" -eq 0 ] || { warp_message_error "pr does not accept extra arguments"; return 1; }
+            scan_run_testpr_scope_menu
             return $?
             ;;
         integrity|-i)
