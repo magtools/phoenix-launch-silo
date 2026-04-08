@@ -15,24 +15,32 @@ Nota de naming:
 ## Alcance MVP
 
 1. `warp audit` muestra menú de acciones.
-2. `warp audit pr` y `warp audit --pr` ejecutan PR checks:
+2. `warp audit pr` abre un menú de scope para PR checks:
+   - `cancel`
+   - `custom path`
+   - `default` (ejecuta el comportamiento actual del proyecto)
+   - paths vendor-level:
+     - `app/code/<Vendor>`
+     - `app/design/adminhtml/<Vendor>`
+     - `app/design/frontend/<Vendor>`
+3. `warp audit --pr` ejecuta PR checks no interactivos sobre el scope default actual:
    - PHPCS (`severity>=7`) sobre `app/code` y `app/design`.
    - PHPMD con `TestPR.xml`.
    - PHPCompatibility sobre `app/code`.
-3. `warp audit integrity` / `warp audit -i`:
+4. `warp audit integrity` / `warp audit -i`:
    - corre `warp magento setup:di:compile` usando el mismo patrón de resolución de entrypoint local ya fijado en `deploy` (`./warp`, `warp.sh` o `warp` en `PATH`).
-   - luego corre `warp audit pr`.
+   - luego corre PR checks sobre el scope default no interactivo.
    - luego corre `warp audit risky --path app/code`.
    - luego corre `warp audit phpstan --level 1 --path app/code`.
-4. `warp audit --path <ruta>` abre menú de acciones sobre una ruta arbitraria dentro del proyecto sin volver a mostrar menú de paths.
-5. `warp audit phpcs --path <ruta>` ejecuta `PHPCS` directo sobre la ruta indicada.
-6. `warp audit phpcbf --path <ruta>` ejecuta `PHPCBF` directo sobre la ruta indicada.
-7. `warp audit phpmd --path <ruta>` ejecuta `PHPMD` directo sobre la ruta indicada.
-8. `warp audit phpcompat --path <ruta>` ejecuta `PHPCompatibility` sobre la ruta indicada.
-9. `warp audit risky --path <ruta>` ejecuta una auditoría de risky primitives sobre la ruta indicada.
-10. `warp audit phpstan` ejecuta el scope default definido por `phpstan.neon.dist`.
-11. `warp audit phpstan --path <ruta>` ejecuta `PHPStan` sobre una ruta puntual.
-12. `warp audit phpstan --level <n>` permite override puntual del level sin tocar `phpstan.neon.dist`.
+5. `warp audit --path <ruta>` abre menú de acciones sobre una ruta arbitraria dentro del proyecto sin volver a mostrar menú de paths.
+6. `warp audit phpcs --path <ruta>` ejecuta `PHPCS` directo sobre la ruta indicada.
+7. `warp audit phpcbf --path <ruta>` ejecuta `PHPCBF` directo sobre la ruta indicada.
+8. `warp audit phpmd --path <ruta>` ejecuta `PHPMD` directo sobre la ruta indicada.
+9. `warp audit phpcompat --path <ruta>` ejecuta `PHPCompatibility` sobre la ruta indicada.
+10. `warp audit risky --path <ruta>` ejecuta una auditoría de risky primitives sobre la ruta indicada.
+11. `warp audit phpstan` ejecuta el scope default definido por `phpstan.neon.dist`.
+12. `warp audit phpstan --path <ruta>` ejecuta `PHPStan` sobre una ruta puntual.
+13. `warp audit phpstan --level <n>` permite override puntual del level sin tocar `phpstan.neon.dist`.
 
 ## Reglas TestPR
 
@@ -284,7 +292,8 @@ Modelo actual:
    - requiere `phpcs`
    - requiere `phpmd`
    - requiere `TestPR.xml`
-   - ejecuta además `phpcompat` sobre `app/code`
+   - en scope `default`, ejecuta además `phpcompat` sobre `app/code`
+   - en scope por path/vendor, ejecuta el mismo suite completo sobre la ruta elegida
 2. `phpcs`
    - requiere solo `phpcs`
 3. `phpcbf`
@@ -327,8 +336,10 @@ Menú por path actual:
 
 Reglas importantes:
 
-1. `pr` e `integrity` ya incorporan `phpcompat` sobre `app/code`
-2. `pr` e `integrity` no incorporan `phpstan` implícitamente en esta etapa
+1. `pr` abre un menú de scope con `cancel`, `custom path`, `default` y vendors de `app/code` / `app/design`
+2. `--pr` conserva la ejecución directa sobre el default del proyecto
+3. `pr` e `integrity` ya incorporan `phpcompat` dentro de su scope correspondiente
+4. `pr` e `integrity` no incorporan `phpstan` implícitamente en esta etapa
 
 Motivo:
 
