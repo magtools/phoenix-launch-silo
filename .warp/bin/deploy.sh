@@ -273,6 +273,10 @@ deploy_doctor() {
         deploy_has_hyva_cfg && warp_message "* hyva config: $(warp_message_ok [ok])" || { warp_message "* hyva config: $(warp_message_error [error]) RUN_HYVA=1"; _ok=0; }
     fi
 
+    if command -v warp_global_binary_diff_doctor_lines >/dev/null 2>&1; then
+        warp_global_binary_diff_doctor_lines
+    fi
+
     if deploy_is_magento_project; then
         if [ ! -f "$_config_php" ]; then
             warp_message "* app/etc/config.php: $(warp_message_error [error]) file not found"
