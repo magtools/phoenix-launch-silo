@@ -40,6 +40,32 @@ deploy_has_hyva_cfg() {
     [ -f "$PROJECTPATH/app/design/hyva-themes.json" ] || [ -f "$PROJECTPATH/app/design/hyva-themes.js" ]
 }
 
+deploy_is_magento_project() {
+    if command -v warp_app_context_detect_framework >/dev/null 2>&1; then
+        [ "$(warp_app_context_detect_framework)" = "magento" ] && return 0
+    fi
+
+    [ -f "$PROJECTPATH/bin/magento" ] || [ -f "$PROJECTPATH/app/etc/env.php" ]
+}
+
+deploy_file_has_user_group_write() {
+    local _path="$1"
+    local _perm=""
+
+    [ -e "$_path" ] || return 1
+
+    _perm=$(stat -c '%A' "$_path" 2>/dev/null)
+    if [ -z "$_perm" ]; then
+        _perm=$(stat -f '%Sp' "$_path" 2>/dev/null)
+    fi
+
+    [ -n "$_perm" ] || return 1
+    [ "${_perm#??w}" != "$_perm" ] || return 1
+    [ "${_perm#?????w}" != "$_perm" ] || return 1
+
+    return 0
+}
+
 deploy_detect_env() {
     _env_file="$PROJECTPATH/app/etc/env.php"
     if [ -f "$_env_file" ]; then
@@ -187,6 +213,7 @@ deploy_load_config() {
 }
 
 deploy_cmd_run() {
+    local _previous_skip_update_check="${WARP_SKIP_UPDATE_CHECK:-}"
     _label="$1"
     shift
     # Deploy recipes are stored as shell snippets and executed via eval below.
@@ -202,12 +229,14 @@ deploy_cmd_run() {
     echo "   $_label"
     echo "$_border"
 
+    export WARP_SKIP_UPDATE_CHECK=1
     if [ "$DEPLOY_COLOR" = "1" ] && [ -t 1 ]; then
         FORCE_COLOR=1 CLICOLOR_FORCE=1 TERM="${TERM:-xterm-256color}" eval "$_cmd"
     else
         eval "$_cmd"
     fi
     _status=$?
+    export WARP_SKIP_UPDATE_CHECK="$_previous_skip_update_check"
     if [ $_status -ne 0 ]; then
         warp_message_error "failed step: $_label"
         exit $_status
@@ -215,6 +244,7 @@ deploy_cmd_run() {
 }
 
 deploy_doctor() {
+    local _config_php="$PROJECTPATH/app/etc/config.php"
     _ok=1
     _auto_start=$(deploy_bool "${AUTO_START:-1}")
     _run_grunt=$(deploy_bool "${RUN_GRUNT:-0}")
@@ -243,6 +273,22 @@ deploy_doctor() {
         deploy_has_hyva_cfg && warp_message "* hyva config: $(warp_message_ok [ok])" || { warp_message "* hyva config: $(warp_message_error [error]) RUN_HYVA=1"; _ok=0; }
     fi
 
+    if command -v warp_global_binary_diff_doctor_lines >/dev/null 2>&1; then
+        warp_global_binary_diff_doctor_lines
+    fi
+
+    if deploy_is_magento_project; then
+        if [ ! -f "$_config_php" ]; then
+            warp_message "* app/etc/config.php: $(warp_message_error [error]) file not found"
+            _ok=0
+        elif deploy_file_has_user_group_write "$_config_php"; then
+            warp_message "* app/etc/config.php writable by user+group: $(warp_message_ok [ok])"
+        else
+            warp_message "* app/etc/config.php writable by user+group: $(warp_message_error [error]) requires ug+w"
+            _ok=0
+        fi
+    fi
+
     if [ "${ENV:-}" = "prod" ]; then
         [[ "$THREADS" =~ ^[0-9]+$ ]] && [ "$THREADS" -ge 1 ] && warp_message "* THREADS: $(warp_message_ok [ok])" || { warp_message "* THREADS: $(warp_message_error [error])"; _ok=0; }
         [ -n "${ADMIN_I18N:-}" ] && warp_message "* ADMIN_I18N: $(warp_message_ok [ok])" || { warp_message "* ADMIN_I18N: $(warp_message_error [error])"; _ok=0; }
@@ -261,6 +307,19 @@ deploy_doctor() {
 
     warp_message_error "doctor failed"
     return 1
+}
+
+deploy_prod_git_notice() {
+    local _border=""
+
+    _border=$(printf '%*s' 78 '' | tr ' ' '=')
+    echo "$_border"
+    echo "   PRODUCTION DEPLOY NOTICE"
+    echo "$_border"
+    echo "   This deploy flow does not run git pull."
+    echo "   Make sure the working tree already contains the exact changes"
+    echo "   you want to deploy before running this command."
+    echo "$_border"
 }
 
 deploy_show() {
@@ -327,6 +386,10 @@ deploy_run_main() {
     done
 
     deploy_load_config
+
+    if [ "${ENV:-local}" = "prod" ]; then
+        deploy_prod_git_notice
+    fi
 
     # In dry-run mode print only the recipe (no execution, no doctor gates).
     if [ "$DEPLOY_DRY_RUN" = "1" ]; then

@@ -444,8 +444,12 @@ help() {
 }
 
 warp_should_skip_update_check() {
+    if [ "${WARP_SKIP_UPDATE_CHECK:-0}" = "1" ]; then
+        return 0
+    fi
+
     case "$1" in
-        mysql|db|start|stop)
+        mysql|db|start|stop|deploy)
             return 0
         ;;
         *)
@@ -538,6 +542,159 @@ warp_post_command_hook() {
 
 warp_update_version_to_int() {
     echo "$1" | tr -d '.'
+}
+
+warp_file_size_bytes() {
+    local _path="$1"
+    local _size=""
+
+    [ -e "$_path" ] || return 1
+
+    _size=$(stat -c '%s' "$_path" 2>/dev/null)
+    if [ -z "$_size" ]; then
+        _size=$(stat -f '%z' "$_path" 2>/dev/null)
+    fi
+
+    [ -n "$_size" ] || return 1
+    echo "$_size"
+}
+
+warp_abs_path() {
+    local _path="$1"
+    [ -n "$_path" ] || return 1
+    (
+        cd "$(dirname "$_path")" 2>/dev/null || exit 1
+        printf '%s/%s\n' "$(pwd)" "$(basename "$_path")"
+    )
+}
+
+warp_binary_version_from_file() {
+    local _path="$1"
+    local _version=""
+
+    [ -f "$_path" ] || return 1
+
+    _version=$(grep '^WARP_BINARY_VERSION=' "$_path" 2>/dev/null | head -n1 | cut -d '=' -f2 | tr -d '"')
+    if [[ "$_version" =~ ^[0-9][0-9.]*$ ]]; then
+        echo "$_version"
+        return 0
+    fi
+
+    return 1
+}
+
+warp_global_binary_paths() {
+    type -aP warp 2>/dev/null | awk '!seen[$0]++'
+}
+
+warp_global_binary_diff_collect() {
+    local _project_warp="$PROJECTPATH/warp"
+    local _project_abs=""
+    local _project_version=""
+    local _project_version_int=""
+    local _project_size=""
+    local _path=""
+    local _path_abs=""
+    local _path_version=""
+    local _path_version_int=""
+    local _path_size=""
+    local _cmp_reason=""
+
+    WARP_GLOBAL_BINARY_DIFF_NOTICE=""
+    WARP_GLOBAL_BINARY_DIFF_FOUND=0
+    WARP_GLOBAL_BINARY_PATHS=""
+
+    [ -f "$_project_warp" ] || return 0
+
+    _project_abs=$(warp_abs_path "$_project_warp")
+    _project_version=$(warp_binary_version_from_file "$_project_warp")
+    [ -n "$_project_version" ] && _project_version_int=$(warp_update_version_to_int "$_project_version")
+    _project_size=$(warp_file_size_bytes "$_project_warp")
+
+    while IFS= read -r _path; do
+        [ -n "$_path" ] || continue
+        _path_abs=$(warp_abs_path "$_path")
+        [ -n "$_path_abs" ] || continue
+        [ "$_path_abs" = "$_project_abs" ] && continue
+
+        if [ -z "$WARP_GLOBAL_BINARY_PATHS" ]; then
+            WARP_GLOBAL_BINARY_PATHS="$_path_abs"
+        else
+            WARP_GLOBAL_BINARY_PATHS="${WARP_GLOBAL_BINARY_PATHS}"$'\n'"$_path_abs"
+        fi
+
+        _cmp_reason=""
+        _path_version=$(warp_binary_version_from_file "$_path_abs")
+        [ -n "$_path_version" ] && _path_version_int=$(warp_update_version_to_int "$_path_version") || _path_version_int=""
+
+        if [[ "$_project_version_int" =~ ^[0-9]+$ ]] && [[ "$_path_version_int" =~ ^[0-9]+$ ]]; then
+            if [ "$_path_version_int" -lt "$_project_version_int" ]; then
+                _cmp_reason="version $_path_version < $_project_version"
+            fi
+        else
+            _path_size=$(warp_file_size_bytes "$_path_abs")
+            if [[ "$_project_size" =~ ^[0-9]+$ ]] && [[ "$_path_size" =~ ^[0-9]+$ ]] && [ "$_path_size" -lt "$_project_size" ]; then
+                _cmp_reason="size ${_path_size}B < ${_project_size}B"
+            fi
+        fi
+
+        if [ -n "$_cmp_reason" ]; then
+            WARP_GLOBAL_BINARY_DIFF_FOUND=1
+            if [ -z "$WARP_GLOBAL_BINARY_DIFF_NOTICE" ]; then
+                WARP_GLOBAL_BINARY_DIFF_NOTICE="$_path_abs|$_cmp_reason"
+            else
+                WARP_GLOBAL_BINARY_DIFF_NOTICE="${WARP_GLOBAL_BINARY_DIFF_NOTICE}"$'\n'"$_path_abs|$_cmp_reason"
+            fi
+        fi
+    done < <(warp_global_binary_paths)
+
+    export WARP_GLOBAL_BINARY_DIFF_NOTICE
+    export WARP_GLOBAL_BINARY_DIFF_FOUND
+    export WARP_GLOBAL_BINARY_PATHS
+}
+
+warp_global_binary_diff_doctor_lines() {
+    local _line=""
+    local _path=""
+    local _reason=""
+
+    warp_global_binary_diff_collect
+
+    if [ -z "$WARP_GLOBAL_BINARY_PATHS" ]; then
+        warp_message "* PATH warp binary: $(warp_message_info "[not found]")"
+        return 0
+    fi
+
+    if [ "${WARP_GLOBAL_BINARY_DIFF_FOUND:-0}" != "1" ]; then
+        _line=$(printf '%s\n' "$WARP_GLOBAL_BINARY_PATHS" | head -n1)
+        warp_message "* PATH warp binary: $(warp_message_ok [ok]) ${_line}"
+        return 0
+    fi
+
+    while IFS='|' read -r _path _reason; do
+        [ -n "$_path" ] || continue
+        warp_message "* PATH warp binary differs from project: $(warp_message_warn "[warn]") ${_path} (${_reason})"
+        warp_message "  suggest: sudo cp warp ${_path}"
+    done <<EOF
+$WARP_GLOBAL_BINARY_DIFF_NOTICE
+EOF
+}
+
+warp_global_binary_diff_notice_show() {
+    local _path=""
+    local _reason=""
+
+    warp_global_binary_diff_collect
+    [ "${WARP_GLOBAL_BINARY_DIFF_FOUND:-0}" = "1" ] || return 0
+
+    warp_message ""
+    while IFS='|' read -r _path _reason; do
+        [ -n "$_path" ] || continue
+        warp_message_warn "system warp binary differs from project warp: ${_path} (${_reason})"
+        warp_message_warn "suggested command: sudo cp warp ${_path}"
+    done <<EOF
+$WARP_GLOBAL_BINARY_DIFF_NOTICE
+EOF
 }
 
 warp_update_tmp_clean() {
@@ -696,6 +853,7 @@ warp_update() {
         warp_update_tmp_clean
 
         warp_message_info2 "warp self update applied successfully"
+        warp_global_binary_diff_notice_show
         exit 0
     fi
 
@@ -765,6 +923,7 @@ warp_update() {
 
     warp_message_info2 "warp updated successfully to $WARP_VERSION_LATEST"
     warp_message_warn "run ./warp to use the new binary"
+    warp_global_binary_diff_notice_show
 }
 
 usage() {
