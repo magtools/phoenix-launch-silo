@@ -583,6 +583,30 @@ warp_binary_version_from_file() {
     return 1
 }
 
+warp_delegate_wrapper_template() {
+    echo "$PROJECTPATH/.warp/setup/bin/warp-wrapper.sh"
+}
+
+warp_is_delegate_wrapper_file() {
+    local _path="$1"
+
+    [ -f "$_path" ] || return 1
+
+    grep -Eq '(^|[[:space:]])(\.\/)?warp([[:space:]]|"$@")' "$_path" 2>/dev/null || \
+    grep -Eq '(^|[[:space:]])bash[[:space:]]+\./warp([[:space:]]|"$@")' "$_path" 2>/dev/null || \
+    grep -Eq '(^|[[:space:]])bash[[:space:]]+\./warp\.sh([[:space:]]|"$@")' "$_path" 2>/dev/null || \
+    grep -Eq '(^|[[:space:]])exec[[:space:]]+\./warp([[:space:]]|"$@")' "$_path" 2>/dev/null || \
+    grep -Eq '(^|[[:space:]])exec[[:space:]]+bash[[:space:]]+\./warp\.sh([[:space:]]|"$@")' "$_path" 2>/dev/null
+}
+
+warp_wrapper_install_command() {
+    local _target="$1"
+    local _template=""
+
+    _template=$(warp_delegate_wrapper_template)
+    printf 'sudo cp "%s" "%s" && sudo chmod 755 "%s"' "$_template" "$_target" "$_target"
+}
+
 warp_global_binary_paths() {
     type -aP warp 2>/dev/null | awk '!seen[$0]++'
 }
@@ -603,6 +627,8 @@ warp_global_binary_diff_collect() {
     WARP_GLOBAL_BINARY_DIFF_NOTICE=""
     WARP_GLOBAL_BINARY_DIFF_FOUND=0
     WARP_GLOBAL_BINARY_PATHS=""
+    WARP_GLOBAL_BINARY_WRAPPER_PATHS=""
+    WARP_GLOBAL_BINARY_HAS_WRAPPER=0
 
     [ -f "$_project_warp" ] || return 0
 
@@ -616,6 +642,16 @@ warp_global_binary_diff_collect() {
         _path_abs=$(warp_abs_path "$_path")
         [ -n "$_path_abs" ] || continue
         [ "$_path_abs" = "$_project_abs" ] && continue
+
+        if warp_is_delegate_wrapper_file "$_path_abs"; then
+            WARP_GLOBAL_BINARY_HAS_WRAPPER=1
+            if [ -z "$WARP_GLOBAL_BINARY_WRAPPER_PATHS" ]; then
+                WARP_GLOBAL_BINARY_WRAPPER_PATHS="$_path_abs"
+            else
+                WARP_GLOBAL_BINARY_WRAPPER_PATHS="${WARP_GLOBAL_BINARY_WRAPPER_PATHS}"$'\n'"$_path_abs"
+            fi
+            continue
+        fi
 
         if [ -z "$WARP_GLOBAL_BINARY_PATHS" ]; then
             WARP_GLOBAL_BINARY_PATHS="$_path_abs"
@@ -651,6 +687,8 @@ warp_global_binary_diff_collect() {
     export WARP_GLOBAL_BINARY_DIFF_NOTICE
     export WARP_GLOBAL_BINARY_DIFF_FOUND
     export WARP_GLOBAL_BINARY_PATHS
+    export WARP_GLOBAL_BINARY_WRAPPER_PATHS
+    export WARP_GLOBAL_BINARY_HAS_WRAPPER
 }
 
 warp_global_binary_diff_doctor_lines() {
@@ -659,6 +697,12 @@ warp_global_binary_diff_doctor_lines() {
     local _reason=""
 
     warp_global_binary_diff_collect
+
+    if [ "${WARP_GLOBAL_BINARY_HAS_WRAPPER:-0}" = "1" ]; then
+        _line=$(printf '%s\n' "$WARP_GLOBAL_BINARY_WRAPPER_PATHS" | head -n1)
+        warp_message "* PATH warp wrapper: $(warp_message_ok [ok]) ${_line}"
+        return 0
+    fi
 
     if [ -z "$WARP_GLOBAL_BINARY_PATHS" ]; then
         warp_message "* PATH warp binary: $(warp_message_info "[not found]")"
@@ -674,7 +718,7 @@ warp_global_binary_diff_doctor_lines() {
     while IFS='|' read -r _path _reason; do
         [ -n "$_path" ] || continue
         warp_message "* PATH warp binary differs from project: $(warp_message_warn "[warn]") ${_path} (${_reason})"
-        warp_message "  suggest: sudo cp warp ${_path}"
+        warp_message "  suggest wrapper: $(warp_wrapper_install_command "$_path")"
     done <<EOF
 $WARP_GLOBAL_BINARY_DIFF_NOTICE
 EOF
@@ -686,12 +730,13 @@ warp_global_binary_diff_notice_show() {
 
     warp_global_binary_diff_collect
     [ "${WARP_GLOBAL_BINARY_DIFF_FOUND:-0}" = "1" ] || return 0
+    [ "${WARP_GLOBAL_BINARY_HAS_WRAPPER:-0}" = "1" ] && return 0
 
     warp_message ""
     while IFS='|' read -r _path _reason; do
         [ -n "$_path" ] || continue
         warp_message_warn "system warp binary differs from project warp: ${_path} (${_reason})"
-        warp_message_warn "suggested command: sudo cp warp ${_path}"
+        warp_message_warn "suggested wrapper install: $(warp_wrapper_install_command "$_path")"
     done <<EOF
 $WARP_GLOBAL_BINARY_DIFF_NOTICE
 EOF

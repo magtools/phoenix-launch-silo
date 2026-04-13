@@ -80,6 +80,38 @@ Nota:
 - si el `./warp` fisico local es mas nuevo que la version publicada, `--self` conserva y aplica ese payload local; no degrada al remoto.
 - si la version publicada resulta mas nueva, `--self` igual aplica el payload local y deja visible el aviso de update pendiente para una corrida posterior de `warp update`.
 
+## 4.2) Binario `warp` en PATH: wrapper delegador recomendado
+
+Warp ahora distingue entre dos casos para `warp` encontrado en el equipo via `type -a warp`:
+
+1. un binario/script Warp real instalado en PATH,
+2. un wrapper delegador que reenvia al `./warp` del proyecto actual.
+
+Wrapper canónico versionado:
+
+- `.warp/setup/bin/warp-wrapper.sh`
+
+Comportamiento esperado del chequeo:
+
+1. si existe un wrapper delegador en PATH, Warp lo considera un estado valido y no alerta.
+2. si no existe wrapper y hay un `warp` de PATH mas viejo que `./warp`, Warp alerta.
+3. si puede leer `WARP_BINARY_VERSION`, compara version.
+4. si no puede leer version, compara tamaño en bytes.
+
+Remediación sugerida actual:
+
+- instalar el wrapper delegador canónico en la ruta vieja detectada, por ejemplo:
+
+```bash
+sudo cp ".warp/setup/bin/warp-wrapper.sh" "/ruta/del/warp" && sudo chmod 755 "/ruta/del/warp"
+```
+
+Motivo:
+
+1. evita drift entre binario global y `.warp`,
+2. permite que `warp` use siempre `./warp` del proyecto,
+3. reduce necesidad de copiar binarios del proyecto a rutas globales del host.
+
 ## 5) Chequeo automatico post-comando
 
 Se ejecuta al final de cada comando via `trap` (`warp_post_command_hook`), no al inicio.
@@ -151,3 +183,12 @@ Objetivo:
 
 1. detectar cuando se actualizo/commiteo el ejecutable pero no se aplico su payload local,
 2. evitar errores por comandos nuevos en `./warp` con librerias/scripts viejos en `.warp`.
+
+## 9) Integración del chequeo en deploy doctor y update
+
+Estado actual:
+
+1. `warp deploy doctor` imprime el estado de `warp` encontrado en PATH.
+2. si detecta wrapper delegador, informa `[ok]`.
+3. si detecta binario viejo real y no hay wrapper, informa `[warn]` y sugiere instalar el wrapper canónico en esa ruta.
+4. al finalizar `warp update` y `warp update --self`, Warp vuelve a mostrar esta sugerencia si detecta un `warp` viejo en PATH y no existe wrapper delegador.

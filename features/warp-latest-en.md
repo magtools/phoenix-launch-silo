@@ -17,6 +17,7 @@ What it brings to the team:
 
 - a standard deploy command (`warp deploy run`),
 - preflight validation with `warp deploy doctor`,
+- detection of an outdated global `warp` versus a valid delegating PATH wrapper,
 - visible configuration with `warp deploy show`,
 - guided `.deploy` generation with `warp deploy set`,
 - recipe simulation without execution (`--dry-run`),
@@ -315,7 +316,8 @@ What it brings to the team:
 
 - more reliable upgrades,
 - better visibility when a new version exists or when connectivity fails,
-- lower risk of surprising project configuration changes.
+- lower risk of surprising project configuration changes,
+- a clear operational recommendation to install a delegating `warp` wrapper in PATH when the global binary becomes stale.
 
 Commands:
 

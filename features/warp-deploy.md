@@ -78,27 +78,36 @@ Valida:
 4. estado runtime (o `AUTO_START=1`),
 5. existencia de `themes.js` cuando `RUN_GRUNT=1`,
 6. config Hyva cuando `RUN_HYVA=1`,
-7. en `prod`: `THREADS`, `ADMIN_I18N`, `FRONT_I18N`.
+7. estado de `warp` en PATH:
+   - si existe wrapper delegador, informa `[ok]`,
+   - si detecta binario viejo real, informa `[warn]` y sugiere instalar wrapper delegador,
+8. en proyectos Magento:
+   - `app/etc/config.php` existe,
+   - `app/etc/config.php` tiene escritura para user y group (`ug+w`),
+9. en `prod`: `THREADS`, `ADMIN_I18N`, `FRONT_I18N`.
 
 ## 5.2 `deploy run`
 
 Secuencia:
 
 1. carga `.deploy`,
-2. ejecuta `doctor`,
-3. confirma `prod` si `CONFIRM_PROD=1` (salvo `--yes`),
-4. si `AUTO_START=1` y contenedores apagados: `warp start`,
-5. si `prod` y `USE_MAINTENANCE=1`: `maintenance:enable`,
-6. `warp composer install` (usa `COMPOSER_FLAGS`),
-7. `setup:upgrade` (si `RUN_SETUP_UPGRADE=1`),
-8. `setup:di:compile` (si `RUN_DI_COMPILE=1`),
-9. frontend:
+2. si `ENV=prod`, imprime aviso explicito:
+   - el deploy no ejecuta `git pull`,
+   - el working tree debe contener ya los cambios correctos.
+3. ejecuta `doctor`,
+4. confirma `prod` si `CONFIRM_PROD=1` (salvo `--yes`),
+5. si `AUTO_START=1` y contenedores apagados: `warp start`,
+6. si `prod` y `USE_MAINTENANCE=1`: `maintenance:enable`,
+7. `warp composer install` (usa `COMPOSER_FLAGS`),
+8. `setup:upgrade` (si `RUN_SETUP_UPGRADE=1`),
+9. `setup:di:compile` (si `RUN_DI_COMPILE=1`),
+10. frontend:
    - local: grunt/hyva según flags y existencia de archivos,
    - prod: `hyva build` (si aplica) y static deploy admin/frontend,
-10. `search flush` (si `RUN_SEARCH_FLUSH=1`),
-11. `indexer:reindex` (si `RUN_REINDEX=1`),
-12. `cache:flush` (si `RUN_CACHE_FLUSH=1`),
-13. si activó maintenance: `maintenance:disable`.
+11. `search flush` (si `RUN_SEARCH_FLUSH=1`),
+12. `indexer:reindex` (si `RUN_REINDEX=1`),
+13. `cache:flush` (si `RUN_CACHE_FLUSH=1`),
+14. si activó maintenance: `maintenance:disable`.
 
 Todas las etapas fallan en corto circuito: si una falla, corta el deploy.
 
