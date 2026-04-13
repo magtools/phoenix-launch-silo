@@ -17,6 +17,7 @@ Qué aporta al equipo:
 
 - un comando estándar para deploy (`warp deploy run`),
 - validación previa con `warp deploy doctor`,
+- detección de `warp` global viejo vs wrapper delegador en PATH,
 - configuración visible con `warp deploy show`,
 - generación guiada de `.deploy` con `warp deploy set`,
 - simulación de receta sin ejecutar (`--dry-run`),
@@ -313,7 +314,8 @@ Qué aporta al equipo:
 
 - upgrades más confiables,
 - mejor visibilidad cuando hay versión nueva o fallos de conectividad,
-- menor riesgo de cambios sorpresivos en configuración de proyecto.
+- menor riesgo de cambios sorpresivos en configuración de proyecto,
+- recomendación operativa clara para instalar un wrapper delegador de `warp` en PATH cuando el binario global queda viejo.
 
 Comandos:
 
