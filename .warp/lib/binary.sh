@@ -1,27 +1,17 @@
 #!/bin/bash
 
 WARP_BINARY_FILE=$1
+WARP_WRAPPER_TEMPLATE=$2
 
-touch "$WARP_BINARY_FILE"
-chmod 775 "$WARP_BINARY_FILE"
-echo "#!/bin/bash +x" >> "$WARP_BINARY_FILE"
-echo "" >> "$WARP_BINARY_FILE"
-echo "bash ./warp \"\$@\"" >> "$WARP_BINARY_FILE"
-#!/bin/bash +x
+if [ -z "$WARP_BINARY_FILE" ] || [ -z "$WARP_WRAPPER_TEMPLATE" ]; then
+    echo "usage: binary.sh <target> <warp-wrapper-template>" >&2
+    exit 1
+fi
 
-bash ./warp "$@"
-#!/bin/bash +x
+if [ ! -f "$WARP_WRAPPER_TEMPLATE" ]; then
+    echo "warp wrapper template not found: $WARP_WRAPPER_TEMPLATE" >&2
+    exit 1
+fi
 
-bash ./warp "$@"
-#!/bin/bash +x
-
-bash ./warp "$@"
-#!/bin/bash +x
-
-bash ./warp "$@"
-#!/bin/bash +x
-
-bash ./warp "$@"
-#!/bin/bash +x
-
-bash ./warp "$@"
+cp "$WARP_WRAPPER_TEMPLATE" "$WARP_BINARY_FILE"
+chmod 755 "$WARP_BINARY_FILE"

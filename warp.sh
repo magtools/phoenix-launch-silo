@@ -728,7 +728,8 @@ warp_global_binary_diff_doctor_lines() {
     while IFS='|' read -r _path _reason; do
         [ -n "$_path" ] || continue
         warp_message "* PATH warp binary differs from project: $(warp_message_warn "[warn]") ${_path} (${_reason})"
-        warp_message "  suggest wrapper: $(warp_wrapper_install_command "$_path")"
+        warp_message "  install wrapper: $(warp_wrapper_install_command "$_path")"
+        warp_message "  note: copies .warp/setup/bin/warp-wrapper.sh, not the project ./warp binary"
     done <<EOF
 $WARP_GLOBAL_BINARY_DIFF_NOTICE
 EOF
@@ -746,7 +747,8 @@ warp_global_binary_diff_notice_show() {
     while IFS='|' read -r _path _reason; do
         [ -n "$_path" ] || continue
         warp_message_warn "system warp binary differs from project warp: ${_path} (${_reason})"
-        warp_message_warn "suggested wrapper install: $(warp_wrapper_install_command "$_path")"
+        warp_message_warn "install wrapper: $(warp_wrapper_install_command "$_path")"
+        warp_message_warn "this copies .warp/setup/bin/warp-wrapper.sh, not the project ./warp binary"
     done <<EOF
 $WARP_GLOBAL_BINARY_DIFF_NOTICE
 EOF

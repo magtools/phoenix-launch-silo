@@ -70,7 +70,7 @@ NETWORK_NAME="warp_net"
 # Set minimum range IP in Containers
 MIN_RANGE_IP=20
 
-# SET PATH TO BINARY WARP
+# SET PATH TO GLOBAL WARP WRAPPER
 WARP_BINARY_FILE="/usr/local/bin/warp"
 
 # SET STRONG PASSWORD LENGTH

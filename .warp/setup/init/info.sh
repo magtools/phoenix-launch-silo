@@ -88,9 +88,9 @@ warp_message "* Applying permissions to subdirectories .warp/docker/volumes $(wa
     mkdir -p   $PROJECTPATH/.warp/docker/volumes/elasticsearch
     sudo chmod -R 777 $PROJECTPATH/.warp/docker/volumes/elasticsearch
 
-if [ ! -f $WARP_BINARY_FILE ] ; then
-    warp_message "* Creating binary warp file $(warp_message_ok [ok])"
-    sudo sh $PROJECTPATH/.warp/lib/binary.sh $WARP_BINARY_FILE
+if [ ! -f "$WARP_BINARY_FILE" ] ; then
+    warp_message "* Installing warp wrapper $(warp_message_ok [ok])"
+    sudo sh "$PROJECTPATH/.warp/lib/binary.sh" "$WARP_BINARY_FILE" "$PROJECTPATH/.warp/setup/bin/warp-wrapper.sh"
 fi
 
 warp_message ""
