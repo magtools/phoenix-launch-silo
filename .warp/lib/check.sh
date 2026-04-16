@@ -181,6 +181,8 @@ function warp_check_selenium_is_running() {
 
 warp_check_gitignore()
 {
+    local _line=""
+
     #  CHECK IF GITIGNOREFILE CONTAINS FILES WARP TO IGNORE
     [ -f "$GITIGNOREFILE" ] && grep --quiet -w "^# WARP FRAMEWORK" "$GITIGNOREFILE"
 
@@ -212,10 +214,21 @@ warp_check_gitignore()
         echo "/.warp/bin"                               >> "$GITIGNOREFILE"
         echo "/.warp/docker/config/php/ext-xdebug.ini"  >> "$GITIGNOREFILE"
         echo "/.warp/docker/config/php/ext-ioncube.ini" >> "$GITIGNOREFILE"
+        echo "/.warp/docker/config/php/zz-warp-opcache.ini" >> "$GITIGNOREFILE"
+        echo "/.warp/docker/config/php/*-local.ini" >> "$GITIGNOREFILE"
+        echo "!/.warp/docker/config/php/*.sample" >> "$GITIGNOREFILE"
         echo "# FRAMEWORK WARP"                         >> "$GITIGNOREFILE"
         echo ""                                         >> "$GITIGNOREFILE"
         
     fi
+
+    for _line in \
+        "/.warp/docker/config/php/zz-warp-opcache.ini" \
+        "/.warp/docker/config/php/*-local.ini" \
+        "!/.warp/docker/config/php/*.sample"
+    do
+        grep -qxF "$_line" "$GITIGNOREFILE" 2>/dev/null || echo "$_line" >> "$GITIGNOREFILE"
+    done
 
 }
 

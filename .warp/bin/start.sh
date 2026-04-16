@@ -123,17 +123,26 @@ function start_main()
 }
 
 check_PHP_Image() {
-  PHP_IMAGE="summasolutions/php:${PHP_VERSION}"
-  if ! docker image inspect "$PHP_IMAGE" --format '{{.Created}}' >/dev/null 2>&1; then
-    PHP_IMAGE="66ecommerce/php:${PHP_VERSION}"
+  local PHP_IMAGE_REPOS=("magtools" "66ecommerce" "summasolutions")
+  local PHP_IMAGE_REPO=""
+  local PHP_IMAGE=""
+  local PHP_IMAGE_CREATION_TAG=""
+
+  for PHP_IMAGE_REPO in "${PHP_IMAGE_REPOS[@]}"; do
+    PHP_IMAGE="${PHP_IMAGE_REPO}/php:${PHP_VERSION}"
+    if docker image inspect "$PHP_IMAGE" --format '{{.Created}}' >/dev/null 2>&1; then
+      break
+    fi
+    PHP_IMAGE=""
+  done
+
+  if [ -z "$PHP_IMAGE" ]; then
+    warp_message_warn ""
+    warp_message_warn "    PHP image not found: magtools/php:${PHP_VERSION}, 66ecommerce/php:${PHP_VERSION} or summasolutions/php:${PHP_VERSION}"
+    return
   fi
 
   PHP_IMAGE_CREATION_TAG=$(docker image inspect "$PHP_IMAGE" --format '{{.Created}}' 2>/dev/null)
-  if [ -z "$PHP_IMAGE_CREATION_TAG" ]; then
-    warp_message_warn ""
-    warp_message_warn "    PHP image not found: summasolutions/php:${PHP_VERSION} or 66ecommerce/php:${PHP_VERSION}"
-    return
-  fi
 
   PHP_IMAGE_CREATION_TAG=$(echo $PHP_IMAGE_CREATION_TAG | sed 's/\-/ /g')
   PHP_IMAGE_CREATION_TAG=($PHP_IMAGE_CREATION_TAG)

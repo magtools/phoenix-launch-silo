@@ -52,7 +52,7 @@ Override opcional para estáticos frontend en `prod`:
 - `FRONT_STATIC_THEMES` vacío: deploya todos los themes frontend.
 - `FRONT_STATIC_THEMES` con valores: deploya solo el subset indicado.
 - Formato: códigos de theme separados por espacios, por ejemplo:
-  `FRONT_STATIC_THEMES="Cortassa/hyva-parfumerie Cortassa/hyva-website"`
+  `FRONT_STATIC_THEMES="Example/hyva-example Example/hyva-website"`
 - si el subset contiene un child theme, Magento resuelve el fallback del parent automáticamente.
 - incluir también el parent solo cuando ese parent se usa directamente en otro website/store.
 

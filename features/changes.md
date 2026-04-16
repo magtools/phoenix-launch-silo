@@ -21,3 +21,6 @@ deploy pregunta de i18n se ve mal
 deploy y otras herramientas detectan cores y no threads
 
 warp shields <- scan
+
+mailhog -> mailpit
+

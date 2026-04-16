@@ -4,7 +4,7 @@ function xdebug_help_usage()
 {
     warp_message ""
     warp_message_info "Usage:"
-    warp_message      " warp xdebug [options]"
+    warp_message      " warp xdebug [enable|disable|status] [options]"
     warp_message ""
 
     warp_message ""
@@ -13,6 +13,8 @@ function xdebug_help_usage()
     warp_message_info   " --enable           $(warp_message 'enable xdebug')"
     warp_message_info   " --disable          $(warp_message 'disable xdebug')"
     warp_message_info   " --status           $(warp_message 'display status of xdebug')"
+    warp_message_info   " --force            $(warp_message 'overwrite a custom managed Xdebug ini file')"
+    warp_message_info   " --dry-run          $(warp_message 'show planned managed changes without writing')"
     warp_message ""
 
     warp_message ""
@@ -21,6 +23,7 @@ function xdebug_help_usage()
     warp_message ""
 
     warp_message_info "Example:"
+    warp_message " warp xdebug status"
     warp_message " warp xdebug --status"
     warp_message ""    
 }

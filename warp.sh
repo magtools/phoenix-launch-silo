@@ -65,6 +65,16 @@ main () {
         warp_run_loaded_command php_main "php" "$@"
         ;;
 
+        phpini)
+        shift 1
+        warp_run_loaded_command phpini_main "phpini" "$@"
+        ;;
+
+        opcache)
+        shift 1
+        warp_run_loaded_command opcache_main "opcache" "$@"
+        ;;
+
         start)
         warp_run_loaded_command start_main "start" "$@"
         ;;
@@ -312,7 +322,7 @@ warp_runtime_mode_read_raw_from_env() {
 warp_command_supports_host_runtime() {
     _cmd="$1"
     case "$_cmd" in
-        ""|-h|--help|help|init|db|mysql|cache|redis|valkey|search|elasticsearch|opensearch|php|magento|ece-tools|ece-patches|telemetry|info|composer|audit|security)
+        ""|-h|--help|help|init|db|mysql|cache|redis|valkey|search|elasticsearch|opensearch|php|phpini|opcache|xdebug|magento|ece-tools|ece-patches|telemetry|info|composer|audit|security)
             return 0
             ;;
         *)
