@@ -93,6 +93,19 @@ xdebug_current_file_is_managed_sample() {
     return 1
 }
 
+xdebug_write_sample() {
+    local _sample="$1"
+    local _file="$2"
+
+    if [ -f "$_file" ]; then
+        : > "$_file" || return 1
+        cat "$_sample" > "$_file" || return 1
+        return 0
+    fi
+
+    cp "$_sample" "$_file"
+}
+
 xdebug_runtime_probe() {
     local _php_container=""
     local _module="unknown"
@@ -164,7 +177,7 @@ xdebug_managed_change() {
             xdebug_print_kv "planned action" "keep custom file"
             warp_message_warn "custom Xdebug ini exists; rerun with --force to overwrite"
         else
-            xdebug_print_kv "planned action" "copy sample"
+            xdebug_print_kv "planned action" "write sample"
         fi
         warp_message "No files were modified."
         return 0
@@ -181,14 +194,14 @@ xdebug_managed_change() {
         return 1
     }
 
-    cp "$_sample" "$_file" || {
+    xdebug_write_sample "$_sample" "$_file" || {
         warp_message_error "could not write Xdebug managed ini"
         return 1
     }
 
     warp_message_info "Xdebug is ${_label}."
     xdebug_print_kv "file state" "$(xdebug_file_state)"
-    warp_message "Containers were not restarted."
+    warp_php_fpm_reload_or_restart "Xdebug ${_label}" || return 1
 }
 
 function xdebug_legacy_command()

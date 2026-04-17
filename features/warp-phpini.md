@@ -39,7 +39,7 @@ Estado al 2026-04-16:
 4. `warp phpini profile legacy --dry-run` y `warp phpini profile managed --dry-run` fueron agregados como planificacion sin escritura.
 5. `warp phpini profile legacy` fue agregado como escritura real segura: solo fija `WARP_PHP_INI_PROFILE=legacy`.
 6. `warp phpini profile managed` fue agregado como migracion explicita a perfil managed.
-7. `warp opcache enable|disable|status` fue agregado para controlar `zz-warp-opcache.ini` sin reiniciar contenedores todavia.
+7. `warp opcache enable|disable|status` fue agregado para controlar `zz-warp-opcache.ini`; al cambiar estado intenta recargar PHP-FPM y reinicia el servicio `php` solo si el reload falla.
 8. `warp xdebug enable|disable|status` usa samples managed cuando `WARP_PHP_INI_PROFILE=managed`; fuera de ese perfil conserva el flujo historico.
 9. El mount de OPcache usa `WARP_PHP_OPCACHE_VOLUME`: legacy monta un placeholder vacio fuera de `conf.d`, managed monta `zz-warp-opcache.ini` en `conf.d`.
 
@@ -84,7 +84,7 @@ Ese modelo funciona, pero es fragil:
 3. `enable` copia un sample conocido a un archivo efectivo.
 4. `disable` borra o neutraliza el archivo efectivo.
 5. Los comandos deben funcionar con contenedores apagados.
-6. Si el contenedor PHP esta corriendo, Warp debe reiniciarlo o pedir `--no-restart`.
+6. Si el contenedor PHP esta corriendo, Warp debe recargar PHP-FPM; si el reload falla, debe reiniciar el servicio `php`.
 7. No se debe editar `php.ini` para toggles operativos.
 8. El estado debe poder leerse desde archivos aunque PHP no este corriendo.
 9. Cuando PHP esta corriendo, `status` debe contrastar archivo esperado contra `php -m` / `php -i`.
@@ -179,29 +179,28 @@ Contenido recomendado para PHP moderno:
 ```ini
 zend_extension=xdebug.so
 
-xdebug.mode=${XDEBUG_MODE}
-xdebug.start_with_request=${XDEBUG_START_WITH_REQUEST}
-xdebug.client_host=${XDEBUG_CLIENT_HOST}
-xdebug.client_port=${XDEBUG_CLIENT_PORT}
-xdebug.idekey=${XDEBUG_IDEKEY}
+xdebug.discover_client_host=0
+xdebug.mode=debug
+xdebug.start_with_request=trigger
+xdebug.client_host=172.17.0.1
+xdebug.client_port=9003
+xdebug.idekey=PHPSTORM
 xdebug.max_nesting_level=300
 ```
 
-Variables `.env` recomendadas:
+Variable `.env` recomendada para compatibilidad con integraciones que leen `XDEBUG_CONFIG`:
 
 ```dotenv
-XDEBUG_MODE=debug,develop
-XDEBUG_START_WITH_REQUEST=yes
-XDEBUG_CLIENT_HOST=host.docker.internal
-XDEBUG_CLIENT_PORT=9003
-XDEBUG_IDEKEY=PHPSTORM
+XDEBUG_CONFIG=client_host=172.17.0.1 client_port=9003
 ```
 
 Notas:
 
-1. Para Linux sin `host.docker.internal`, Warp puede seguir usando `172.17.0.1` o detectar gateway.
-2. En macOS puede usar `10.254.254.254` si ese sigue siendo el default operativo.
-3. Xdebug 3 usa puerto `9003`; Xdebug 2 usaba `9000`.
+1. El sample managed usa valores literales para que `warp xdebug enable|disable` aplique con reload de PHP-FPM sin depender de variables de entorno del contenedor.
+2. Si se cambia `XDEBUG_CONFIG` o cualquier variable de `.env` consumida como entorno del contenedor, hay que recrear el servicio `php`; un reload de PHP-FPM no actualiza variables de entorno de Docker.
+3. Para Linux se mantiene `172.17.0.1` como default operativo actual.
+4. En macOS puede requerirse otro host (`host.docker.internal` o `10.254.254.254`) segun el entorno.
+5. Xdebug 3 usa puerto `9003`; Xdebug 2 usaba `9000`.
 
 ### 7.3 Sample disabled
 
@@ -225,21 +224,18 @@ Este archivo es util si Compose necesita que exista siempre el archivo montado. 
 `warp xdebug enable`:
 
 1. en perfil `managed`, valida que exista `ext-xdebug.ini.sample`;
-2. copia `ext-xdebug.ini.sample` a `ext-xdebug.ini`;
-3. asegura defaults en `.env` si faltan:
-   - `XDEBUG_MODE`;
-   - `XDEBUG_START_WITH_REQUEST`;
-   - `XDEBUG_CLIENT_HOST`;
-   - `XDEBUG_CLIENT_PORT`;
-   - `XDEBUG_IDEKEY`;
+2. escribe `ext-xdebug.ini.sample` in-place sobre `ext-xdebug.ini` para preservar file bind mounts;
+3. asegura `XDEBUG_CONFIG` en `.env` si falta;
 4. conserva archivos custom salvo `--force`;
-5. no reinicia contenedores todavia.
+5. si el contenedor `php` esta corriendo, recarga PHP-FPM con `USR2`;
+6. si el reload falla, reinicia el servicio `php` con Compose.
 
 `warp xdebug disable`:
 
-1. en perfil `managed`, copia `ext-xdebug.disabled.ini.sample` a `ext-xdebug.ini`;
+1. en perfil `managed`, escribe `ext-xdebug.disabled.ini.sample` in-place sobre `ext-xdebug.ini`;
 2. conserva archivos custom salvo `--force`;
-3. no reinicia contenedores todavia.
+3. si el contenedor `php` esta corriendo, recarga PHP-FPM con `USR2`;
+4. si el reload falla, reinicia el servicio `php` con Compose.
 
 Fuera de `managed`, los comandos Xdebug mantienen el comportamiento historico basado en `sed` sobre `ext-xdebug.ini` y reinicio de `php`.
 
@@ -250,7 +246,7 @@ Debe mostrar:
 ```text
 config file: .warp/docker/config/php/ext-xdebug.ini
 file state: enabled|disabled|missing
-env mode: XDEBUG_MODE=<value>
+env config: XDEBUG_CONFIG=<value>
 runtime module: loaded|not loaded|unknown
 runtime mode: <xdebug.mode if available>
 ```
@@ -358,17 +354,19 @@ Notas:
 
 `warp opcache enable`:
 
-1. copia `zz-warp-opcache-enable.ini.sample` a `zz-warp-opcache.ini`;
+1. escribe `zz-warp-opcache-enable.ini.sample` in-place sobre `zz-warp-opcache.ini`;
 2. conserva archivos custom salvo `--force`;
-3. no reinicia contenedores todavia;
-4. informa que el perfil activo es produccion.
+3. si el contenedor `php` esta corriendo, recarga PHP-FPM con `USR2`;
+4. si el reload falla, reinicia el servicio `php` con Compose;
+5. informa que el perfil activo es produccion.
 
 `warp opcache disable`:
 
-1. copia `zz-warp-opcache-disable.ini.sample` a `zz-warp-opcache.ini`;
+1. escribe `zz-warp-opcache-disable.ini.sample` in-place sobre `zz-warp-opcache.ini`;
 2. conserva archivos custom salvo `--force`;
-3. no reinicia contenedores todavia;
-4. informa que el perfil activo es desarrollo.
+3. si el contenedor `php` esta corriendo, recarga PHP-FPM con `USR2`;
+4. si el reload falla, reinicia el servicio `php` con Compose;
+5. informa que el perfil activo es desarrollo.
 
 `warp opcache status`:
 
@@ -427,22 +425,23 @@ OPcache: loaded but disabled
 Xdebug: loaded
 ```
 
-## 10. Reinicio de PHP
+## 10. Aplicacion en PHP-FPM
 
-Los cambios en carga de extensiones y OPcache requieren reiniciar PHP-FPM.
+Los cambios en carga de extensiones y OPcache requieren que PHP-FPM vuelva a leer la configuracion.
 
-Comportamiento recomendado:
+Comportamiento implementado:
 
 1. si contenedor PHP no esta corriendo, solo modificar archivos;
-2. si contenedor PHP esta corriendo, reiniciar solo `php`;
-3. soportar `--no-restart` para dejar el cambio preparado;
-4. soportar `--restart` explicitamente para scripts.
+2. si contenedor PHP esta corriendo, recargar PHP-FPM con `kill -USR2 1`;
+3. si el reload falla, reiniciar solo el servicio `php`;
+4. no recrear contenedores para cambios de `.ini`;
+5. recrear el servicio `php` solo cuando cambian variables de entorno de Docker, por ejemplo `XDEBUG_CONFIG`.
 
 Ejemplos:
 
 ```bash
-warp xdebug enable --no-restart
-warp opcache disable --restart
+warp xdebug enable
+warp opcache disable
 ```
 
 ## 11. Compose y mounts
@@ -476,8 +475,8 @@ mantener siempre ext-xdebug.ini y zz-warp-opcache.ini como archivos efectivos ge
 
 En ese modelo:
 
-1. `xdebug disable` copia el sample disabled en vez de borrar;
-2. `opcache disable` copia el sample disable;
+1. `xdebug disable` escribe el sample disabled en vez de borrar;
+2. `opcache disable` escribe el sample disable;
 3. los archivos siguen ignorados por git.
 4. `phpini profile managed` cambia `WARP_PHP_OPCACHE_VOLUME` para montar `zz-warp-opcache.ini` en PHP `conf.d`.
 5. `phpini profile legacy` vuelve a montar `.warp-empty.ini` fuera de PHP `conf.d`.
@@ -513,15 +512,14 @@ warp opcache --status
 Flags comunes:
 
 ```text
---restart       reinicia php si esta corriendo
---no-restart    no reinicia php aunque este corriendo
---mode <value>  solo xdebug; escribe XDEBUG_MODE o xdebug.mode
+--force       overwrite a custom managed ini file
+--dry-run     show planned managed changes without writing
 ```
 
 Ejemplo:
 
 ```bash
-warp xdebug enable --mode debug,develop
+warp xdebug enable
 ```
 
 ## 13. Validaciones
@@ -576,7 +574,7 @@ features/warp-phpini.md
 Reglas de implementacion:
 
 1. no usar `sed` para comentar/descomentar `zend_extension`;
-2. usar copia atomica de sample a archivo efectivo;
+2. escribir samples in-place sobre archivos efectivos existentes para preservar file bind mounts;
 3. preservar soporte del comando legacy `warp xdebug --enable`;
 4. agregar `warp opcache` como comando nuevo;
 5. agregar `warp phpini profile` como selector explicito `legacy|managed`;
@@ -597,7 +595,7 @@ Notas de integracion CLI:
 
 Queda por decidir al implementar:
 
-1. si `xdebug disable` borra `ext-xdebug.ini` o copia un disabled sample;
+1. si `xdebug disable` borra `ext-xdebug.ini` o escribe un disabled sample;
 2. si los templates Compose seguiran montando archivos individuales o cambiaran a otro patron;
 3. si la imagen PHP nueva debe dejar Xdebug instalado pero no habilitado por default;
 4. si OPcache debe tener solo `enable/disable` o tambien perfiles `prod/dev`.
@@ -605,8 +603,8 @@ Queda por decidir al implementar:
 Decision recomendada para el primer paso:
 
 1. usar archivos efectivos siempre presentes para no romper Compose;
-2. `xdebug disable` copia `ext-xdebug.disabled.ini.sample`;
-3. `opcache enable/disable` copia samples a `zz-warp-opcache.ini`;
+2. `xdebug disable` escribe `ext-xdebug.disabled.ini.sample`;
+3. `opcache enable/disable` escribe samples a `zz-warp-opcache.ini`;
 4. imagen PHP nueva instala Xdebug pero no lo auto-habilita;
 5. OPcache queda disponible y se controla por override `zz-warp-opcache.ini`.
 
@@ -819,11 +817,11 @@ warp opcache *        -> no disponible por defecto o solo informativo
 `managed`:
 
 ```text
-warp xdebug enable    -> copia sample enable a ext-xdebug.ini
-warp xdebug disable   -> copia sample disabled a ext-xdebug.ini
+warp xdebug enable    -> escribe sample enable in-place en ext-xdebug.ini y recarga PHP-FPM
+warp xdebug disable   -> escribe sample disabled in-place en ext-xdebug.ini y recarga PHP-FPM
 warp xdebug status    -> compara archivo + env + runtime
-warp opcache enable   -> copia sample enable a zz-warp-opcache.ini
-warp opcache disable  -> copia sample disable a zz-warp-opcache.ini
+warp opcache enable   -> escribe sample enable in-place en zz-warp-opcache.ini y recarga PHP-FPM
+warp opcache disable  -> escribe sample disable in-place en zz-warp-opcache.ini y recarga PHP-FPM
 warp opcache status   -> compara archivo + runtime
 ```
 
@@ -908,7 +906,7 @@ APPDATA_VERSION=latest
 cp .warp/docker/config/php/ext-xdebug.ini.sample .warp/docker/config/php/ext-xdebug.ini
 ```
 
-5. recrear/reiniciar PHP para soltar los mounts y `.ini` anteriores:
+5. recrear/reiniciar PHP para soltar cambios de entorno o mounts anteriores:
 
 ```bash
 docker compose --env-file .env -f docker-compose-warp.yml down
@@ -989,16 +987,20 @@ Uso esperado:
 
 ```text
 warp xdebug enable:
-  copy ext-xdebug.ini.sample -> .warp/docker/config/php/ext-xdebug.ini
+  write ext-xdebug.ini.sample in-place -> .warp/docker/config/php/ext-xdebug.ini
+  reload PHP-FPM, fallback restart php service
 
 warp xdebug disable:
-  copy ext-xdebug.disabled.ini.sample -> .warp/docker/config/php/ext-xdebug.ini
+  write ext-xdebug.disabled.ini.sample in-place -> .warp/docker/config/php/ext-xdebug.ini
+  reload PHP-FPM, fallback restart php service
 
 warp opcache enable:
-  copy zz-warp-opcache-enable.ini.sample -> .warp/docker/config/php/zz-warp-opcache.ini
+  write zz-warp-opcache-enable.ini.sample in-place -> .warp/docker/config/php/zz-warp-opcache.ini
+  reload PHP-FPM, fallback restart php service
 
 warp opcache disable:
-  copy zz-warp-opcache-disable.ini.sample -> .warp/docker/config/php/zz-warp-opcache.ini
+  write zz-warp-opcache-disable.ini.sample in-place -> .warp/docker/config/php/zz-warp-opcache.ini
+  reload PHP-FPM, fallback restart php service
 ```
 
 ### 18.2 Legacy
@@ -1041,9 +1043,13 @@ Resultados:
 ```text
 ext-xdebug.ini.sample:
   xdebug cargado
-  xdebug.mode => debug,develop
-  xdebug.client_host => host.docker.internal
+  xdebug.discover_client_host => Off
+  xdebug.mode => debug
+  xdebug.start_with_request => trigger
+  xdebug.client_host => 172.17.0.1
   xdebug.client_port => 9003
+  xdebug.idekey => PHPSTORM
+  xdebug.max_nesting_level => 300
 
 ext-xdebug.disabled.ini.sample:
   xdebug no cargado

@@ -52,7 +52,7 @@ No debe:
 
 1. cambiar imagen PHP;
 2. modificar `docker-compose-warp.yml` automaticamente en proyectos existentes;
-3. reiniciar contenedores salvo que se agregue un flag futuro especifico;
+3. recrear contenedores automaticamente;
 4. migrar proyectos legacy por inferencia.
 
 ## 3. Subcomandos
@@ -253,11 +253,7 @@ Keys iniciales:
 ```dotenv
 WARP_PHP_INI_PROFILE=managed
 WARP_PHP_IMAGE_FAMILY=magtools
-XDEBUG_MODE=debug,develop
-XDEBUG_START_WITH_REQUEST=yes
-XDEBUG_CLIENT_HOST=host.docker.internal
-XDEBUG_CLIENT_PORT=9003
-XDEBUG_IDEKEY=PHPSTORM
+XDEBUG_CONFIG=client_host=172.17.0.1 client_port=9003
 ```
 
 ## 9. Reglas de archivos efectivos
@@ -306,6 +302,10 @@ warp phpini profile managed --dev
 warp xdebug status
 warp opcache status
 ```
+
+Los toggles managed escriben los `.ini` efectivos in-place para preservar file bind mounts. Si el contenedor `php` esta corriendo, `warp xdebug enable|disable` y `warp opcache enable|disable` intentan recargar PHP-FPM con `USR2`; si falla el reload, reinician el servicio `php` con Compose.
+
+El reload aplica cambios de `.ini`. Si se cambia `XDEBUG_CONFIG` u otra variable de `.env` que Docker inyecta al contenedor, hay que recrear el servicio `php` para que el entorno del contenedor cambie.
 
 Validacion runtime esperada:
 

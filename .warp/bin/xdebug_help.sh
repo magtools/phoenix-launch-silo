@@ -15,6 +15,7 @@ function xdebug_help_usage()
     warp_message_info   " --status           $(warp_message 'display status of xdebug')"
     warp_message_info   " --force            $(warp_message 'overwrite a custom managed Xdebug ini file')"
     warp_message_info   " --dry-run          $(warp_message 'show planned managed changes without writing')"
+    warp_message_info   "                    $(warp_message 'managed enable/disable reloads PHP-FPM, restarting php only if reload fails')"
     warp_message ""
 
     warp_message ""
@@ -24,6 +25,8 @@ function xdebug_help_usage()
 
     warp_message_info "Example:"
     warp_message " warp xdebug status"
+    warp_message " warp xdebug enable"
+    warp_message " warp xdebug disable"
     warp_message " warp xdebug --status"
     warp_message ""    
 }

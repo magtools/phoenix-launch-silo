@@ -202,6 +202,19 @@ opcache_current_file_is_managed_sample() {
     return 1
 }
 
+opcache_write_sample() {
+    local _sample="$1"
+    local _file="$2"
+
+    if [ -f "$_file" ]; then
+        : > "$_file" || return 1
+        cat "$_sample" > "$_file" || return 1
+        return 0
+    fi
+
+    cp "$_sample" "$_file"
+}
+
 opcache_change() {
     local _action="$1"
     shift 1
@@ -233,7 +246,7 @@ opcache_change() {
             opcache_print_kv "planned action" "keep custom file"
             warp_message_warn "custom OPcache ini exists; rerun with --force to overwrite"
         else
-            opcache_print_kv "planned action" "copy sample"
+            opcache_print_kv "planned action" "write sample"
         fi
         warp_message "No files were modified."
         return 0
@@ -250,7 +263,7 @@ opcache_change() {
         return 1
     }
 
-    cp "$_sample" "$_file" || {
+    opcache_write_sample "$_sample" "$_file" || {
         warp_message_error "could not write OPcache managed ini"
         return 1
     }
@@ -259,7 +272,7 @@ opcache_change() {
     opcache_print_kv "file state" "$(opcache_file_state)"
     opcache_print_kv "opcache.enable" "$(opcache_file_value "opcache.enable")"
     opcache_print_kv "opcache.validate_timestamps" "$(opcache_file_value "opcache.validate_timestamps")"
-    warp_message "Containers were not restarted."
+    warp_php_fpm_reload_or_restart "OPcache ${_label} profile" || return 1
 }
 
 opcache_main() {

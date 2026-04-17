@@ -344,6 +344,19 @@ phpini_ensure_env_default() {
     return 1
 }
 
+phpini_write_sample() {
+    local _sample="$1"
+    local _file="$2"
+
+    if [ -f "$_file" ]; then
+        : > "$_file" || return 1
+        cat "$_sample" > "$_file" || return 1
+        return 0
+    fi
+
+    cp "$_sample" "$_file"
+}
+
 phpini_copy_effective_ini() {
     local _source="$1"
     local _target="$2"
@@ -361,12 +374,12 @@ phpini_copy_effective_ini() {
     fi
 
     if [ -f "$_target" ] && [ "$_force" = "yes" ]; then
-        cp "$_source" "$_target" || return 1
+        phpini_write_sample "$_source" "$_target" || return 1
         phpini_print_kv "$_label" "overwritten"
         return 0
     fi
 
-    cp "$_source" "$_target" || return 1
+    phpini_write_sample "$_source" "$_target" || return 1
     phpini_print_kv "$_label" "created"
 }
 
@@ -511,11 +524,7 @@ phpini_profile_managed_write() {
     phpini_print_kv "opcache init profile" "$_opcache_label"
     phpini_print_kv "opcache mount" "managed"
 
-    phpini_ensure_env_default "XDEBUG_MODE" "debug,develop" || return 1
-    phpini_ensure_env_default "XDEBUG_START_WITH_REQUEST" "yes" || return 1
-    phpini_ensure_env_default "XDEBUG_CLIENT_HOST" "host.docker.internal" || return 1
-    phpini_ensure_env_default "XDEBUG_CLIENT_PORT" "9003" || return 1
-    phpini_ensure_env_default "XDEBUG_IDEKEY" "PHPSTORM" || return 1
+    phpini_ensure_env_default "XDEBUG_CONFIG" "client_host=172.17.0.1 client_port=9003" || return 1
 
     phpini_copy_effective_ini \
         "$_samples_dir/ext-xdebug.disabled.ini.sample" \

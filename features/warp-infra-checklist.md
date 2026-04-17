@@ -46,6 +46,10 @@ Checklist de continuidad para la evaluacion multiarch `amd64/arm64`, imagenes pr
 - [x] Agregado `.gitignore` para `zz-warp-opcache.ini` y overrides locales.
 - [x] Documentado procedimiento de rollback managed -> legacy.
 - [x] Generado bundle de prueba local en `../eprivee` con `.env.test`, `docker-compose-warp.yml.test` y `warp-infra-guide.md`.
+- [x] Validado `warp phpini`, `warp xdebug` y `warp opcache` en proyecto Magento 2.4.8+ real (`../eprivee`) con imagenes `magtools`.
+- [x] Corregida escritura de `.ini` managed para preservar file bind mounts escribiendo in-place.
+- [x] Agregado reload de PHP-FPM para `warp xdebug enable|disable` y `warp opcache enable|disable`, con fallback a restart del servicio `php`.
+- [x] Ajustado sample managed de Xdebug a valores literales: `debug`, `trigger`, `172.17.0.1`, puerto `9003`.
 
 ## Pendiente
 
@@ -58,7 +62,6 @@ Checklist de continuidad para la evaluacion multiarch `amd64/arm64`, imagenes pr
 - [ ] Probar stack real con `magtools/appdata` y `magtools/php` en `linux/arm64`.
 - [ ] Definir tags finales para imagenes, evitando depender de tags `poc`.
 - [ ] Decidir si `PHP_IMAGE_REPO` y `APPDATA_IMAGE_REPO` deben quedar como pregunta visible del wizard o solo override manual en `.env`.
-- [ ] Validar `warp phpini`, `warp xdebug` y `warp opcache` en proyecto Magento 2.4.8+.
 - [ ] Validar que Magento 2.4.5/2.4.7 sigan en modo legacy sin cambios operativos.
 - [ ] Medir performance comparativa real `c7i.xlarge` vs `c7g.xlarge`.
 - [ ] Tomar decision ROI final antes de migrar produccion.
@@ -118,6 +121,9 @@ El objetivo de fondo es evaluar si vale la pena pasar de instancias x86 `c5/c7i`
    - `managed`: futuro para Magento `2.4.8+` con imagen PHP nueva compatible.
 7. La imagen PHP nueva debe instalar `xdebug.so` pero no auto-habilitar Xdebug.
 8. OPcache se controla por `.ini`; no hace falta descargar la extension para desarrollo.
+9. Los `.ini` managed se escriben in-place para no romper file bind mounts activos.
+10. Los toggles managed recargan PHP-FPM con `USR2`; si falla, reinician el servicio `php`.
+11. Cambios de variables de entorno en `.env` requieren recrear el servicio `php`; un reload de PHP-FPM no cambia el entorno Docker.
 
 ### Codigo ya tocado
 
@@ -130,6 +136,7 @@ warp.sh
 .warp/bin/opcache_help.sh
 .warp/bin/xdebug.sh
 .warp/bin/xdebug_help.sh
+.warp/lib/php_fpm.sh
 .warp/lib/check.sh
 .warp/setup/init/base.sh
 .warp/setup/init/gandalf.sh
@@ -166,6 +173,15 @@ Resumen de codigo:
 11. setup agrega defaults retrocompatibles a `.env.sample`.
 12. `../eprivee/.env.test` y `../eprivee/docker-compose-warp.yml.test` permiten probar las imagenes PoC `magtools/php:8.4-fpm-poc-amd64` y `magtools/appdata:bookworm-poc-amd64` sin reemplazar `.env` ni `docker-compose-warp.yml`.
 13. `../eprivee/warp-infra-guide.md` documenta el flujo de prueba, managed/legacy y rollback.
+14. `.warp/lib/php_fpm.sh` agrega helper compartido para detectar el contenedor `php`, recargar PHP-FPM con `USR2` y reiniciar el servicio `php` como fallback.
+15. `warp xdebug/opcache` escriben samples in-place cuando el archivo efectivo ya existe para preservar el mount activo.
+16. El sample managed de Xdebug usa valores literales y no placeholders `${XDEBUG_*}`:
+   - `xdebug.discover_client_host=0`;
+   - `xdebug.mode=debug`;
+   - `xdebug.start_with_request=trigger`;
+   - `xdebug.client_host=172.17.0.1`;
+   - `xdebug.client_port=9003`;
+   - `xdebug.idekey=PHPSTORM`.
 
 ### Documentacion/PoC ya creada
 
@@ -305,7 +321,7 @@ status muestra file state missing si falta zz-warp-opcache.ini
 disable crea perfil development con opcache.enable=0
 enable crea perfil production con opcache.enable=1
 archivo custom se conserva salvo --force
-los comandos no reinician contenedores todavia
+reload PHP-FPM si php esta corriendo; fallback restart del servicio php si falla
 ```
 
 Escritura real de Xdebug managed probada en copia temporal, no en repo fuente:
@@ -330,6 +346,7 @@ disable crea perfil disabled desde ext-xdebug.disabled.ini.sample
 archivo custom se conserva salvo --force
 aliases --enable, --disable y --status siguen aceptados
 perfil legacy mantiene comportamiento historico con sed y reinicio de php
+perfil managed escribe in-place, recarga PHP-FPM y no recrea contenedor
 ```
 
 Mount OPcache managed probado en copia temporal, no en repo fuente:
@@ -390,6 +407,18 @@ zz-warp-opcache-enable.ini.sample -> opcache.enable On, validate_timestamps Off
 zz-warp-opcache-disable.ini.sample -> opcache.enable Off, validate_timestamps On
 ```
 
+Validacion real en `../eprivee` con `magtools/php:8.4-fpm-poc-amd64`:
+
+```text
+warp phpini profile managed --dev creo archivos efectivos disabled
+warp xdebug enable escribio ext-xdebug.ini in-place y recargo PHP-FPM
+warp opcache enable escribio zz-warp-opcache.ini in-place y recargo PHP-FPM
+el ID y StartedAt del contenedor php no cambiaron durante reload
+xdebug enabled: loaded=yes, mode=debug, start_with_request=trigger, client_host=172.17.0.1, port=9003
+opcache enabled: opcache.enable=1, validate_timestamps=0
+xdebug/opcache disable recargo PHP-FPM y dejo runtime dev
+```
+
 ### Advertencias para el siguiente agente
 
 1. No extender `managed` escribiendo archivos sin respetar `--dry-run` y `--force`.
@@ -416,6 +445,6 @@ docker compose --env-file .env.test -f docker-compose-warp.yml.test down
 
 Reglas del proximo paso:
 
-1. validar `warp phpini`, `warp xdebug` y `warp opcache` en proyecto Magento 2.4.8+ con contenedor real;
-2. validar que Magento 2.4.5/2.4.7 sigan en `legacy`;
-3. no convertir `summasolutions` a default nuevo todavia.
+1. validar que Magento 2.4.5/2.4.7 sigan en `legacy`;
+2. no convertir `summasolutions` a default nuevo todavia;
+3. regenerar `dist/warp`, `dist/version.md` y `dist/sha256sum.md` cuando se cierre esta tanda.
