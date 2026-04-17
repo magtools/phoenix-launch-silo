@@ -268,9 +268,16 @@ Nota:
 1. `MP_UI_AUTH` sirve para PoC rapida.
 2. En templates de Warp conviene preferir `MP_UI_AUTH_FILE` para no exponer credenciales en `docker inspect`.
 
-## 8. Publicar manifest multiarch
+## 8. Publicar/verificar manifest multiarch
 
-Si se quiere publicar imagenes de prueba, usar tags temporales:
+Tags modernos esperados en DockerHub:
+
+```text
+magtools/appdata:bookworm
+magtools/php:8.4.20-fpm
+```
+
+Los tags PoC con sufijo de arquitectura quedan como historial o fallback de diagnostico. Si se quiere publicar imagenes de prueba, usar tags temporales:
 
 ```bash
 docker login <registry>
@@ -288,23 +295,23 @@ Para manifest multiarch real hay dos opciones:
 Ejemplo con manifest manual:
 
 ```bash
-docker manifest create magtools/appdata:bookworm-poc \
+docker manifest create magtools/appdata:bookworm \
   --amend magtools/appdata:bookworm-poc-amd64 \
   --amend magtools/appdata:bookworm-poc-arm64
 
-docker manifest create magtools/php:8.4-fpm-poc \
+docker manifest create magtools/php:8.4.20-fpm \
   --amend magtools/php:8.4-fpm-poc-amd64 \
   --amend magtools/php:8.4-fpm-poc-arm64
 
-docker manifest push magtools/appdata:bookworm-poc
-docker manifest push magtools/php:8.4-fpm-poc
+docker manifest push magtools/appdata:bookworm
+docker manifest push magtools/php:8.4.20-fpm
 ```
 
 Inspeccionar:
 
 ```bash
-docker manifest inspect magtools/appdata:bookworm-poc
-docker manifest inspect magtools/php:8.4-fpm-poc
+docker manifest inspect magtools/appdata:bookworm
+docker manifest inspect magtools/php:8.4.20-fpm
 ```
 
 ## 9. Captura de resultados

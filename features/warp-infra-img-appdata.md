@@ -13,6 +13,15 @@ Este archivo complementa:
 
 La PoC debe probar primero `linux/amd64` y despues `linux/arm64`.
 
+Estado actualizado:
+
+```text
+Tag moderno DockerHub: magtools/appdata:bookworm
+Tags PoC historicos: magtools/appdata:bookworm-poc-amd64, magtools/appdata:bookworm-poc-arm64, magtools/appdata:bookworm-poc
+```
+
+Para nuevas pruebas de stack usar `magtools/appdata:bookworm`. Los tags `*-poc-*` quedan como historial de build/smoke y no como objetivo operativo.
+
 ## 2. Diagnostico
 
 La imagen actual observada:
@@ -143,7 +152,7 @@ Luego buildx multiarch:
 ```bash
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
-  -t magtools/appdata:bookworm-poc \
+  -t magtools/appdata:bookworm \
   -f images/appdata-poc/Dockerfile \
   images/appdata-poc \
   --push
@@ -170,7 +179,7 @@ Lectura:
 
 ```bash
 docker run --rm --entrypoint sh warp/appdata:bookworm-poc-amd64 -lc 'cat /etc/os-release && uname -m && rsync --version | head -n2'
-docker run --rm magtools/appdata:bookworm-poc sh -lc 'cat /etc/os-release && uname -m && rsync --version | head -n2'
+docker run --rm magtools/appdata:bookworm sh -lc 'cat /etc/os-release && uname -m && rsync --version | head -n2'
 ```
 
 Smoke local `amd64` ejecutado:
@@ -187,7 +196,7 @@ Reemplazar temporalmente solo en un compose de prueba:
 
 ```yaml
 appdata:
-  image: magtools/appdata:bookworm-poc
+  image: magtools/appdata:bookworm
 ```
 
 Validar:

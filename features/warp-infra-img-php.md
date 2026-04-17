@@ -6,6 +6,15 @@ Fecha: 2026-04-16
 
 Definir una PoC de imagen PHP propia, multiarch, compatible con un stack Magento moderno tipo `example`, reemplazando `summasolutions/php:8.4-fpm`.
 
+Estado actualizado:
+
+```text
+Tag moderno DockerHub: magtools/php:8.4.20-fpm
+Tags PoC historicos: magtools/php:8.4-fpm-poc-amd64, magtools/php:8.4-fpm-poc-arm64, magtools/php:8.4-fpm-poc
+```
+
+Para nuevas pruebas de Magento 2.4.8 usar `magtools/php:8.4.20-fpm`. Los tags `*-poc-*` quedan como historial de build/smoke.
+
 Este archivo complementa:
 
 - [warp-infra.md](/srv2/www/htdocs/66/warp-engine/features/warp-infra.md)
@@ -331,7 +340,7 @@ Luego `arm64` o multiarch:
 ```bash
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
-  -t magtools/php:8.4-fpm-poc \
+  -t magtools/php:8.4.20-fpm \
   -f images/php/8.4-fpm-poc/Dockerfile \
   images/php/8.4-fpm-poc \
   --push
@@ -453,7 +462,7 @@ Reemplazo temporal:
 
 ```yaml
 php:
-  image: magtools/php:8.4-fpm-poc
+  image: magtools/php:8.4.20-fpm
 
 mail:
   image: axllent/mailpit:latest

@@ -50,17 +50,16 @@ Checklist de continuidad para la evaluacion multiarch `amd64/arm64`, imagenes pr
 - [x] Corregida escritura de `.ini` managed para preservar file bind mounts escribiendo in-place.
 - [x] Agregado reload de PHP-FPM para `warp xdebug enable|disable` y `warp opcache enable|disable`, con fallback a restart del servicio `php`.
 - [x] Ajustado sample managed de Xdebug a valores literales: `debug`, `trigger`, `172.17.0.1`, puerto `9003`.
+- [x] Definidos tags modernos en DockerHub para Magento 2.4.8: `magtools/php:8.4.20-fpm` y `magtools/appdata:bookworm`.
 
 ## Pendiente
 
 - [ ] Crear y validar build `linux/arm64` de `appdata` en Graviton.
 - [ ] Crear y validar build `linux/arm64` de PHP 8.4 en Graviton.
-- [ ] Publicar imagenes PoC en DockerHub `magtools`.
-- [ ] Publicar manifest multiarch para `magtools/appdata`.
-- [ ] Publicar manifest multiarch para `magtools/php`.
-- [ ] Probar stack real con `magtools/appdata` y `magtools/php` en `linux/amd64`.
-- [ ] Probar stack real con `magtools/appdata` y `magtools/php` en `linux/arm64`.
-- [ ] Definir tags finales para imagenes, evitando depender de tags `poc`.
+- [ ] Verificar si `magtools/appdata:bookworm` publica manifest `linux/amd64,linux/arm64`.
+- [ ] Verificar si `magtools/php:8.4.20-fpm` publica manifest `linux/amd64,linux/arm64`.
+- [ ] Probar stack real con `magtools/appdata:bookworm` y `magtools/php:8.4.20-fpm` en `linux/amd64`.
+- [ ] Probar stack real con `magtools/appdata:bookworm` y `magtools/php:8.4.20-fpm` en `linux/arm64`.
 - [ ] Decidir si `PHP_IMAGE_REPO` y `APPDATA_IMAGE_REPO` deben quedar como pregunta visible del wizard o solo override manual en `.env`.
 - [ ] Validar que Magento 2.4.5/2.4.7 sigan en modo legacy sin cambios operativos.
 - [ ] Medir performance comparativa real `c7i.xlarge` vs `c7g.xlarge`.
@@ -124,6 +123,11 @@ El objetivo de fondo es evaluar si vale la pena pasar de instancias x86 `c5/c7i`
 9. Los `.ini` managed se escriben in-place para no romper file bind mounts activos.
 10. Los toggles managed recargan PHP-FPM con `USR2`; si falla, reinician el servicio `php`.
 11. Cambios de variables de entorno en `.env` requieren recrear el servicio `php`; un reload de PHP-FPM no cambia el entorno Docker.
+12. Tags modernos publicados para Magento 2.4.8:
+   - `PHP_IMAGE_REPO=magtools`;
+   - `PHP_VERSION=8.4.20-fpm`;
+   - `APPDATA_IMAGE_REPO=magtools`;
+   - `APPDATA_VERSION=bookworm`.
 
 ### Codigo ya tocado
 
@@ -171,7 +175,7 @@ Resumen de codigo:
 9. `.warp/bin/start.sh` busca imagen PHP local en orden `magtools`, `66ecommerce`, `summasolutions`.
 10. `php.yml` y `appdata.yml` usan variables de repo con default legacy.
 11. setup agrega defaults retrocompatibles a `.env.sample`.
-12. `../eprivee/.env.test` y `../eprivee/docker-compose-warp.yml.test` permiten probar las imagenes PoC `magtools/php:8.4-fpm-poc-amd64` y `magtools/appdata:bookworm-poc-amd64` sin reemplazar `.env` ni `docker-compose-warp.yml`.
+12. `../eprivee/.env.test` y `../eprivee/docker-compose-warp.yml.test` nacieron para probar tags PoC; para pruebas nuevas usar los tags finales `magtools/php:8.4.20-fpm` y `magtools/appdata:bookworm`.
 13. `../eprivee/warp-infra-guide.md` documenta el flujo de prueba, managed/legacy y rollback.
 14. `.warp/lib/php_fpm.sh` agrega helper compartido para detectar el contenedor `php`, recargar PHP-FPM con `USR2` y reiniciar el servicio `php` como fallback.
 15. `warp xdebug/opcache` escriben samples in-place cuando el archivo efectivo ya existe para preservar el mount activo.
@@ -391,11 +395,18 @@ Resultado esperado:
 exit code 0
 ```
 
-Imagenes configuradas en el bundle:
+Imagenes historicas configuradas en el bundle inicial:
 
 ```text
 magtools/php:8.4-fpm-poc-amd64
 magtools/appdata:bookworm-poc-amd64
+```
+
+Imagenes modernas recomendadas para nuevas pruebas:
+
+```text
+magtools/php:8.4.20-fpm
+magtools/appdata:bookworm
 ```
 
 Samples managed validados contra la imagen PHP PoC:
@@ -445,6 +456,8 @@ docker compose --env-file .env.test -f docker-compose-warp.yml.test down
 
 Reglas del proximo paso:
 
-1. validar que Magento 2.4.5/2.4.7 sigan en `legacy`;
-2. no convertir `summasolutions` a default nuevo todavia;
-3. regenerar `dist/warp`, `dist/version.md` y `dist/sha256sum.md` cuando se cierre esta tanda.
+1. probar `../eprivee` con `PHP_VERSION=8.4.20-fpm` y `APPDATA_VERSION=bookworm`;
+2. verificar manifests DockerHub de `magtools/php:8.4.20-fpm` y `magtools/appdata:bookworm`;
+3. validar que Magento 2.4.5/2.4.7 sigan en `legacy`;
+4. no convertir `summasolutions` a default nuevo todavia;
+5. regenerar `dist/warp`, `dist/version.md` y `dist/sha256sum.md` cuando se cierre esta tanda.
