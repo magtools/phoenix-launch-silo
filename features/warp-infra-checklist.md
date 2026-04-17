@@ -29,6 +29,7 @@ Checklist de continuidad para la evaluacion multiarch `amd64/arm64`, imagenes pr
 - [x] Validacion de samples managed contra imagen PHP PoC.
 - [x] Documentacion del comando `warp phpini profile` en `features/warp-phpini-command.md`.
 - [x] Implementacion read-only de `warp phpini profile status`.
+- [x] Preflight en `warp start` que acepta imagenes configuradas locales de cualquier repo/tag y aborta tags PoC faltantes antes de pull remoto.
 - [x] Implementacion de `warp phpini profile legacy --dry-run`.
 - [x] Implementacion de `warp phpini profile managed --dry-run`.
 - [x] Agregado `magtools` como repositorio DockerHub aceptado para nuevas imagenes PHP/appdata.

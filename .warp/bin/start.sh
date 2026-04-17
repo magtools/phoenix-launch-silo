@@ -57,6 +57,10 @@ function start() {
       CUSTOM_YML_FILE=$DOCKERCOMPOSEFILESELENIUM;
     fi
 
+    if ! start_preflight_configured_images; then
+      exit 1
+    fi
+
     case "$(uname -s)" in
       Darwin)
         USE_DOCKER_SYNC=$(warp_env_read_var USE_DOCKER_SYNC)
@@ -122,23 +126,91 @@ function start_main()
     esac
 }
 
+start_preflight_configured_images() {
+  local _status=0
+  local _php_repo=""
+  local _php_version=""
+  local _appdata_repo=""
+  local _appdata_version=""
+
+  _php_repo=$(warp_env_read_var PHP_IMAGE_REPO)
+  [ -n "$_php_repo" ] || _php_repo="summasolutions"
+  _php_version=$(warp_env_read_var PHP_VERSION)
+
+  _appdata_repo=$(warp_env_read_var APPDATA_IMAGE_REPO)
+  [ -n "$_appdata_repo" ] || _appdata_repo="summasolutions"
+  _appdata_version=$(warp_env_read_var APPDATA_VERSION)
+  [ -n "$_appdata_version" ] || _appdata_version="latest"
+
+  if ! start_check_configured_image "php" "${_php_repo}/php:${_php_version}" "warp/php:${_php_version}"; then
+    _status=1
+  fi
+
+  if ! start_check_configured_image "appdata" "${_appdata_repo}/appdata:${_appdata_version}" "warp/appdata:${_appdata_version}"; then
+    _status=1
+  fi
+
+  return "$_status"
+}
+
+start_check_configured_image() {
+  local _service="$1"
+  local _image="$2"
+  local _source_image="$3"
+
+  if docker image inspect "$_image" >/dev/null 2>&1; then
+    return 0
+  fi
+
+  case "$_image" in
+    *:*-poc-*|*:poc-*|*:*-poc|*:poc)
+      ;;
+    *)
+      return 0
+      ;;
+  esac
+
+  warp_message_warn ""
+  warp_message_warn "    Local PoC image not found for ${_service}: ${_image}"
+  warp_message_warn "    This tag is intended for local testing before DockerHub publish."
+  warp_message_warn "    If the image exists with the old local namespace, run:"
+  warp_message_warn "    docker tag ${_source_image} ${_image}"
+  return 1
+}
+
 check_PHP_Image() {
   local PHP_IMAGE_REPOS=("magtools" "66ecommerce" "summasolutions")
   local PHP_IMAGE_REPO=""
   local PHP_IMAGE=""
   local PHP_IMAGE_CREATION_TAG=""
+  local PHP_IMAGE_CONFIGURED_REPO=""
+  local PHP_IMAGE_CONFIGURED=""
 
-  for PHP_IMAGE_REPO in "${PHP_IMAGE_REPOS[@]}"; do
-    PHP_IMAGE="${PHP_IMAGE_REPO}/php:${PHP_VERSION}"
-    if docker image inspect "$PHP_IMAGE" --format '{{.Created}}' >/dev/null 2>&1; then
-      break
+  PHP_IMAGE_CONFIGURED_REPO=$(warp_env_read_var PHP_IMAGE_REPO)
+  if [ -n "$PHP_IMAGE_CONFIGURED_REPO" ]; then
+    PHP_IMAGE_CONFIGURED="${PHP_IMAGE_CONFIGURED_REPO}/php:${PHP_VERSION}"
+    if docker image inspect "$PHP_IMAGE_CONFIGURED" --format '{{.Created}}' >/dev/null 2>&1; then
+      PHP_IMAGE="$PHP_IMAGE_CONFIGURED"
     fi
-    PHP_IMAGE=""
-  done
+  fi
+
+  if [ -z "$PHP_IMAGE" ]; then
+    for PHP_IMAGE_REPO in "${PHP_IMAGE_REPOS[@]}"; do
+      PHP_IMAGE="${PHP_IMAGE_REPO}/php:${PHP_VERSION}"
+      if docker image inspect "$PHP_IMAGE" --format '{{.Created}}' >/dev/null 2>&1; then
+        break
+      fi
+      PHP_IMAGE=""
+    done
+  fi
 
   if [ -z "$PHP_IMAGE" ]; then
     warp_message_warn ""
-    warp_message_warn "    PHP image not found: magtools/php:${PHP_VERSION}, 66ecommerce/php:${PHP_VERSION} or summasolutions/php:${PHP_VERSION}"
+    if [ -n "$PHP_IMAGE_CONFIGURED" ]; then
+      warp_message_warn "    PHP image not found: ${PHP_IMAGE_CONFIGURED}"
+    else
+      warp_message_warn "    PHP image not found: magtools/php:${PHP_VERSION}, 66ecommerce/php:${PHP_VERSION} or summasolutions/php:${PHP_VERSION}"
+    fi
     return
   fi
 
