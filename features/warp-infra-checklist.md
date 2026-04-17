@@ -41,6 +41,8 @@ Checklist de continuidad para la evaluacion multiarch `amd64/arm64`, imagenes pr
 - [x] Implementacion de `warp opcache enable|disable|status`.
 - [x] Refactor conservador de `warp xdebug enable|disable|status` manteniendo compatibilidad legacy.
 - [x] Agregado mount variable `WARP_PHP_OPCACHE_VOLUME` para `zz-warp-opcache.ini` solo en perfil managed.
+- [x] Samples PHP INI movidos a `.warp/setup/php/config/php/{managed,legacy}` para viajar con el payload instalado.
+- [x] Instalacion PHP copia defaults managed deshabilitados para `ext-xdebug.ini` y `zz-warp-opcache.ini` si faltan.
 - [x] Agregado `.gitignore` para `zz-warp-opcache.ini` y overrides locales.
 - [x] Documentado procedimiento de rollback managed -> legacy.
 - [x] Generado bundle de prueba local en `../eprivee` con `.env.test`, `docker-compose-warp.yml.test` y `warp-infra-guide.md`.

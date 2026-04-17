@@ -39,7 +39,7 @@ xdebug_config_file() {
 }
 
 xdebug_samples_dir() {
-    printf '%s\n' "$PROJECTPATH/features/warp-phpini-samples/managed"
+    printf '%s\n' "$PROJECTPATH/.warp/setup/php/config/php/managed"
 }
 
 xdebug_enable_sample() {

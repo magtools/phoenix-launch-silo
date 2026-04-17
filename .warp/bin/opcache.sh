@@ -30,7 +30,7 @@ opcache_config_file() {
 }
 
 opcache_samples_dir() {
-    printf '%s\n' "$PROJECTPATH/features/warp-phpini-samples/managed"
+    printf '%s\n' "$PROJECTPATH/.warp/setup/php/config/php/managed"
 }
 
 opcache_enable_sample() {

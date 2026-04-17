@@ -223,6 +223,7 @@ warp_check_gitignore()
     fi
 
     for _line in \
+        "/.warp/docker/config/php/ext-xdebug.ini" \
         "/.warp/docker/config/php/zz-warp-opcache.ini" \
         "/.warp/docker/config/php/*-local.ini" \
         "!/.warp/docker/config/php/*.sample"
