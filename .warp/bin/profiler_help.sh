@@ -4,6 +4,7 @@ function profiler_help_usage()
 {
     warp_message ""
     warp_message_info "Usage:"
+    warp_message " warp profiler"
     warp_message " warp profiler status"
     warp_message " warp profiler php --enable [html|csv]"
     warp_message " warp profiler php --disable"
@@ -20,6 +21,7 @@ function profiler_help_usage()
     warp_message ""
 
     warp_message_info "Examples:"
+    warp_message " warp profiler"
     warp_message " warp profiler status"
     warp_message " warp profiler php --enable html"
     warp_message " warp profiler php --enable csv"

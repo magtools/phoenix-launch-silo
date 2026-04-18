@@ -9,7 +9,7 @@ Motivación
 ----------
 - Facilitar encendido/apagado seguro y reproducible de herramientas de profiling.
 - Evitar modificaciones manuales en env.php o creación accidental de grandes logs.
-- Unificar UX: `warp profiler status|php|db --enable|--disable`.
+- Unificar UX: `warp profiler` muestra help + status; `warp profiler status|php|db --enable|--disable` ejecuta acciones puntuales.
 
 Alcance
 -------
@@ -34,7 +34,8 @@ User stories
 CLI (propuesta)
 ---------------
 - warp profiler status
-- warp profiler php --enable [html|csv]  # csv escribirá var/log/profiler.csv; html usará var/profiler.flag = "html"
+- warp profiler  # muestra help + status actual
+- warp profiler php --enable [html|csv]  # csv escribirá var/log/profiler.csv usando driver standard + output csvfile; html usará var/profiler.flag = "html"
 - warp profiler php --disable            # borra var/profiler.flag y/o lo trunca
 - warp profiler db --enable [controlled|full]
 - warp profiler db --disable
@@ -46,6 +47,9 @@ Implementación: opciones y riesgos
 1) PHP profiler (file-toggle)
    - Usa el comportamiento existente: var/profiler.flag
    - Implementación: crear/overwrite var/profiler.flag con los contenidos adecuados ("html" o JSON para CSV).
+   - JSON CSV correcto para Magento:
+     `{"drivers":[{"type":"standard","output":{"type":"csvfile","filePath":"var/log/profiler.csv"}}]}`
+   - En modo CSV, Warp debe crear/truncar `var/log/profiler.csv` antes de la request y dejarlo con permisos `666`; Magento reescribe el contenido al finalizar la request.
    - Comportamiento seguro: para Magento, la edición/activación automática se realiza sin preguntas sólo si el proyecto está en modo developer. En production la acción requiere `--force` para aplicar cualquier cambio.
    - Ventaja: no tocar app/etc/env.php, reversible, idempotente.
    - Riesgo: si el proyecto no respeta var/profiler.flag, documentar precondición.
@@ -66,6 +70,8 @@ Implementación: opciones y riesgos
 3) Truncado y prevención de disco lleno
    - Al desactivar, truncar los logs asociados para evitar consumo de disco y dejar la próxima medición desde cero.
    - `status` debe mostrar tamaños actuales de logs relevantes.
+   - `status` debe imprimir una línea en blanco antes y después del bloque.
+   - `status` debe mostrar `php var/profiler.flag` como `missing`, `empty` o el contenido real del flag.
    - Para truncado manual con `logs --truncate`, requerir `--force` cuando no haya terminal interactiva.
 
 4) Extensibilidad y conectores
@@ -129,6 +135,9 @@ Plan de acción (tareas)
 Criterios de aceptación
 -----------------------
 - `warp profiler status` devuelve estado correcto para PHP and DB.
+- `warp profiler` sin argumentos imprime help + status.
+- `warp profiler status` muestra `php var/profiler.flag` con el contenido actual del archivo o `missing`.
+- `warp profiler status` muestra tamaño y modo de `var/log/profiler.csv`; si CSV está activo y el archivo falta o no está en `666`, muestra una nota operativa junto al tamaño.
 - Enabling PHP profiler creates correct var/profiler.flag and does not change env.php.
 - Enabling DB profiler overwrites the single profiler backup and updates app/etc/env.php in place; cache cleaned unless --no-cache-clean.
 - Disable restores recommended settings and truncates associated logs.

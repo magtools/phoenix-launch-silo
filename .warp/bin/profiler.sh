@@ -83,7 +83,7 @@ profiler_require_connector() {
 }
 
 profiler_main() {
-    local _action="${1:-status}"
+    local _action="${1:-}"
     local _mode=""
     local _target=""
 
@@ -99,7 +99,12 @@ profiler_main() {
     profiler_require_connector || exit 1
 
     case "$_action" in
-        status|--status|"")
+        "")
+            profiler_help_usage
+            profiler_connector_status
+            exit $?
+            ;;
+        status|--status)
             profiler_connector_status
             exit $?
             ;;

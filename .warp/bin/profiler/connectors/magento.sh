@@ -30,6 +30,51 @@ profiler_magento_log_size() {
     printf '%s\n' "${_size:-unknown}"
 }
 
+profiler_magento_file_mode() {
+    local _file="$1"
+    local _mode=""
+
+    [ -e "$_file" ] || {
+        printf '%s\n' "missing"
+        return 0
+    }
+
+    _mode=$(stat -c '%a' "$_file" 2>/dev/null)
+    if [ -z "$_mode" ]; then
+        _mode=$(stat -f '%Lp' "$_file" 2>/dev/null)
+    fi
+
+    printf '%s\n' "${_mode:-unknown}"
+}
+
+profiler_magento_csv_log_state() {
+    local _php_state="$1"
+    local _size=""
+    local _mode=""
+
+    [ -e "$PROFILER_MAGENTO_CSV_LOG" ] || {
+        if [ "$_php_state" = "enabled-html" ]; then
+            printf '%s\n' "missing (HTML profiler enabled; output is rendered at the page footer)"
+            return 0
+        fi
+        if [ "$_php_state" = "enabled-csv" ]; then
+            printf '%s\n' "missing (CSV profiler enabled; file should be created by Warp with mode 666 before the request)"
+            return 0
+        fi
+        printf '%s\n' "missing"
+        return 0
+    }
+
+    _size=$(profiler_magento_log_size "$PROFILER_MAGENTO_CSV_LOG")
+    _mode=$(profiler_magento_file_mode "$PROFILER_MAGENTO_CSV_LOG")
+    if [ "$_php_state" = "enabled-csv" ] && [ "$_mode" != "666" ]; then
+        printf '%s\n' "${_size} (mode ${_mode}; expected 666 for Magento CSV writes)"
+        return 0
+    fi
+
+    printf '%s\n' "${_size} (mode ${_mode})"
+}
+
 profiler_magento_php_state() {
     local _config=""
 
@@ -53,6 +98,20 @@ profiler_magento_php_state() {
             printf '%s\n' "enabled-custom"
             ;;
     esac
+}
+
+profiler_magento_php_flag_value() {
+    [ -f "$PROFILER_MAGENTO_PHP_FLAG" ] || {
+        printf '%s\n' "missing"
+        return 0
+    }
+
+    [ -s "$PROFILER_MAGENTO_PHP_FLAG" ] || {
+        printf '%s\n' "empty"
+        return 0
+    }
+
+    tr -d '\n\r' < "$PROFILER_MAGENTO_PHP_FLAG" 2>/dev/null
 }
 
 profiler_magento_env_summary() {
@@ -391,6 +450,7 @@ profiler_magento_write_env() {
 
 profiler_magento_cache_clean() {
     local _warp_exec=""
+    local _status=0
 
     [ "$PROFILER_NO_CACHE_CLEAN" = "1" ] && {
         warp_message_warn "skipped Magento cache:clean config"
@@ -398,7 +458,17 @@ profiler_magento_cache_clean() {
     }
 
     _warp_exec=$(profiler_magento_warp_exec)
+    profiler_print_kv "cache clean" "$_warp_exec magento cache:clean config"
     "$_warp_exec" magento cache:clean config
+    _status=$?
+    if [ $_status -ne 0 ]; then
+        warp_message_error "Magento config cache clean failed after env.php was updated."
+        warp_message_warn "Fix the cache backend issue, then run: $_warp_exec magento cache:clean config"
+        warp_message_warn "For Redis MISCONF, check Redis persistence/disk errors before retrying."
+        return $_status
+    fi
+
+    return 0
 }
 
 profiler_magento_truncate_file() {
@@ -406,6 +476,14 @@ profiler_magento_truncate_file() {
 
     mkdir -p "$(dirname "$_file")" || return 1
     : > "$_file"
+}
+
+profiler_magento_prepare_csv_log() {
+    profiler_magento_truncate_file "$PROFILER_MAGENTO_CSV_LOG" || return 1
+    chmod 666 "$PROFILER_MAGENTO_CSV_LOG" || {
+        warp_message_error "could not set mode 666 on var/log/profiler.csv"
+        return 1
+    }
 }
 
 profiler_connector_logs_truncate() {
@@ -422,12 +500,12 @@ profiler_connector_logs_truncate() {
             profiler_print_kv "truncated" "var/debug/db.log"
             ;;
         profiler|php)
-            profiler_magento_truncate_file "$PROFILER_MAGENTO_CSV_LOG" || return 1
+            profiler_magento_prepare_csv_log || return 1
             profiler_print_kv "truncated" "var/log/profiler.csv"
             ;;
         all)
             profiler_magento_truncate_file "$PROFILER_MAGENTO_DB_LOG" || return 1
-            profiler_magento_truncate_file "$PROFILER_MAGENTO_CSV_LOG" || return 1
+            profiler_magento_prepare_csv_log || return 1
             profiler_print_kv "truncated" "var/debug/db.log"
             profiler_print_kv "truncated" "var/log/profiler.csv"
             ;;
@@ -440,19 +518,23 @@ profiler_connector_logs_truncate() {
 
 profiler_connector_status() {
     local _summary=""
+    local _php_state=""
 
+    warp_message ""
     warp_message_info "Profiler status"
     warp_message "---------------"
     profiler_print_kv "connector" "magento"
-    profiler_print_kv "php profiler" "$(profiler_magento_php_state)"
-    profiler_print_kv "profiler flag" "var/profiler.flag"
+    _php_state=$(profiler_magento_php_state)
+    profiler_print_kv "php profiler" "$_php_state"
+    profiler_print_kv "php var/profiler.flag" "$(profiler_magento_php_flag_value)"
 
     _summary=$(profiler_magento_env_summary)
     profiler_print_kv "MAGE_MODE" "$(printf '%s\n' "$_summary" | awk -F= '$1 == "mode" {print $2; exit}')"
     profiler_print_kv "DB logger" "$(printf '%s\n' "$_summary" | awk -F= '$1 == "db_logger" {print $2; exit}')"
     profiler_print_kv "Smile DB profiler" "$(printf '%s\n' "$_summary" | awk -F= '$1 == "smile_profiler" {print $2; exit}')"
     profiler_print_kv "var/debug/db.log" "$(profiler_magento_log_size "$PROFILER_MAGENTO_DB_LOG")"
-    profiler_print_kv "var/log/profiler.csv" "$(profiler_magento_log_size "$PROFILER_MAGENTO_CSV_LOG")"
+    profiler_print_kv "var/log/profiler.csv" "$(profiler_magento_csv_log_state "$_php_state")"
+    warp_message ""
 }
 
 profiler_connector_php_enable() {
@@ -464,8 +546,8 @@ profiler_connector_php_enable() {
             printf '%s' "html" > "$PROFILER_MAGENTO_PHP_FLAG" || return 1
             ;;
         csv)
-            printf '%s' '{"drivers":[{"type":"csvfile","filePath":"var/log/profiler.csv"}]}' > "$PROFILER_MAGENTO_PHP_FLAG" || return 1
-            profiler_magento_truncate_file "$PROFILER_MAGENTO_CSV_LOG" || return 1
+            printf '%s' '{"drivers":[{"type":"standard","output":{"type":"csvfile","filePath":"var/log/profiler.csv"}}]}' > "$PROFILER_MAGENTO_PHP_FLAG" || return 1
+            profiler_magento_prepare_csv_log || return 1
             ;;
         *)
             warp_message_error "unknown PHP profiler mode: $_mode"
@@ -479,7 +561,7 @@ profiler_connector_php_enable() {
 
 profiler_connector_php_disable() {
     rm -f "$PROFILER_MAGENTO_PHP_FLAG" || return 1
-    profiler_magento_truncate_file "$PROFILER_MAGENTO_CSV_LOG" || return 1
+    profiler_magento_prepare_csv_log || return 1
     warp_message_info "PHP profiler disabled."
     profiler_print_kv "truncated" "var/log/profiler.csv"
 }
