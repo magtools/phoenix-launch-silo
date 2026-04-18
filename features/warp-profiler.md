@@ -57,7 +57,8 @@ Implementación: opciones y riesgos
      - Si no existe, agregarlo antes del cierre final `];` del array principal.
      - Para Smile DebugToolbar, sólo editar `enabled => false` si ya existe un bloque `profiler` con `Smile\\DebugToolbar\\DB\\Profiler`.
    - No depender de PHP CLI para inspeccionar o reescribir `app/etc/env.php`.
-   - Respaldo: crear backup `app/etc/env.php.warp-profiler-backup-<ts>` antes de escribir.
+   - Respaldo: crear un único backup `app/etc/env.php.warp-profiler-backup` antes de escribir, sobrescribiéndolo en cada ejecución.
+   - `app/etc/env.php` no debe reemplazarse por otro archivo temporal; debe mantenerse y editarse/sobrescribirse en sitio para conservar ownership/permisos.
    - Post-cambio (por defecto): ejecutar `./warp magento cache:clean config` salvo que se pase `--no-cache-clean`.
    - No ejecutar `./warp magento app:config:import` como parte de este comando.
    - Fallback: si env.php tiene formato no estándar o la edición falla, abortar y mostrar pasos manuales para aplicar el cambio.
@@ -129,7 +130,7 @@ Criterios de aceptación
 -----------------------
 - `warp profiler status` devuelve estado correcto para PHP and DB.
 - Enabling PHP profiler creates correct var/profiler.flag and does not change env.php.
-- Enabling DB profiler creates timestamped backup and updates app/etc/env.php safely; cache cleaned unless --no-cache-clean.
+- Enabling DB profiler overwrites the single profiler backup and updates app/etc/env.php in place; cache cleaned unless --no-cache-clean.
 - Disable restores recommended settings and truncates associated logs.
 - Production env.php writes require `--force`.
 

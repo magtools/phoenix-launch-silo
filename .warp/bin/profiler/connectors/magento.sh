@@ -177,18 +177,21 @@ profiler_magento_require_env_write_allowed() {
 }
 
 profiler_magento_backup_env() {
-    local _ts=""
     local _backup=""
-    local _i=0
 
-    _ts=$(date '+%Y%m%d%H%M%S')
-    _backup="${PROFILER_MAGENTO_ENV_FILE}.warp-profiler-backup-${_ts}"
-    while [ -e "$_backup" ]; do
-        _i=$((_i + 1))
-        _backup="${PROFILER_MAGENTO_ENV_FILE}.warp-profiler-backup-${_ts}-${_i}"
-    done
+    _backup="${PROFILER_MAGENTO_ENV_FILE}.warp-profiler-backup"
     cp "$PROFILER_MAGENTO_ENV_FILE" "$_backup" || return 1
     printf '%s\n' "$_backup"
+}
+
+profiler_magento_overwrite_env_from_tmp() {
+    local _source="$1"
+
+    [ -f "$_source" ] || return 1
+
+    # Keep env.php as the same file entry so ownership and permissions are not
+    # reset by replacing it with a temporary file.
+    cat "$_source" > "$PROFILER_MAGENTO_ENV_FILE"
 }
 
 profiler_magento_db_logger_block() {
@@ -368,17 +371,19 @@ profiler_magento_write_env() {
             warp_message_error "could not disable Smile profiler; backup kept at $_backup"
             return 1
         fi
-        mv "$_tmp_smile" "$PROFILER_MAGENTO_ENV_FILE" || {
+        profiler_magento_overwrite_env_from_tmp "$_tmp_smile" || {
             rm -f "$_tmp_smile"
             warp_message_error "could not write env.php; backup kept at $_backup"
             return 1
         }
+        rm -f "$_tmp_smile"
     else
-        mv "$_tmp_db" "$PROFILER_MAGENTO_ENV_FILE" || {
+        profiler_magento_overwrite_env_from_tmp "$_tmp_db" || {
             rm -f "$_tmp_db"
             warp_message_error "could not write env.php; backup kept at $_backup"
             return 1
         }
+        rm -f "$_tmp_db"
     fi
 
     profiler_print_kv "env.php backup" "${_backup#$PROJECTPATH/}"
