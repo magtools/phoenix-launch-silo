@@ -75,6 +75,11 @@ main () {
         warp_run_loaded_command opcache_main "opcache" "$@"
         ;;
 
+        profiler)
+        shift 1
+        warp_run_loaded_command profiler_main "profiler" "$@"
+        ;;
+
         start)
         warp_run_loaded_command start_main "start" "$@"
         ;;
@@ -322,7 +327,7 @@ warp_runtime_mode_read_raw_from_env() {
 warp_command_supports_host_runtime() {
     _cmd="$1"
     case "$_cmd" in
-        ""|-h|--help|help|init|db|mysql|cache|redis|valkey|search|elasticsearch|opensearch|php|phpini|opcache|xdebug|magento|ece-tools|ece-patches|telemetry|info|composer|audit|security)
+        ""|-h|--help|help|init|db|mysql|cache|redis|valkey|search|elasticsearch|opensearch|php|phpini|opcache|xdebug|profiler|magento|ece-tools|ece-patches|telemetry|info|composer|audit|security)
             return 0
             ;;
         *)
