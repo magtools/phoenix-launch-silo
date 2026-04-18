@@ -80,7 +80,7 @@ Valida:
 6. config Hyva cuando `RUN_HYVA=1`,
 7. estado de `warp` en PATH:
    - si existe wrapper delegador, informa `[ok]`,
-   - si detecta binario viejo real, informa `[warn]` y sugiere instalar wrapper delegador,
+   - si detecta binario viejo real, informa `[warn]` y muestra como reemplazar ese `warp` de sistema con `.warp/setup/bin/warp-wrapper.sh`,
 8. en proyectos Magento:
    - `app/etc/config.php` existe,
    - `app/etc/config.php` tiene escritura para user y group (`ug+w`),

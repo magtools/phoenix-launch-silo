@@ -100,7 +100,7 @@ Comportamiento esperado del chequeo:
 
 Remediación sugerida actual:
 
-- instalar el wrapper delegador canónico en la ruta vieja detectada, por ejemplo:
+- pisar/reemplazar el `warp` de sistema desincronizado con el wrapper delegador canónico versionado en `.warp/setup/bin/warp-wrapper.sh`, por ejemplo:
 
 ```bash
 sudo cp ".warp/setup/bin/warp-wrapper.sh" "/ruta/del/warp" && sudo chmod 755 "/ruta/del/warp"
@@ -110,7 +110,7 @@ Motivo:
 
 1. evita drift entre binario global y `.warp`,
 2. permite que `warp` use siempre `./warp` del proyecto,
-3. reduce necesidad de copiar binarios del proyecto a rutas globales del host.
+3. evita copiar el binario `./warp` del proyecto a rutas globales del host.
 
 ## 5) Chequeo automatico post-comando
 
@@ -190,5 +190,5 @@ Estado actual:
 
 1. `warp deploy doctor` imprime el estado de `warp` encontrado en PATH.
 2. si detecta wrapper delegador, informa `[ok]`.
-3. si detecta binario viejo real y no hay wrapper, informa `[warn]` y sugiere instalar el wrapper canónico en esa ruta.
+3. si detecta binario viejo real y no hay wrapper, informa `[warn]` y muestra como reemplazar esa ruta con el wrapper canónico.
 4. al finalizar `warp update` y `warp update --self`, Warp vuelve a mostrar esta sugerencia si detecta un `warp` viejo en PATH y no existe wrapper delegador.

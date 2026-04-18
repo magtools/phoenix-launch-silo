@@ -622,6 +622,27 @@ warp_wrapper_install_command() {
     printf 'sudo cp "%s" "%s" && sudo chmod 755 "%s"' "$_template" "$_target" "$_target"
 }
 
+warp_wrapper_overwrite_system_lines() {
+    local _target="$1"
+    local _mode="${2:-plain}"
+    local _command=""
+
+    _command=$(warp_wrapper_install_command "$_target")
+
+    if [ "$_mode" = "warn" ]; then
+        warp_message_warn "overwrite system warp with the project wrapper:"
+        warp_message_warn "$_command"
+        warp_message_warn "source wrapper: .warp/setup/bin/warp-wrapper.sh"
+        warp_message_warn "after this, ${_target} delegates to ./warp or ./warp.sh in the current project"
+        return 0
+    fi
+
+    warp_message "  overwrite system warp with the project wrapper:"
+    warp_message "    $_command"
+    warp_message "  source wrapper: .warp/setup/bin/warp-wrapper.sh"
+    warp_message "  effect: ${_target} delegates to ./warp or ./warp.sh in the current project"
+}
+
 warp_global_binary_paths() {
     type -aP warp 2>/dev/null | awk '!seen[$0]++'
 }
@@ -733,8 +754,7 @@ warp_global_binary_diff_doctor_lines() {
     while IFS='|' read -r _path _reason; do
         [ -n "$_path" ] || continue
         warp_message "* PATH warp binary differs from project: $(warp_message_warn "[warn]") ${_path} (${_reason})"
-        warp_message "  install wrapper: $(warp_wrapper_install_command "$_path")"
-        warp_message "  note: copies .warp/setup/bin/warp-wrapper.sh, not the project ./warp binary"
+        warp_wrapper_overwrite_system_lines "$_path"
     done <<EOF
 $WARP_GLOBAL_BINARY_DIFF_NOTICE
 EOF
@@ -752,8 +772,7 @@ warp_global_binary_diff_notice_show() {
     while IFS='|' read -r _path _reason; do
         [ -n "$_path" ] || continue
         warp_message_warn "system warp binary differs from project warp: ${_path} (${_reason})"
-        warp_message_warn "install wrapper: $(warp_wrapper_install_command "$_path")"
-        warp_message_warn "this copies .warp/setup/bin/warp-wrapper.sh, not the project ./warp binary"
+        warp_wrapper_overwrite_system_lines "$_path" "warn"
     done <<EOF
 $WARP_GLOBAL_BINARY_DIFF_NOTICE
 EOF
