@@ -47,13 +47,6 @@ phpini_image_family() {
     local _php_version=""
 
     _family=$(phpini_env_value "WARP_PHP_IMAGE_FAMILY")
-    case "$_family" in
-        warp|magtools|summasolutions|66ecommerce|custom)
-            printf '%s\n' "$_family"
-            return 0
-            ;;
-    esac
-
     _php_image_repo=$(phpini_env_value "PHP_IMAGE_REPO")
     _php_version=$(phpini_php_version)
     [ -n "$_php_image_repo" ] && _php_image="${_php_image_repo}/php:${_php_version}"
@@ -63,18 +56,32 @@ phpini_image_family() {
     case "$_php_image" in
         warp/php:*|*/warp/php:*)
             printf '%s\n' "warp"
+            return 0
             ;;
         magtools/php:*|*/magtools/php:*)
             printf '%s\n' "magtools"
+            return 0
             ;;
         summasolutions/php:*|*/summasolutions/php:*)
             printf '%s\n' "summasolutions"
+            return 0
             ;;
         66ecommerce/php:*|*/66ecommerce/php:*)
             printf '%s\n' "66ecommerce"
+            return 0
             ;;
+    esac
+
+    case "$_family" in
+        warp|magtools|summasolutions|66ecommerce|custom)
+            printf '%s\n' "$_family"
+            return 0
+            ;;
+    esac
+
+    case "$_php_image" in
         "")
-            printf '%s\n' "summasolutions"
+            printf '%s\n' "magtools"
             ;;
         *)
             printf '%s\n' "custom"

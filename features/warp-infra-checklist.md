@@ -33,7 +33,7 @@ Checklist de continuidad para la evaluacion multiarch `amd64/arm64`, imagenes pr
 - [x] Implementacion de `warp phpini profile legacy --dry-run`.
 - [x] Implementacion de `warp phpini profile managed --dry-run`.
 - [x] Agregado `magtools` como repositorio DockerHub aceptado para nuevas imagenes PHP/appdata.
-- [x] Agregados defaults retrocompatibles `PHP_IMAGE_REPO=summasolutions` y `APPDATA_IMAGE_REPO=summasolutions`.
+- [x] Agregados defaults nuevos `PHP_IMAGE_REPO=magtools` y `APPDATA_IMAGE_REPO=magtools`; `summasolutions` queda como override legacy explicito.
 - [x] Orden futuro de repos PHP en validacion local: `magtools`, `66ecommerce`, `summasolutions`.
 - [x] Implementacion de escritura real de `warp phpini profile legacy`.
 - [x] Implementacion de escritura real de `warp phpini profile managed`.
@@ -112,10 +112,11 @@ El objetivo de fondo es evaluar si vale la pena pasar de instancias x86 `c5/c7i`
    - `PHP_IMAGE_REPO`;
    - `APPDATA_IMAGE_REPO`;
    - `APPDATA_VERSION`.
-5. Defaults siguen siendo retrocompatibles:
-   - `PHP_IMAGE_REPO=summasolutions`;
-   - `APPDATA_IMAGE_REPO=summasolutions`;
-   - `APPDATA_VERSION=latest`.
+5. Defaults para nuevos proyectos:
+   - `PHP_IMAGE_REPO=magtools`;
+   - `WARP_PHP_IMAGE_FAMILY=magtools`;
+   - `APPDATA_IMAGE_REPO=magtools`;
+   - `APPDATA_VERSION=bookworm`.
 6. Perfil PHP INI:
    - `legacy`: default para proyectos existentes y Magento `2.4.5/2.4.7`;
    - `managed`: futuro para Magento `2.4.8+` con imagen PHP nueva compatible.
@@ -436,7 +437,7 @@ xdebug/opcache disable recargo PHP-FPM y dejo runtime dev
 1. No extender `managed` escribiendo archivos sin respetar `--dry-run` y `--force`.
 2. No sobrescribir `.warp/docker/config/php/ext-xdebug.ini` ni `zz-warp-opcache.ini` si existen, salvo `--force`.
 3. No tocar proyectos Magento `2.4.5/2.4.7`; deben seguir en `legacy`.
-4. No convertir `summasolutions` a `magtools` por default todavia. Los defaults siguen legacy por compatibilidad.
+4. `magtools` queda como proveedor por defecto para nuevos proyectos; `summasolutions` se conserva como proveedor legacy explicito.
 5. `features/changes.md` puede aparecer modificado con `mailhog -> mailpit`; no fue parte central de esta tarea.
 6. El repo fuente no tiene `./warp`; validar con `bash ./warp.sh`.
 7. El hook de update puede mostrar error remoto de GitHub/raw; no esta relacionado con esta feature.
@@ -460,5 +461,5 @@ Reglas del proximo paso:
 1. probar `../eprivee` con `PHP_VERSION=8.4.20-fpm` y `APPDATA_VERSION=bookworm`;
 2. verificar manifests DockerHub de `magtools/php:8.4.20-fpm` y `magtools/appdata:bookworm`;
 3. validar que Magento 2.4.5/2.4.7 sigan en `legacy`;
-4. no convertir `summasolutions` a default nuevo todavia;
+4. validar migraciones legacy dejando `summasolutions` como override explicito cuando corresponda;
 5. regenerar `dist/warp`, `dist/version.md` y `dist/sha256sum.md` cuando se cierre esta tanda.

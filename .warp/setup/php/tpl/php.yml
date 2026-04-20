@@ -1,6 +1,6 @@
 
   php:
-    image: ${PHP_IMAGE_REPO:-summasolutions}/php:${PHP_VERSION}
+    image: ${PHP_IMAGE_REPO:-magtools}/php:${PHP_VERSION}
     ports:
       - 9001
     volumes:

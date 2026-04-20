@@ -135,13 +135,13 @@ start_preflight_configured_images() {
   local _appdata_version=""
 
   _php_repo=$(warp_env_read_var PHP_IMAGE_REPO)
-  [ -n "$_php_repo" ] || _php_repo="summasolutions"
+  [ -n "$_php_repo" ] || _php_repo="magtools"
   _php_version=$(warp_env_read_var PHP_VERSION)
 
   _appdata_repo=$(warp_env_read_var APPDATA_IMAGE_REPO)
-  [ -n "$_appdata_repo" ] || _appdata_repo="summasolutions"
+  [ -n "$_appdata_repo" ] || _appdata_repo="magtools"
   _appdata_version=$(warp_env_read_var APPDATA_VERSION)
-  [ -n "$_appdata_version" ] || _appdata_version="latest"
+  [ -n "$_appdata_version" ] || _appdata_version="bookworm"
 
   if ! start_check_configured_image "php" "${_php_repo}/php:${_php_version}" "warp/php:${_php_version}"; then
     _status=1

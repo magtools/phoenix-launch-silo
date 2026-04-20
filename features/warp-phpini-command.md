@@ -253,6 +253,7 @@ Keys iniciales:
 ```dotenv
 WARP_PHP_INI_PROFILE=managed
 WARP_PHP_IMAGE_FAMILY=magtools
+PHP_IMAGE_REPO=magtools
 XDEBUG_CONFIG=client_host=172.17.0.1 client_port=9003
 ```
 

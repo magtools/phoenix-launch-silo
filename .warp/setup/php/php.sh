@@ -15,7 +15,7 @@ done
 
 if [ "$respuesta_php" = "Y" ] || [ "$respuesta_php" = "y" ]
 then
-    warp_message_info2 "You can check the available PHP versions from: $(warp_message_info '[ https://hub.docker.com/r/summasolutions/php/tags/ ]')"
+    warp_message_info2 "You can check the available PHP versions from: $(warp_message_info '[ https://hub.docker.com/r/magtools/php/tags/ ]')"
     while : ; do
         if [ $(uname -m) == 'arm64' ] ; then
             php_version=$( warp_question_ask_default "Set the PHP version of your project: $(warp_message_info [7.4-fpm-v2_arm]) " "7.4-fpm-v2_arm" )
@@ -119,8 +119,9 @@ then
 
     echo ""  >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "# Config PHP" >> $ENVIRONMENTVARIABLESFILESAMPLE
-    echo "PHP_IMAGE_REPO=summasolutions" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "PHP_IMAGE_REPO=magtools" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "PHP_VERSION=$php_version" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "WARP_PHP_IMAGE_FAMILY=magtools" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "WARP_HOST_THREADS_RESERVE=${WARP_HOST_THREADS_RESERVE_DEFAULT:-1}" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "WARP_PHP_OPCACHE_VOLUME=./.warp/docker/config/php/.warp-empty.ini:/tmp/.warp-opcache.ini" >> $ENVIRONMENTVARIABLESFILESAMPLE
 
