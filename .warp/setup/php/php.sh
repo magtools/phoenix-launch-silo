@@ -149,11 +149,7 @@ then
     cp -R $PROJECTPATH/.warp/setup/php/config/crontab $PROJECTPATH/.warp/docker/config/crontab
     cp -R $PROJECTPATH/.warp/setup/php/config/supervisor $PROJECTPATH/.warp/docker/config/supervisor
 
-    if [ ! -f "$PROJECTPATH/.warp/docker/config/php/ext-xdebug.ini" ] \
-        && [ -f "$PROJECTPATH/.warp/docker/config/php/managed/ext-xdebug.disabled.ini.sample" ]; then
-        cp "$PROJECTPATH/.warp/docker/config/php/managed/ext-xdebug.disabled.ini.sample" \
-            "$PROJECTPATH/.warp/docker/config/php/ext-xdebug.ini"
-    fi
+    warp_php_config_ensure_xdebug_file || exit 1
 
     if [ ! -f "$PROJECTPATH/.warp/docker/config/php/zz-warp-opcache.ini" ] \
         && [ -f "$PROJECTPATH/.warp/docker/config/php/managed/zz-warp-opcache-disable.ini.sample" ]; then

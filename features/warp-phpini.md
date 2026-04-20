@@ -465,13 +465,20 @@ Consideracion:
 Si Compose monta un archivo que no existe en host, Docker puede crear un directorio y romper el arranque. Por eso hay dos caminos validos:
 
 1. mantener siempre archivos efectivos, usando samples enable/disable;
-2. cambiar template para montar un directorio de overrides y asegurar que los archivos existan antes de `warp start`.
+2. asegurar los archivos efectivos antes de `warp start`.
 
 Recomendacion inicial:
 
 ```text
 mantener siempre ext-xdebug.ini y zz-warp-opcache.ini como archivos efectivos generados.
 ```
+
+Implementacion actual:
+
+1. `warp start` asegura `.warp/docker/config/php/ext-xdebug.ini` antes de invocar Compose.
+2. Si falta, lo crea desde sample disponible o como archivo vacio.
+3. Si Docker/Compose lo dejo como directorio vacio, Warp lo recrea como archivo y avisa.
+4. Si el directorio tiene contenido, Warp no lo borra y aborta con mensaje operativo.
 
 En ese modelo:
 
@@ -732,6 +739,10 @@ Motivo:
 2. los templates actuales montan `ext-xdebug.ini` como archivo individual;
 3. OPcache ya puede venir habilitado por la imagen;
 4. cambiar el contrato de `.ini` puede modificar performance y debugging de proyectos en mantenimiento.
+
+Nota operativa:
+
+- aunque el perfil sea `legacy`, `warp start` mantiene `ext-xdebug.ini` como archivo para evitar que Compose cree un directorio en esa ruta de bind mount.
 
 ### 17.2 Reuso de app_context
 

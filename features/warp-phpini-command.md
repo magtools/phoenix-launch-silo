@@ -285,6 +285,13 @@ Si el archivo existe y difiere, informar:
 existing file kept: .warp/docker/config/php/ext-xdebug.ini
 ```
 
+Guard de arranque:
+
+- `warp start` asegura `.warp/docker/config/php/ext-xdebug.ini` antes de invocar Compose.
+- si falta, lo crea desde sample disponible o como archivo vacío.
+- si existe como directorio vacío, lo reemplaza por archivo.
+- si existe como directorio no vacío, aborta con mensaje claro para mover/remover ese directorio manualmente.
+
 ## 10. Smokes futuros
 
 Sin Docker:

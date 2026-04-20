@@ -46,6 +46,7 @@ function start() {
 
     # Check
     warp_check_files
+    warp_php_config_ensure_xdebug_file || exit 1
 
     if [ "$1" = "-f" ] || [ "$1" = "-F" ] ; then
       [ ! -f "$2" ] && warp_message_error "Custom yml file $2 not exist" && exit 1;

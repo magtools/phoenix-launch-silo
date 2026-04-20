@@ -48,6 +48,7 @@ Checklist de continuidad para la evaluacion multiarch `amd64/arm64`, imagenes pr
 - [x] Generado bundle de prueba local en `../eprivee` con `.env.test`, `docker-compose-warp.yml.test` y `warp-infra-guide.md`.
 - [x] Validado `warp phpini`, `warp xdebug` y `warp opcache` en proyecto Magento 2.4.8+ real (`../eprivee`) con imagenes `magtools`.
 - [x] Corregida escritura de `.ini` managed para preservar file bind mounts escribiendo in-place.
+- [x] Agregado guard en `warp start` para recrear `.warp/docker/config/php/ext-xdebug.ini` como archivo si Docker/Compose lo dejo como directorio vacio.
 - [x] Agregado reload de PHP-FPM para `warp xdebug enable|disable` y `warp opcache enable|disable`, con fallback a restart del servicio `php`.
 - [x] Ajustado sample managed de Xdebug a valores literales: `debug`, `trigger`, `172.17.0.1`, puerto `9003`.
 - [x] Definidos tags modernos en DockerHub para Magento 2.4.8: `magtools/php:8.4.20-fpm` y `magtools/appdata:bookworm`.

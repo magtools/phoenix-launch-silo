@@ -348,6 +348,10 @@ phpini_write_sample() {
     local _sample="$1"
     local _file="$2"
 
+    if declare -F warp_php_config_ensure_bind_file >/dev/null 2>&1; then
+        warp_php_config_ensure_bind_file "$_file" "" "PHP INI effective config" || return 1
+    fi
+
     if [ -f "$_file" ]; then
         : > "$_file" || return 1
         cat "$_sample" > "$_file" || return 1

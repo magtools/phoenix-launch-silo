@@ -4,9 +4,8 @@ warp_message "* Configuring environment variable files $(warp_message_ok [ok])"
  [ ! -f $DOCKERIGNOREFILE ] && cp $PROJECTPATH/.warp/setup/init/.dockerignore $DOCKERIGNOREFILE
 
 # creating ext-xdebug.ini
-if  [ ! -f $PROJECTPATH/.warp/docker/config/php/ext-xdebug.ini ] && [ -f $PROJECTPATH/.warp/docker/config/php/ext-xdebug.ini.sample ]
-then
-    cp $PROJECTPATH/.warp/docker/config/php/ext-xdebug.ini.sample $PROJECTPATH/.warp/docker/config/php/ext-xdebug.ini
+if [ ! -f "$PROJECTPATH/.warp/docker/config/php/ext-xdebug.ini" ]; then
+    warp_php_config_ensure_xdebug_file || exit 1
 
     case "$(uname -s)" in
         Darwin)

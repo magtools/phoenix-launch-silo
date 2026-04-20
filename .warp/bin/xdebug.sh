@@ -97,6 +97,10 @@ xdebug_write_sample() {
     local _sample="$1"
     local _file="$2"
 
+    if declare -F warp_php_config_ensure_bind_file >/dev/null 2>&1; then
+        warp_php_config_ensure_bind_file "$_file" "" "Xdebug config file" || return 1
+    fi
+
     if [ -f "$_file" ]; then
         : > "$_file" || return 1
         cat "$_sample" > "$_file" || return 1
@@ -222,6 +226,8 @@ function xdebug_legacy_command()
 
         exit 1;
     fi
+
+    warp_php_config_ensure_xdebug_file || exit 1
 
     if [ "$1" == "--disable" ]; then
         sed -i -e 's/^zend_extension/\;zend_extension/g' "$PROJECTPATH/.warp/docker/config/php/ext-xdebug.ini"
