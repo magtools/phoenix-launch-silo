@@ -443,6 +443,7 @@ deploy_run_main() {
         [ "$_run_search_flush" = "1" ] && deploy_cmd_run "search flush" ":"
         [ "$_run_reindex" = "1" ] && deploy_cmd_run "indexer:reindex" ":"
         [ "$_run_cache_flush" = "1" ] && deploy_cmd_run "cache:flush" ":"
+        [ "$_env" = "prod" ] && deploy_cmd_run "reload/restart PHP-FPM" ":"
 
         if [ "$_env" = "prod" ] && [ "$_use_maintenance" = "1" ]; then
             deploy_cmd_run "disable maintenance mode" ":"
@@ -513,6 +514,10 @@ deploy_run_main() {
 
     if [ "$_run_cache_flush" = "1" ]; then
         deploy_cmd_run "cache:flush" "$_warp_exec magento cache:flush --ansi"
+    fi
+
+    if [ "$_env" = "prod" ]; then
+        deploy_cmd_run "reload/restart PHP-FPM" "warp_php_fpm_reload_or_restart \"production deploy\""
     fi
 
     if [ "$_maintenance_enabled" = "1" ]; then
