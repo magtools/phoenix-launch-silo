@@ -335,6 +335,17 @@ phpini_ensure_placeholder_file() {
 
     mkdir -p "$_config_dir" || return 1
     [ -f "$_placeholder" ] && return 0
+
+    if [ -d "$_placeholder" ]; then
+        if rmdir "$_placeholder" 2>/dev/null; then
+            warp_message_warn "replaced OPcache placeholder directory with file: .warp/docker/config/php/.warp-empty.ini"
+        else
+            warp_message_error "OPcache placeholder path is a non-empty directory: .warp/docker/config/php/.warp-empty.ini"
+            warp_message_warn "remove or move that directory, then rerun: warp phpini profile managed --dev"
+            return 1
+        fi
+    fi
+
     printf '%s\n' "; Empty Warp placeholder used for disabled optional PHP mounts." > "$_placeholder"
 }
 
