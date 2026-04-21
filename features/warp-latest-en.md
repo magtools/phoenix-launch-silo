@@ -41,6 +41,20 @@ Functional impact:
   - in `local`, if managed OPcache is active, it is disabled and PHP-FPM is reloaded;
   - in `prod`, PHP-FPM is reloaded only when managed OPcache is active.
 
+## Stable Container Status (`warp ps`)
+
+`warp ps` now avoids depending on the native Compose v1/v2 table format for its primary output.
+
+What it brings to the team:
+
+- stable columns across environments using `docker-compose` v1 or `docker compose` v2,
+- native Compose output remains available with `warp ps --raw`,
+- script-friendly formats:
+  - `warp ps --services`,
+  - `warp ps -q`,
+  - `warp ps --format json`,
+  - `warp ps --format names`.
+
 ## Integrated Hyva frontend flows (`warp hyva`)
 
 A dedicated command for Hyva workflows has been consolidated:

@@ -91,6 +91,7 @@ Stop the environment when you are done:
 | `warp init` | Initialize Warp for the project |
 | `warp start` | Start containers |
 | `warp stop` | Stop containers |
+| `warp ps` | Show containers with stable Warp columns |
 | `warp info` | Show current project and service information |
 
 ### Operations

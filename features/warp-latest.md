@@ -41,6 +41,20 @@ Impacto funcional:
   - en `local`, si OPcache managed está activo, se desactiva y se recarga PHP-FPM;
   - en `prod`, PHP-FPM se recarga solo si OPcache managed está activo.
 
+## Estado de contenedores estable (`warp ps`)
+
+`warp ps` ahora evita depender del formato nativo de Compose v1/v2 para su salida principal.
+
+Qué aporta al equipo:
+
+- columnas estables en ambientes con `docker-compose` v1 o `docker compose` v2,
+- salida nativa disponible con `warp ps --raw`,
+- formatos útiles para scripts:
+  - `warp ps --services`,
+  - `warp ps -q`,
+  - `warp ps --format json`,
+  - `warp ps --format names`.
+
 ## Frontend Hyvä integrado (`warp hyva`)
 
 Se consolidó un comando dedicado para flujos Hyvä:
