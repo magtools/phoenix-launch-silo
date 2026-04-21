@@ -275,6 +275,58 @@ opcache_change() {
     warp_php_fpm_reload_or_restart "OPcache ${_label} profile" || return 1
 }
 
+opcache_disable_if_enabled() {
+    local _profile=""
+    local _state=""
+
+    _profile=$(opcache_profile)
+    if [ "$_profile" != "managed" ]; then
+        warp_message_warn "OPcache auto-disable requires WARP_PHP_INI_PROFILE=managed; skipping."
+        return 0
+    fi
+
+    _state=$(opcache_file_state)
+    case "$_state" in
+        enabled|enabled-custom)
+            opcache_change "disable" --force
+            ;;
+        disabled|disabled-custom|missing)
+            warp_message "OPcache already inactive; no PHP reload needed."
+            return 0
+            ;;
+        *)
+            warp_message_warn "OPcache state is $_state; leaving it unchanged."
+            return 0
+            ;;
+    esac
+}
+
+opcache_reload_if_enabled() {
+    local _profile=""
+    local _state=""
+
+    _profile=$(opcache_profile)
+    if [ "$_profile" != "managed" ]; then
+        warp_message_warn "OPcache reload check requires WARP_PHP_INI_PROFILE=managed; skipping."
+        return 0
+    fi
+
+    _state=$(opcache_file_state)
+    case "$_state" in
+        enabled|enabled-custom)
+            warp_php_fpm_reload_or_restart "active OPcache profile" || return 1
+            ;;
+        disabled|disabled-custom|missing)
+            warp_message "OPcache is inactive; no PHP reload needed."
+            return 0
+            ;;
+        *)
+            warp_message_warn "OPcache state is $_state; PHP reload skipped."
+            return 0
+            ;;
+    esac
+}
+
 opcache_main() {
     local _action="${1:-status}"
 

@@ -36,7 +36,10 @@ Functional impact:
 
 - fewer ad-hoc scripts per project,
 - more predictable step ordering,
-- better operational safety in production (confirmations and gates).
+- better operational safety in production (confirmations and gates),
+- OPcache handling at the end of deploy:
+  - in `local`, if managed OPcache is active, it is disabled and PHP-FPM is reloaded;
+  - in `prod`, PHP-FPM is reloaded only when managed OPcache is active.
 
 ## Integrated Hyva frontend flows (`warp hyva`)
 

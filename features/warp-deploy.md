@@ -107,8 +107,9 @@ Secuencia:
 11. `search flush` (si `RUN_SEARCH_FLUSH=1`),
 12. `indexer:reindex` (si `RUN_REINDEX=1`),
 13. `cache:flush` (si `RUN_CACHE_FLUSH=1`),
-14. en `prod`: recarga PHP-FPM para invalidar OPcache; si el reload falla, reinicia el servicio `php`,
-15. si activó maintenance: `maintenance:disable`.
+14. en `local`: si OPcache managed está activo, lo desactiva y recarga PHP-FPM; si ya está inactivo, no hace nada,
+15. en `prod`: si OPcache managed está activo, recarga PHP-FPM; si el reload falla, reinicia el servicio `php`; si no es managed o está inactivo, no hace nada,
+16. si activó maintenance: `maintenance:disable`.
 
 Todas las etapas fallan en corto circuito: si una falla, corta el deploy.
 

@@ -369,6 +369,24 @@ deploy_run_frontend_prod() {
     fi
 }
 
+deploy_disable_local_opcache_if_enabled() {
+    if ! declare -F opcache_disable_if_enabled >/dev/null 2>&1; then
+        warp_message_warn "OPcache helper is not available; skipping developer OPcache check."
+        return 0
+    fi
+
+    opcache_disable_if_enabled
+}
+
+deploy_reload_prod_opcache_if_enabled() {
+    if ! declare -F opcache_reload_if_enabled >/dev/null 2>&1; then
+        warp_message_warn "OPcache helper is not available; skipping production OPcache reload check."
+        return 0
+    fi
+
+    opcache_reload_if_enabled
+}
+
 deploy_run_main() {
     # Accept run flags in both forms:
     # - warp deploy --dry-run run
@@ -443,7 +461,8 @@ deploy_run_main() {
         [ "$_run_search_flush" = "1" ] && deploy_cmd_run "search flush" ":"
         [ "$_run_reindex" = "1" ] && deploy_cmd_run "indexer:reindex" ":"
         [ "$_run_cache_flush" = "1" ] && deploy_cmd_run "cache:flush" ":"
-        [ "$_env" = "prod" ] && deploy_cmd_run "reload/restart PHP-FPM" ":"
+        [ "$_env" = "local" ] && deploy_cmd_run "disable OPcache if active" ":"
+        [ "$_env" = "prod" ] && deploy_cmd_run "reload PHP-FPM if OPcache active" ":"
 
         if [ "$_env" = "prod" ] && [ "$_use_maintenance" = "1" ]; then
             deploy_cmd_run "disable maintenance mode" ":"
@@ -517,7 +536,11 @@ deploy_run_main() {
     fi
 
     if [ "$_env" = "prod" ]; then
-        deploy_cmd_run "reload/restart PHP-FPM" "warp_php_fpm_reload_or_restart \"production deploy\""
+        deploy_cmd_run "reload PHP-FPM if OPcache active" "deploy_reload_prod_opcache_if_enabled"
+    fi
+
+    if [ "$_env" = "local" ]; then
+        deploy_cmd_run "disable OPcache if active" "deploy_disable_local_opcache_if_enabled"
     fi
 
     if [ "$_maintenance_enabled" = "1" ]; then
