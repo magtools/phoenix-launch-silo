@@ -50,6 +50,22 @@ ps_container_image() {
     printf '%s\n' "${_image:-unknown}"
 }
 
+ps_image_short() {
+    local _image="$1"
+
+    case "$_image" in
+        ""|unknown)
+            printf '%s\n' "${_image:-unknown}"
+            ;;
+        */*)
+            printf '%s\n' "${_image##*/}"
+            ;;
+        *)
+            printf '%s\n' "$_image"
+            ;;
+    esac
+}
+
 ps_container_status() {
     local _container_id="$1"
     local _status=""
@@ -68,21 +84,21 @@ ps_container_ports() {
 
 ps_print_table() {
     local _container_id=""
-    local _service=""
+    local _image=""
     local _name=""
     local _status=""
     local _ports=""
 
-    printf '%-18s %-34s %-12s %s\n' "SERVICE" "CONTAINER" "STATUS" "PORTS"
-    printf '%-18s %-34s %-12s %s\n' "-------" "---------" "------" "-----"
+    printf '%-24s %-32s %-12s %s\n' "IMAGE" "CONTAINER" "STATUS" "PORTS"
+    printf '%-24s %-32s %-12s %s\n' "-----" "---------" "------" "-----"
 
     while IFS= read -r _container_id; do
         [ -n "$_container_id" ] || continue
-        _service=$(ps_container_service "$_container_id")
+        _image=$(ps_image_short "$(ps_container_image "$_container_id")")
         _name=$(ps_container_name "$_container_id")
         _status=$(ps_container_status "$_container_id")
         _ports=$(ps_container_ports "$_container_id")
-        printf '%-18s %-34s %-12s %s\n' "$_service" "$_name" "$_status" "$_ports"
+        printf '%-24s %-32s %-12s %s\n' "$_image" "$_name" "$_status" "$_ports"
     done
 }
 

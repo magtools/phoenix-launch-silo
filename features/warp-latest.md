@@ -47,7 +47,8 @@ Impacto funcional:
 
 Qué aporta al equipo:
 
-- columnas estables en ambientes con `docker-compose` v1 o `docker compose` v2,
+- columnas estables (`IMAGE`, `CONTAINER`, `STATUS`, `PORTS`) en ambientes con `docker-compose` v1 o `docker compose` v2,
+- `IMAGE` usa nombre corto (`img:version`) para evitar diferencias por namespace/proveedor,
 - salida nativa disponible con `warp ps --raw`,
 - formatos útiles para scripts:
   - `warp ps --services`,

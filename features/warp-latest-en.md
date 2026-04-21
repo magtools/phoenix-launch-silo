@@ -47,7 +47,8 @@ Functional impact:
 
 What it brings to the team:
 
-- stable columns across environments using `docker-compose` v1 or `docker compose` v2,
+- stable columns (`IMAGE`, `CONTAINER`, `STATUS`, `PORTS`) across environments using `docker-compose` v1 or `docker compose` v2,
+- `IMAGE` uses the short name (`img:version`) to avoid namespace/provider differences,
 - native Compose output remains available with `warp ps --raw`,
 - script-friendly formats:
   - `warp ps --services`,
