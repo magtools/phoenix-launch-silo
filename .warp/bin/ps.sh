@@ -219,21 +219,26 @@ ps_command()
             ;;
         quiet|q)
             docker-compose -f "$DOCKERCOMPOSEFILE" ps -q
+            warp_message ""
             ;;
         services)
             ps_print_services
+            warp_message ""
             ;;
         table|"")
             _ids=$(ps_container_ids)
             printf '%s\n' "$_ids" | ps_print_table
+            warp_message ""
             ;;
         names)
             _ids=$(ps_container_ids)
             printf '%s\n' "$_ids" | ps_print_names
+            warp_message ""
             ;;
         json)
             _ids=$(ps_container_ids)
             printf '%s\n' "$_ids" | ps_print_json
+            warp_message ""
             ;;
     esac
 }

@@ -15,3 +15,8 @@ fi
 
 cp "$WARP_WRAPPER_TEMPLATE" "$WARP_BINARY_FILE"
 chmod 755 "$WARP_BINARY_FILE"
+
+if ! cmp -s "$WARP_WRAPPER_TEMPLATE" "$WARP_BINARY_FILE"; then
+    echo "warp wrapper install verification failed: $WARP_BINARY_FILE" >&2
+    exit 1
+fi

@@ -87,9 +87,38 @@ warp_message "* Applying permissions to subdirectories .warp/docker/volumes $(wa
     mkdir -p   $PROJECTPATH/.warp/docker/volumes/elasticsearch
     sudo chmod -R 777 $PROJECTPATH/.warp/docker/volumes/elasticsearch
 
+warp_init_is_current_wrapper() {
+    local _target="$1"
+    local _template="$2"
+
+    [ -f "$_target" ] || return 1
+    [ -f "$_template" ] || return 1
+    cmp -s "$_target" "$_template"
+}
+
+warp_init_is_legacy_wrapper() {
+    local _target="$1"
+
+    [ -f "$_target" ] || return 1
+    grep -Eq 'bash[[:space:]]+\./warp([[:space:]]|"$@")' "$_target" 2>/dev/null || return 1
+    grep -Eq 'exec[[:space:]]+\./warp|exec[[:space:]]+bash[[:space:]]+\./warp\.sh|\./warp\.sh' "$_target" 2>/dev/null && return 1
+
+    return 0
+}
+
+WARP_WRAPPER_TEMPLATE="$PROJECTPATH/.warp/setup/bin/warp-wrapper.sh"
 if [ ! -f "$WARP_BINARY_FILE" ] ; then
     warp_message "* Installing warp wrapper $(warp_message_ok [ok])"
-    sudo sh "$PROJECTPATH/.warp/lib/binary.sh" "$WARP_BINARY_FILE" "$PROJECTPATH/.warp/setup/bin/warp-wrapper.sh"
+    sudo sh "$PROJECTPATH/.warp/lib/binary.sh" "$WARP_BINARY_FILE" "$WARP_WRAPPER_TEMPLATE"
+elif warp_init_is_current_wrapper "$WARP_BINARY_FILE" "$WARP_WRAPPER_TEMPLATE"; then
+    warp_message "* Warp wrapper $(warp_message_ok [ok])"
+elif warp_init_is_legacy_wrapper "$WARP_BINARY_FILE"; then
+    warp_message "* Replacing legacy warp wrapper $(warp_message_ok [ok])"
+    sudo sh "$PROJECTPATH/.warp/lib/binary.sh" "$WARP_BINARY_FILE" "$WARP_WRAPPER_TEMPLATE"
+else
+    warp_message "* Warp binary exists at $WARP_BINARY_FILE $(warp_message_warn [skip])"
+    warp_message_warn "To replace it manually with the canonical wrapper:"
+    warp_message_warn "sudo cp \"$WARP_WRAPPER_TEMPLATE\" \"$WARP_BINARY_FILE\" && sudo chmod 755 \"$WARP_BINARY_FILE\""
 fi
 
 warp_message ""
