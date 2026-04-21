@@ -73,12 +73,12 @@ function start() {
         if [ ! -z "$CUSTOM_YML_FILE" ] ; then
           check_ES_version
           # start docker with custom yml file
-          docker-compose -f $DOCKERCOMPOSEFILE -f $DOCKERCOMPOSEFILEMAC -f $CUSTOM_YML_FILE up --remove-orphans -d
+          start_compose_up -f "$DOCKERCOMPOSEFILE" -f "$DOCKERCOMPOSEFILEMAC" -f "$CUSTOM_YML_FILE" up --remove-orphans -d || exit $?
           check_PHP_Image
         else
           check_ES_version
           # start docker containers in macOS
-          docker-compose -f $DOCKERCOMPOSEFILE -f $DOCKERCOMPOSEFILEMAC up --remove-orphans -d
+          start_compose_up -f "$DOCKERCOMPOSEFILE" -f "$DOCKERCOMPOSEFILEMAC" up --remove-orphans -d || exit $?
           check_PHP_Image
         fi
       ;;
@@ -86,12 +86,12 @@ function start() {
         if [ ! -z "$CUSTOM_YML_FILE" ] ; then
           check_ES_version
           # start docker with custom yml file
-          docker-compose -f $DOCKERCOMPOSEFILE -f $CUSTOM_YML_FILE up --remove-orphans -d
+          start_compose_up -f "$DOCKERCOMPOSEFILE" -f "$CUSTOM_YML_FILE" up --remove-orphans -d || exit $?
           check_PHP_Image
         else
           check_ES_version
           # start docker containers in linux
-          docker-compose -f $DOCKERCOMPOSEFILE up --remove-orphans -d
+          start_compose_up -f "$DOCKERCOMPOSEFILE" up --remove-orphans -d || exit $?
           check_PHP_Image
         fi
       ;;
@@ -111,6 +111,50 @@ function start() {
       warp_message_warn "Please Run ./warp composer --credential to copy the credentials"
     fi
   fi;
+}
+
+start_compose_up() {
+  local _output_file=""
+  local _status=0
+
+  _output_file=$(mktemp "${TMPDIR:-/tmp}/warp-start.XXXXXX") || {
+    docker-compose "$@"
+    return $?
+  }
+
+  docker-compose "$@" >"$_output_file" 2>&1
+  _status=$?
+  cat "$_output_file"
+
+  if [ "$_status" -ne 0 ]; then
+    start_mount_error_hint "$_output_file"
+  fi
+
+  rm -f "$_output_file"
+  return "$_status"
+}
+
+start_mount_error_hint() {
+  local _output_file="$1"
+  local _mount_path=""
+
+  grep -Eq 'not a directory|Are you trying to mount a directory onto a file' "$_output_file" 2>/dev/null || return 0
+
+  _mount_path=$(sed -n 's/.*error mounting "\([^"]*\)".*/\1/p; s/.*mount src=\([^,]*\),.*/\1/p' "$_output_file" | head -n 1)
+
+  if [ -n "$_mount_path" ] && [ -f "$_mount_path" ]; then
+    warp_message_warn ""
+    warp_message_warn "Docker reported a stale bind mount state, but the host path is a file:"
+    warp_message_warn "$_mount_path"
+    warp_message_warn "Recommended recovery:"
+    warp_message_warn "warp stop --hard && warp start"
+    return 0
+  fi
+
+  warp_message_warn ""
+  warp_message_warn "Docker reported a file/directory bind mount mismatch."
+  warp_message_warn "If the host path is a file, recover with:"
+  warp_message_warn "warp stop --hard && warp start"
 }
 
 function start_main()

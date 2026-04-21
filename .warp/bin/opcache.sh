@@ -341,6 +341,11 @@ opcache_main() {
             opcache_change "disable" "$@"
             exit $?
             ;;
+        reload|--reload)
+            shift 1
+            opcache_reload_if_enabled
+            exit $?
+            ;;
         status|--status|"")
             opcache_status
             exit $?

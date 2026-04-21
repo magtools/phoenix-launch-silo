@@ -12,6 +12,7 @@ warp xdebug disable
 warp xdebug status
 warp opcache enable
 warp opcache disable
+warp opcache reload
 warp opcache status
 ```
 
@@ -28,7 +29,7 @@ features/warp-phpini-command.md
 Este documento separa tres pasos:
 
 1. Imagen PHP PoC: instalar `xdebug.so` sin auto-habilitar Xdebug.
-2. Comando `warp opcache enable|disable|status` implementado para perfil `managed`.
+2. Comando `warp opcache enable|disable|reload|status` implementado para perfil `managed`.
 3. Refactor de `warp xdebug enable|disable|status` implementado para perfil `managed`, manteniendo comportamiento legacy.
 
 Estado al 2026-04-16:
@@ -39,7 +40,7 @@ Estado al 2026-04-16:
 4. `warp phpini profile legacy --dry-run` y `warp phpini profile managed --dry-run` fueron agregados como planificacion sin escritura.
 5. `warp phpini profile legacy` fue agregado como escritura real segura: solo fija `WARP_PHP_INI_PROFILE=legacy`.
 6. `warp phpini profile managed` fue agregado como migracion explicita a perfil managed.
-7. `warp opcache enable|disable|status` fue agregado para controlar `zz-warp-opcache.ini`; al cambiar estado intenta recargar PHP-FPM y reinicia el servicio `php` solo si el reload falla.
+7. `warp opcache enable|disable|reload|status` fue agregado para controlar `zz-warp-opcache.ini`; al cambiar estado intenta recargar PHP-FPM y reinicia el servicio `php` solo si el reload falla. `reload` recarga PHP-FPM solo cuando OPcache managed está activo.
 8. `warp xdebug enable|disable|status` usa samples managed cuando `WARP_PHP_INI_PROFILE=managed`; fuera de ese perfil conserva el flujo historico.
 9. El mount de OPcache usa `WARP_PHP_OPCACHE_VOLUME`: legacy monta un placeholder vacio fuera de `conf.d`, managed monta `zz-warp-opcache.ini` en `conf.d`.
 
@@ -367,6 +368,13 @@ Notas:
 3. si el contenedor `php` esta corriendo, recarga PHP-FPM con `USR2`;
 4. si el reload falla, reinicia el servicio `php` con Compose;
 5. informa que el perfil activo es desarrollo.
+
+`warp opcache reload`:
+
+1. valida que `WARP_PHP_INI_PROFILE=managed`;
+2. si `zz-warp-opcache.ini` indica OPcache activo, recarga PHP-FPM con `USR2`;
+3. si el reload falla, reinicia el servicio `php` con Compose;
+4. si OPcache esta inactivo, no modifica archivos ni recarga PHP.
 
 `warp opcache status`:
 
@@ -833,6 +841,7 @@ warp xdebug disable   -> escribe sample disabled in-place en ext-xdebug.ini y re
 warp xdebug status    -> compara archivo + env + runtime
 warp opcache enable   -> escribe sample enable in-place en zz-warp-opcache.ini y recarga PHP-FPM
 warp opcache disable  -> escribe sample disable in-place en zz-warp-opcache.ini y recarga PHP-FPM
+warp opcache reload   -> recarga PHP-FPM solo si OPcache managed esta activo
 warp opcache status   -> compara archivo + runtime
 ```
 
@@ -940,7 +949,7 @@ Para mantener retrocompatibilidad, los templates deben poder generarse en dos va
 
 ```yaml
 - ./.warp/docker/config/php/ext-xdebug.ini:/usr/local/etc/php/conf.d/ext-xdebug.ini
-- ./.warp/docker/config/php/zz-warp-opcache.ini:/usr/local/etc/php/conf.d/zz-warp-opcache.ini
+- ./.warp/docker/config/php/zz-warp-opcache.ini:/usr/local/etc/php/conf.d/99-warp-opcache.ini
 ```
 
 No se debe agregar el mount de `zz-warp-opcache.ini` a proyectos existentes si no se migra el perfil, porque Docker puede crear directorios si el archivo no existe y porque cambia el contrato operativo.
@@ -1012,6 +1021,9 @@ warp opcache enable:
 warp opcache disable:
   write zz-warp-opcache-disable.ini.sample in-place -> .warp/docker/config/php/zz-warp-opcache.ini
   reload PHP-FPM, fallback restart php service
+
+warp opcache reload:
+  reload PHP-FPM only when managed OPcache is active
 ```
 
 ### 18.2 Legacy

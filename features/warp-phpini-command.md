@@ -309,9 +309,10 @@ Con imagen PoC:
 warp phpini profile managed --dev
 warp xdebug status
 warp opcache status
+warp opcache reload
 ```
 
-Los toggles managed escriben los `.ini` efectivos in-place para preservar file bind mounts. Si el contenedor `php` esta corriendo, `warp xdebug enable|disable` y `warp opcache enable|disable` intentan recargar PHP-FPM con `USR2`; si falla el reload, reinician el servicio `php` con Compose.
+Los toggles managed escriben los `.ini` efectivos in-place para preservar file bind mounts. Si el contenedor `php` esta corriendo, `warp xdebug enable|disable` y `warp opcache enable|disable` intentan recargar PHP-FPM con `USR2`; si falla el reload, reinician el servicio `php` con Compose. `warp opcache reload` recarga PHP-FPM solo cuando OPcache managed esta activo.
 
 El reload aplica cambios de `.ini`. Si se cambia `XDEBUG_CONFIG` u otra variable de `.env` que Docker inyecta al contenedor, hay que recrear el servicio `php` para que el entorno del contenedor cambie.
 

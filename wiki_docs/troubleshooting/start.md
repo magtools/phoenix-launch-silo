@@ -19,6 +19,13 @@ ERROR: No container found for php_1
 - Are you trying to mount a directory onto a file (or vice-versa)
 - Check the mapped files in `docker-compose-warp.yml`, if the files do not exist, they are created as directories.
 
+If the path shown by Docker already exists on the host and is a file, the container can be holding stale mount state. Recreate the containers:
+
+```bash
+warp stop --hard
+warp start
+```
+
 For `.warp/docker/config/php/ext-xdebug.ini`, current Warp repairs the common case automatically before `warp start`:
 
 - if the file is missing, Warp creates it from the available sample or as an empty file;

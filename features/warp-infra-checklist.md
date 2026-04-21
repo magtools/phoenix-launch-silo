@@ -167,7 +167,8 @@ Resumen de codigo:
    - `warp opcache status`;
    - `warp opcache enable`;
    - `warp opcache disable`;
-   - aliases `--status`, `--enable`, `--disable`;
+   - `warp opcache reload`;
+   - aliases `--status`, `--enable`, `--disable`, `--reload`;
    - `--dry-run`;
    - `--force` para sobrescribir archivos custom.
 5. `.warp/bin/xdebug.sh` conserva el flujo legacy si `WARP_PHP_INI_PROFILE` no es `managed`.
@@ -369,7 +370,7 @@ sed -n '/WARP_PHP_INI_PROFILE/p;/WARP_PHP_OPCACHE_VOLUME/p' .env
 Resultados esperados:
 
 ```text
-managed: WARP_PHP_OPCACHE_VOLUME=./.warp/docker/config/php/zz-warp-opcache.ini:/usr/local/etc/php/conf.d/zz-warp-opcache.ini
+managed: WARP_PHP_OPCACHE_VOLUME=./.warp/docker/config/php/zz-warp-opcache.ini:/usr/local/etc/php/conf.d/99-warp-opcache.ini
 legacy:  WARP_PHP_OPCACHE_VOLUME=./.warp/docker/config/php/.warp-empty.ini:/tmp/.warp-opcache.ini
 .warp/docker/config/php/.warp-empty.ini existe
 ```

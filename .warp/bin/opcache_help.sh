@@ -4,7 +4,7 @@ function opcache_help_usage()
 {
     warp_message ""
     warp_message_info "Usage:"
-    warp_message " warp opcache [enable|disable|status] [options]"
+    warp_message " warp opcache [enable|disable|reload|status] [options]"
     warp_message ""
 
     warp_message ""
@@ -13,11 +13,13 @@ function opcache_help_usage()
     warp_message_info " --force          $(warp_message 'overwrite a custom managed OPcache ini file')"
     warp_message_info " --dry-run        $(warp_message 'show planned changes without writing')"
     warp_message_info "                  $(warp_message 'managed enable/disable reloads PHP-FPM, restarting php only if reload fails')"
+    warp_message_info "                  $(warp_message 'reload reloads PHP-FPM only when managed OPcache is active')"
     warp_message ""
 
     warp_message_info "Examples:"
     warp_message " warp opcache status"
     warp_message " warp opcache enable"
+    warp_message " warp opcache reload"
     warp_message " warp opcache disable --dry-run"
     warp_message ""
 }

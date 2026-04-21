@@ -323,7 +323,7 @@ phpini_opcache_placeholder_volume() {
 }
 
 phpini_opcache_managed_volume() {
-    printf '%s\n' "./.warp/docker/config/php/zz-warp-opcache.ini:/usr/local/etc/php/conf.d/zz-warp-opcache.ini"
+    printf '%s\n' "./.warp/docker/config/php/zz-warp-opcache.ini:/usr/local/etc/php/conf.d/99-warp-opcache.ini"
 }
 
 phpini_ensure_placeholder_file() {
