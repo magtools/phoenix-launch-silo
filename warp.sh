@@ -155,7 +155,13 @@ main () {
 
         audit)
         shift 1
-        warp_run_loaded_command scan_main "audit" "$@"
+        warp_run_loaded_command audit_main "audit" "$@"
+        exit $?
+        ;;
+
+        scan)
+        shift 1
+        warp_run_loaded_command scan_main "scan" "$@"
         exit $?
         ;;
 
@@ -325,9 +331,9 @@ warp_runtime_mode_read_raw_from_env() {
 }
 
 warp_command_supports_host_runtime() {
-    _cmd="$1"
+    local _cmd="$1"
     case "$_cmd" in
-        ""|-h|--help|help|init|db|mysql|cache|redis|valkey|search|elasticsearch|opensearch|php|phpini|opcache|xdebug|profiler|magento|ece-tools|ece-patches|telemetry|info|composer|audit|security)
+        ""|-h|--help|help|init|db|mysql|cache|redis|valkey|search|elasticsearch|opensearch|php|phpini|opcache|xdebug|profiler|magento|ece-tools|ece-patches|telemetry|info|composer|audit|scan|security)
             return 0
             ;;
         *)
@@ -337,7 +343,9 @@ warp_command_supports_host_runtime() {
 }
 
 warp_runtime_mode_resolve_boot() {
-    _cmd="$1"
+    local _cmd="$1"
+    local _mode
+
     _mode=$(warp_runtime_mode_read_raw_from_env)
     case "$_mode" in
         host|docker)
@@ -345,6 +353,11 @@ warp_runtime_mode_resolve_boot() {
             return 0
             ;;
     esac
+
+    if [ "$_cmd" = "scan" ]; then
+        echo "host"
+        return 0
+    fi
 
     if [ -f "$PROJECTPATH/docker-compose-warp.yml" ]; then
         echo "docker"

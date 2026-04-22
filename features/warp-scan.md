@@ -81,7 +81,7 @@ Política actual:
 2. para enchufes futuros, mantener un contrato simple por framework:
    - resolver paths de código por defecto,
    - resolver rulesets,
-   - ejecutar herramientas con el mismo runtime (host/docker) ya centralizado en `scan_run_php_bin`.
+   - ejecutar herramientas con el mismo runtime (host/docker) ya centralizado en `audit_run_php_bin`.
 
 ## Apéndice: implementación actual y criterios de diseño para `phpcompat` y `phpstan`
 
@@ -123,7 +123,7 @@ Esto mantiene consistencia con el enfoque actual del comando y evita diferencias
 1. No degradar `warp audit` actual.
 2. Mantener el runtime centralizado de Warp:
    - `docker-compose exec -T php ...`
-   - o `docker exec -i <container> ...` cuando exista override explícito por `WARP_SCAN_PHP_CONTAINER`
+   - o `docker exec -i <container> ...` cuando exista override explícito por `WARP_AUDIT_PHP_CONTAINER`
 3. Validar dependencias por acción, no con un gate global único.
 4. No sobrescribir configuración existente del proyecto.
 5. Mantener reportes bajo `var/static` con el mismo patrón general de salida de `warp audit`.
