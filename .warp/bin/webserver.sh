@@ -44,6 +44,16 @@ function webserver_main() {
             webserver_info
         ;;
 
+        -t | test)
+            shift
+            webserver_test "$@"
+        ;;
+
+        reload)
+            shift
+            webserver_reload "$@"
+        ;;
+
         ssh)
             shift
             webserver_simil_ssh "$@"
@@ -59,6 +69,45 @@ function webserver_main() {
     esac    
 }
 
+webserver_ensure_running() {
+    if [ "$(warp_check_is_running)" = false ]; then
+        warp_message_error "The containers are not running"
+        warp_message_error "please, first run warp start"
+        exit 1
+    fi
+}
+
+webserver_test() {
+    if [[ $# -eq 1 && ( $1 == "-h" || $1 == "--help" ) ]]; then
+        webserver_test_help
+        exit 0
+    fi
+
+    if [[ $# -gt 0 ]]; then
+        webserver_test_help
+        exit 1
+    fi
+
+    webserver_ensure_running
+    docker-compose -f "$DOCKERCOMPOSEFILE" exec -u root web nginx -t
+}
+
+webserver_reload() {
+    if [[ $# -eq 1 && ( $1 == "-h" || $1 == "--help" ) ]]; then
+        webserver_reload_help
+        exit 0
+    fi
+
+    if [[ $# -gt 0 ]]; then
+        webserver_reload_help
+        exit 1
+    fi
+
+    webserver_ensure_running
+    docker-compose -f "$DOCKERCOMPOSEFILE" exec -u root web nginx -t || exit $?
+    docker-compose -f "$DOCKERCOMPOSEFILE" exec -u root web nginx -s reload
+}
+
 webserver_simil_ssh() {
     : '
     This function provides a bash pipe as root or nginx user.
@@ -72,20 +121,10 @@ webserver_simil_ssh() {
         exit 1
     else
         if [[ $1 == "--root" ]]; then
-            # Check if warp is running:    
-            if [ "$(warp_check_is_running)" = false ]; then
-                warp_message_error "The containers are not running"
-                warp_message_error "please, first run warp start"
-                exit 1
-            fi
+            webserver_ensure_running
             docker-compose -f "$DOCKERCOMPOSEFILE" exec -u root web bash
         elif [[ -z $1 || $1 == "--nginx" ]]; then
-            # Check if warp is running:    
-            if [ "$(warp_check_is_running)" = false ]; then
-                warp_message_error "The containers are not running"
-                warp_message_error "please, first run warp start"
-                exit 1
-            fi
+            webserver_ensure_running
             # It is better if defines nginx user as default ######################
             docker-compose -f "$DOCKERCOMPOSEFILE" exec -u nginx web bash
         elif [[ $1 == "-h" || $1 == "--help" ]]; then
