@@ -354,6 +354,8 @@ The framework update flow was hardened:
 - integrity verification (checksum) before replacement,
 - pending update state tracking,
 - automatic version checks without interrupting critical commands,
+- non-destructive creation of empty `ext-xdebug.ini` and `zz-warp-opcache.ini` files when missing,
+- `.gitignore` verification for those local effective INI files,
 - clear separation between Warp updates and Docker image updates.
 
 Current remote sources for runtime update:

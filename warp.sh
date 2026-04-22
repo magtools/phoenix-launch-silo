@@ -811,6 +811,52 @@ warp_checksum_file_sha256() {
     fi
 }
 
+warp_update_ensure_php_optional_ini_files() {
+    local _config_dir="$PROJECTPATH/.warp/docker/config/php"
+    local _gitignore="$PROJECTPATH/.gitignore"
+    local _line=""
+
+    mkdir -p "$_config_dir" || {
+        warp_message_error "unable to create PHP config directory: $_config_dir"
+        return 1
+    }
+
+    for _line in \
+        "$_config_dir/ext-xdebug.ini" \
+        "$_config_dir/zz-warp-opcache.ini"
+    do
+        if [ -d "$_line" ]; then
+            if rmdir "$_line" 2>/dev/null; then
+                warp_message_warn "PHP optional ini path was a directory; recreated it as a file: $_line"
+            else
+                warp_message_error "PHP optional ini path is a non-empty directory: $_line"
+                warp_message_warn "move or remove that directory, then rerun warp update"
+                return 1
+            fi
+        fi
+
+        [ -f "$_line" ] || touch "$_line" || {
+            warp_message_error "unable to create PHP optional ini file: $_line"
+            return 1
+        }
+    done
+
+    [ -f "$_gitignore" ] || touch "$_gitignore" || {
+        warp_message_error "unable to create .gitignore"
+        return 1
+    }
+
+    for _line in \
+        "/.warp/docker/config/php/ext-xdebug.ini" \
+        "/.warp/docker/config/php/zz-warp-opcache.ini"
+    do
+        grep -qxF "$_line" "$_gitignore" 2>/dev/null || echo "$_line" >> "$_gitignore" || {
+            warp_message_error "unable to update .gitignore with $_line"
+            return 1
+        }
+    done
+}
+
 warp_fetch_latest_version() {
     warp_remote_base_url="https://raw.githubusercontent.com/magtools/phoenix-launch-silo/refs/heads/master/dist"
     _fetch_output=$(curl --silent --show-error --fail --location --connect-timeout 3 --max-time 3 "${warp_remote_base_url}/version.md" 2>&1)
@@ -944,6 +990,7 @@ warp_update() {
         chmod 755 "$WARP_TARGET_FILE" || { warp_message_error "unable to set executable permissions on warp"; exit 1; }
         WARP_BINARY_SYNC_NOTICE=""
         warp_pending_update_clear
+        warp_update_ensure_php_optional_ini_files || exit 1
         warp_update_tmp_clean
 
         warp_message_info2 "warp self update applied successfully"
@@ -978,6 +1025,7 @@ warp_update() {
         warp_message_info "Estado: actualizado"
         warp_message_info2 "warp is up to date ($WARP_VERSION)"
         warp_pending_update_clear
+        warp_update_ensure_php_optional_ini_files || exit 1
         warp_update_tmp_clean
         exit 0
     fi
@@ -1013,6 +1061,7 @@ warp_update() {
     chmod 755 "$WARP_TARGET_FILE" || { warp_message_error "unable to set executable permissions on warp"; exit 1; }
     WARP_BINARY_SYNC_NOTICE=""
     warp_pending_update_clear
+    warp_update_ensure_php_optional_ini_files || exit 1
     warp_update_tmp_clean
 
     warp_message_info2 "warp updated successfully to $WARP_VERSION_LATEST"

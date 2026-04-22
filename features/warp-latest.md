@@ -352,6 +352,8 @@ Se fortaleció el flujo de actualización del framework:
 - verificación de integridad (checksum) antes de reemplazo,
 - control de estado de update pendiente,
 - chequeo automático de versión sin interrumpir comandos críticos,
+- creación no destructiva de `ext-xdebug.ini` y `zz-warp-opcache.ini` vacíos si faltan,
+- verificación de `.gitignore` para esos INI efectivos locales,
 - separación clara entre actualización de Warp e imágenes Docker.
 
 Origen remoto actual del update runtime:
