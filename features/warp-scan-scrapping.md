@@ -2,7 +2,7 @@
 
 ## Estado
 
-Propuesto.
+MVP implementado.
 
 Nota de naming: el archivo conserva `scrapping` por compatibilidad con la
 documentacion previa, pero el comando publico recomendado es `scraping`.
@@ -73,16 +73,60 @@ warp scan scraping --json --output var/warp-scan/scraping.json
 -n, --top N             Maximo de filas por seccion. Default: 25.
 -s, --min-score N       Score minimo para listar clientes sospechosos. Default: 4.
 --log PATH              Agrega un archivo o glob de log. Repetible.
+--path PATH             Alias de --log para rutas/globs externos.
+--since TIME            Analiza solo lineas mas nuevas que TIME cuando el log
+                         tenga fecha parseable. Acepta 15m, 1h, 24h, 7d o
+                         fechas absolutas aceptadas por date -d.
+--window DURATION       Agrupa clientes sospechosos por ventana temporal, por
+                         ejemplo 5m, 1h o 1d.
+--page-gap N            Gap maximo entre valores de `p` para considerarlos
+                         parte de la misma racha. Default: 4.
 --format auto|combined|warp
                          Formato de access log. Default: auto.
 --request-time-field N  Campo numerico de request_time cuando no pueda detectarse.
 --json                  Imprime salida JSON.
 --output FILE           Escribe la salida en archivo.
+--save                  Escribe un reporte con timestamp en `var/log`.
+--output-dir DIR        Directorio para `--save`. Default: `var/log`.
+--no-progress           Desactiva el spinner interactivo de analisis.
 -h, --help              Muestra ayuda.
 ```
 
 Los argumentos posicionales `log_file_or_glob` son equivalentes a repetir
-`--log`.
+`--log`. `--path` existe como alias ergonomico para el caso de logs externos.
+
+`--top` limita cuantas filas se muestran por seccion; no cambia el analisis ni
+el score.
+
+`--since` filtra por fecha de log antes de parsear request/path/user-agent. Si
+el formato no tiene fecha parseable, esas lineas se contabilizan como
+`skipped_time`.
+
+`--window` cambia la unidad de score de cliente de `IP + UA family + path` a
+`window + IP + UA family + path`, evitando mezclar varios dias de trafico en una
+misma fila.
+
+`--page-gap` controla la tolerancia de secuencias de paginacion:
+
+- `--page-gap 1` detecta secuencias estrictas como `p=10,11,12`;
+- `--page-gap 4` tambien agrupa secuencias con gaps chicos como `p=88,89,93`;
+- bajar el valor reduce falsos positivos cuando se quiere exigir navegacion
+  mas consecutiva.
+
+Por defecto, el reporte sale por pantalla. `--save` escribe
+`warp-scan-scraping-YYYYmmdd-HHMMSS.txt` o `.json` en `var/log`, segun el
+formato elegido. `--output` permite elegir el archivo exacto y tiene prioridad
+sobre la ruta automatica de `--save`.
+
+En terminales interactivas, el comando muestra progreso tipo `pv` en `stderr`
+mientras lee, finaliza metricas y renderiza el reporte: fase actual, bytes
+ingeridos contra tamano esperado, lineas vistas y lineas parseadas. Esto
+mantiene `stdout` limpio para la salida humana o JSON, y permite redireccionar
+reportes sin mezclar progreso con datos.
+
+Para logs `.gz`, el tamano esperado usa el tamano descomprimido reportado por
+`gzip -l` cuando esta disponible; si no puede obtenerlo, usa el tamano fisico
+del archivo como fallback. Usar `--no-progress` desactiva ese indicador.
 
 ## Fuente de logs
 
@@ -95,6 +139,10 @@ Si no se reciben logs explicitos, el comando debe usar defaults de Warp:
 .warp/docker/volumes/nginx/logs/*access*.log.[1-9]
 .warp/docker/volumes/nginx/logs/*access*.log.[1-9][0-9]
 .warp/docker/volumes/nginx/logs/*access*.log*.gz
+.warp/docker/volumes/php-fpm/logs/access.log
+.warp/docker/volumes/php-fpm/logs/access.log.[1-9]
+.warp/docker/volumes/php-fpm/logs/access.log.[1-9][0-9]
+.warp/docker/volumes/php-fpm/logs/access.log*.gz
 ```
 
 Si se reciben logs explicitos, no debe mezclar automaticamente los defaults de
@@ -114,6 +162,8 @@ MVP:
 - Nginx combined-like con request, referer y user-agent entre comillas.
 - Variante que incluya `request_time` al final de la linea.
 - Logs sin `request_time`, degradando metricas de costo a `0` o `unknown`.
+- Access log simple de PHP-FPM, con IP, request entre comillas y status, para
+  tener cobertura de logs Warp cuando Nginx no escriba access log.
 
 El parser inicial puede reutilizar el enfoque AWK del prototipo:
 
@@ -140,11 +190,26 @@ Senales por cliente (`IP + UA family + path`):
 - volumen alto de requests sobre el mismo path;
 - muchas query strings unicas en el mismo path;
 - paginacion profunda con `p` alto;
+- secuencias de paginacion exactas o casi consecutivas. La tolerancia a gaps
+  tambien detecta el caso sin gaps: `p=10,11,12` produce la racha mas fuerte,
+  y `p=88,89,93` se mantiene dentro del mismo patron;
 - uso repetido de ordenamientos caros como `product_list_order=price` u
   `order=price`;
 - suma o promedio alto de `request_time`, cuando el log lo incluya;
 - referer vacio en todas las requests;
 - cantidad relevante de respuestas 4xx/5xx.
+
+Metricas de paginacion por cliente:
+
+- `pages`: cantidad de valores unicos de `p`;
+- `span`: distancia entre pagina minima y maxima;
+- `run`: racha mas larga de paginas exactas o casi consecutivas, tolerando gaps
+  chicos. Una secuencia sin gaps tambien queda cubierta y produce el `run` mas
+  fuerte.
+
+Las query strings se normalizan antes de contar variantes unicas: se ordenan los
+parametros y se compara la firma normalizada. Esto evita contar como variantes
+distintas casos equivalentes como `?p=2&order=price` y `?order=price&p=2`.
 
 Senales por path:
 
@@ -161,6 +226,19 @@ Senales por familia de user-agent:
 - IPs unicas;
 - familia: `http-lib`, `search-bot`, `meta-bot`, `other-bot`, `browser`,
   `other`.
+
+Senales por firma:
+
+- unidad: `path + query normalizada + familia de user-agent`;
+- requests totales;
+- IPs unicas;
+- maximo valor de `p`;
+- uso de ordenamiento por precio;
+- suma y promedio de `request_time`, cuando el log lo incluya.
+
+Esta seccion ayuda cuando el scraper rota IPs: el score por cliente puede
+quedar distribuido, pero una misma firma repetida sobre muchas IPs sigue siendo
+visible como patron operativo.
 
 ## Bots validos
 
@@ -312,7 +390,7 @@ varios fronts.
 El score por path y por firma agregada debe tener mas valor operativo que el
 RPM local por IP cuando el input contiene logs de varios nodos.
 
-## MVP recomendado
+## MVP implementado
 
 1. Agregar `warp scan scraping` y alias `scrapping`.
 2. Usar defaults de logs Warp si no se pasan archivos.
@@ -325,15 +403,19 @@ RPM local por IP cuando el input contiene logs de varios nodos.
    - metricas de parser.
 6. Soportar `--top`, `--min-score`, `--json` y `--output`.
 7. Documentar que no verifica bots por DNS en MVP.
+8. Mantener stdout JSON limpio cuando se usa `--json` sin `--output`.
+9. Soportar `--path`, `--since` y `--window`.
+10. Reportar `pages`, `span` y `run` para detectar paginacion automatizada con
+    o sin gaps pequenos.
+11. Soportar `--page-gap`.
+12. Normalizar query strings antes de contar `unique_q`.
+13. Reportar `Signatures` agrupando por path, query normalizada y familia de
+    user-agent.
+14. Soportar `--save` y `--output-dir` para persistir reportes timestamped.
 
 ## Futuras mejoras
 
 - `--verify-bots` con reverse DNS y forward lookup.
-- `--since` para filtrar por ventana temporal cuando el formato de fecha sea
-  reconocible.
-- `--window 5m` para score por ventanas.
-- deteccion de secuencias de paginacion con gaps tolerados;
-- normalizacion de query strings para agrupar firmas;
 - reporte por subnet o ASN si hay herramienta disponible;
 - sugerencias de mitigacion no destructivas;
 - export SARIF o NDJSON para pipelines.

@@ -241,6 +241,38 @@ Qué aporta al equipo:
 - separación clara entre uso de contenedor y uso interno de servicio,
 - salida en texto y JSON para troubleshooting y documentación,
 
+## Diagnóstico de scraping en access logs (`warp scan scraping`)
+
+Warp agrega un scanner read-only para detectar patrones compatibles con scraping
+costoso sobre access logs locales o externos.
+
+Qué aporta al equipo:
+
+- analiza logs plain y `.gz` de Nginx/PHP-FPM sin modificar configuración,
+- soporta `--path`, `--since`, `--window`, `--page-gap`, `--json`, `--save`,
+  `--output` y `--output-dir`,
+- reporta clientes sospechosos, paths calientes, familias de user-agent y
+  firmas por `path + query normalizada + ua_family`,
+- muestra progreso interactivo tipo `pv` en `stderr` con fase actual, bytes
+  ingeridos, líneas vistas y líneas parseadas,
+- mantiene `stdout` limpio para reportes humanos, JSON y redirecciones,
+- permite desactivar el progreso con `--no-progress`.
+
+Impacto funcional:
+
+- ayuda a investigar scrapers que rotan IP agrupando por firma,
+- evita la sensación de comando colgado durante ingesta, métricas finales y
+  render del reporte,
+- reduce el costo de cierre del análisis calculando métricas de paginación por
+  cliente sin recorrer globalmente todas las páginas por cada cliente.
+
+Comandos:
+
+- `warp scan scraping --path /var/log/nginx/access.log --top 20`
+- `warp scan scraping --since 24h --window 5m`
+- `warp scan scraping --json --output var/log/warp-scan-scraping.json`
+- `warp scan scraping --no-progress`
+
 ## Security scan y check más útiles (`warp security`)
 
 `warp security` siguió ajustando el balance entre señal real y ruido operativo.
