@@ -9,6 +9,23 @@ Nota de continuidad de repositorio:
 - este fork se mantiene como puente de compatibilidad e histórico,
 - la evolución activa del proyecto continúa en `https://github.com/magtools/phoenix-launch-silo`.
 
+## Agents privados por proyecto (`warp agents`)
+
+Warp ahora puede orquestar un repositorio privado de automatizaciones auxiliares por proyecto, sin mezclar su lógica interna con el core.
+
+Qué aporta al equipo:
+
+- configuración versionable en `.warp/docker/config/agents/config.ini`,
+- clone local en `.agents_md`, ignorado por Git,
+- bootstrap con `warp agents install`,
+- actualización bajo demanda con `warp agents update`,
+- hook best-effort al final de `warp start` si existe `.agents_md/update.sh`.
+
+Comandos:
+
+- `warp agents install`: crea la config si falta, valida `AGENTS_REPO` como URL SSH, clona `.agents_md` y ejecuta `bash .agents_md/install.sh`.
+- `warp agents update`: ejecuta `bash .agents_md/update.sh`.
+
 ## Deploy unificado por entorno (`warp deploy`)
 
 Warp ahora incluye un flujo de deploy nativo para `local` y `prod`, con configuración por proyecto en `.deploy`.

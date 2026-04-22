@@ -111,6 +111,8 @@ function start() {
     else
       warp_message_warn "Please Run ./warp composer --credential to copy the credentials"
     fi
+
+    agents_post_start_update
   fi;
 }
 
