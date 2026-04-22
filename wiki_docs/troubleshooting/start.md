@@ -32,6 +32,8 @@ For `.warp/docker/config/php/ext-xdebug.ini`, current Warp repairs the common ca
 - if Docker/Compose created it as an empty directory, Warp replaces it with a file;
 - if the directory is not empty, Warp stops and asks you to move or remove it manually.
 
+For `.warp/docker/config/php/zz-warp-opcache.ini`, Warp applies the same repair when `WARP_PHP_OPCACHE_VOLUME` mounts that file.
+
 Manual repair for an empty directory:
 
 ```bash

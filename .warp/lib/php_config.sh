@@ -59,3 +59,29 @@ warp_php_config_ensure_xdebug_file() {
 
     warp_php_config_ensure_bind_file "$_target" "$_sample" "Xdebug config file"
 }
+
+warp_php_config_ensure_opcache_file() {
+    local _config_dir="$PROJECTPATH/.warp/docker/config/php"
+    local _target="$_config_dir/zz-warp-opcache.ini"
+    local _managed_disable="$_config_dir/managed/zz-warp-opcache-disable.ini.sample"
+    local _setup_managed_disable="$PROJECTPATH/.warp/setup/php/config/php/managed/zz-warp-opcache-disable.ini.sample"
+    local _volume=""
+    local _sample=""
+
+    _volume=$(warp_env_read_var WARP_PHP_OPCACHE_VOLUME)
+    case "$_volume" in
+        *".warp/docker/config/php/zz-warp-opcache.ini:"*)
+            ;;
+        *)
+            return 0
+            ;;
+    esac
+
+    if [ -f "$_managed_disable" ]; then
+        _sample="$_managed_disable"
+    elif [ -f "$_setup_managed_disable" ]; then
+        _sample="$_setup_managed_disable"
+    fi
+
+    warp_php_config_ensure_bind_file "$_target" "$_sample" "OPcache config file"
+}

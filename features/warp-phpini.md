@@ -751,6 +751,7 @@ Motivo:
 Nota operativa:
 
 - aunque el perfil sea `legacy`, `warp start` mantiene `ext-xdebug.ini` como archivo para evitar que Compose cree un directorio en esa ruta de bind mount.
+- si `WARP_PHP_OPCACHE_VOLUME` referencia `zz-warp-opcache.ini`, `warp start` tambien asegura que ese path sea archivo; si Docker/Compose lo dejo como directorio vacio, lo reemplaza por el sample managed disabled.
 
 ### 17.2 Reuso de app_context
 
