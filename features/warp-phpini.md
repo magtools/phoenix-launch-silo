@@ -238,7 +238,7 @@ Este archivo es util si Compose necesita que exista siempre el archivo montado. 
 3. si el contenedor `php` esta corriendo, recarga PHP-FPM con `USR2`;
 4. si el reload falla, reinicia el servicio `php` con Compose.
 
-Fuera de `managed`, los comandos Xdebug mantienen el comportamiento historico basado en `sed` sobre `ext-xdebug.ini` y reinicio de `php`.
+Fuera de `managed`, los comandos Xdebug mantienen el comportamiento historico basado en `sed` sobre `ext-xdebug.ini` y reinicio de `php`. Un `ext-xdebug.ini` vacio se reporta como `disabled`; `enable` no inventa una ruta de extension si no existe una linea `;zend_extension` para alternar.
 
 `warp xdebug status`:
 
@@ -246,7 +246,7 @@ Debe mostrar:
 
 ```text
 config file: .warp/docker/config/php/ext-xdebug.ini
-file state: enabled|disabled|missing
+file state: enabled|disabled|missing|custom
 env config: XDEBUG_CONFIG=<value>
 runtime module: loaded|not loaded|unknown
 runtime mode: <xdebug.mode if available>
@@ -382,7 +382,7 @@ Debe mostrar:
 
 ```text
 config file: .warp/docker/config/php/zz-warp-opcache.ini
-file state: enabled|disabled|missing
+file state: enabled|disabled|missing|empty|custom
 runtime module: loaded|not loaded|unknown
 opcache.enable: On|Off|unknown
 opcache.enable_cli: On|Off|unknown

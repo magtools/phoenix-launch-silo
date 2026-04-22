@@ -70,6 +70,13 @@ opcache_file_value() {
     printf '%s\n' "${_value:-unknown}"
 }
 
+opcache_file_is_empty() {
+    local _file="$1"
+
+    [ -f "$_file" ] || return 1
+    ! grep -Eq '[^[:space:]]' "$_file"
+}
+
 opcache_file_state() {
     local _file=""
     local _enabled=""
@@ -87,6 +94,11 @@ opcache_file_state() {
 
     if cmp -s "$_file" "$(opcache_disable_sample)" 2>/dev/null; then
         printf '%s\n' "disabled"
+        return 0
+    fi
+
+    if opcache_file_is_empty "$_file"; then
+        printf '%s\n' "empty"
         return 0
     fi
 
@@ -196,6 +208,7 @@ opcache_current_file_is_managed_sample() {
 
     _file=$(opcache_config_file)
     [ -f "$_file" ] || return 0
+    opcache_file_is_empty "$_file" && return 0
     cmp -s "$_file" "$(opcache_enable_sample)" 2>/dev/null && return 0
     cmp -s "$_file" "$(opcache_disable_sample)" 2>/dev/null && return 0
 

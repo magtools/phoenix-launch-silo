@@ -325,9 +325,10 @@ Resultados esperados:
 
 ```text
 status muestra file state missing si falta zz-warp-opcache.ini
+status muestra file state empty si zz-warp-opcache.ini existe vacio
 disable crea perfil development con opcache.enable=0
 enable crea perfil production con opcache.enable=1
-archivo custom se conserva salvo --force
+archivo custom se conserva salvo --force; archivo vacio se puede reemplazar sin --force
 reload PHP-FPM si php esta corriendo; fallback restart del servicio php si falla
 ```
 
@@ -348,11 +349,12 @@ Resultados esperados:
 
 ```text
 status muestra file state missing si falta ext-xdebug.ini
+status muestra file state disabled si ext-xdebug.ini existe vacio
 enable crea perfil enabled desde ext-xdebug.ini.sample
 disable crea perfil disabled desde ext-xdebug.disabled.ini.sample
-archivo custom se conserva salvo --force
+archivo custom se conserva salvo --force; archivo vacio se puede reemplazar sin --force
 aliases --enable, --disable y --status siguen aceptados
-perfil legacy mantiene comportamiento historico con sed y reinicio de php
+perfil legacy mantiene sed/reinicio, reporta archivo vacio como disabled y no simula enable si falta ;zend_extension
 perfil managed escribe in-place, recarga PHP-FPM y no recrea contenedor
 ```
 

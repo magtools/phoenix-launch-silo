@@ -50,6 +50,13 @@ xdebug_disable_sample() {
     printf '%s\n' "$(xdebug_samples_dir)/ext-xdebug.disabled.ini.sample"
 }
 
+xdebug_file_is_empty() {
+    local _file="$1"
+
+    [ -f "$_file" ] || return 1
+    ! grep -Eq '[^[:space:]]' "$_file"
+}
+
 xdebug_file_state() {
     local _file=""
 
@@ -65,6 +72,11 @@ xdebug_file_state() {
     fi
 
     if cmp -s "$_file" "$(xdebug_disable_sample)" 2>/dev/null; then
+        printf '%s\n' "disabled"
+        return 0
+    fi
+
+    if xdebug_file_is_empty "$_file"; then
         printf '%s\n' "disabled"
         return 0
     fi
@@ -87,6 +99,7 @@ xdebug_current_file_is_managed_sample() {
 
     _file=$(xdebug_config_file)
     [ -f "$_file" ] || return 0
+    xdebug_file_is_empty "$_file" && return 0
     cmp -s "$_file" "$(xdebug_enable_sample)" 2>/dev/null && return 0
     cmp -s "$_file" "$(xdebug_disable_sample)" 2>/dev/null && return 0
 
@@ -230,21 +243,30 @@ function xdebug_legacy_command()
     warp_php_config_ensure_xdebug_file || exit 1
 
     if [ "$1" == "--disable" ]; then
-        sed -i -e 's/^zend_extension/\;zend_extension/g' "$PROJECTPATH/.warp/docker/config/php/ext-xdebug.ini"
+        if ! grep -Eq '^[[:space:]]*zend_extension[[:space:]]*=' "$PROJECTPATH/.warp/docker/config/php/ext-xdebug.ini"; then
+            warp_message "Xdebug is already disabled."
+            return 0
+        fi
+        sed -i -e 's/^[[:space:]]*zend_extension[[:space:]]*=/;zend_extension =/' "$PROJECTPATH/.warp/docker/config/php/ext-xdebug.ini"
         warp docker stop php 
         warp docker start php 
         warp_message "Xdebug has been disabled."    
     elif [ "$1" == "--enable" ]; then
-        sed -i -e 's/^\;zend_extension/zend_extension/g' "$PROJECTPATH/.warp/docker/config/php/ext-xdebug.ini"
+        if grep -Eq '^[[:space:]]*zend_extension[[:space:]]*=' "$PROJECTPATH/.warp/docker/config/php/ext-xdebug.ini"; then
+            warp_message "Xdebug is already enabled."
+            return 0
+        fi
+        if ! grep -Eq '^[[:space:]]*;[[:space:]]*zend_extension[[:space:]]*=' "$PROJECTPATH/.warp/docker/config/php/ext-xdebug.ini"; then
+            warp_message_error "Xdebug config has no disabled zend_extension line to enable."
+            warp_message_warn "Restore .warp/docker/config/php/ext-xdebug.ini from a compatible sample or use: warp phpini profile managed --dev"
+            return 1
+        fi
+        sed -i -e 's/^[[:space:]]*;[[:space:]]*zend_extension[[:space:]]*=/zend_extension =/' "$PROJECTPATH/.warp/docker/config/php/ext-xdebug.ini"
         warp docker stop php 
         warp docker start php 
         warp_message "Xdebug has been enabled."    
     elif [ "$1" == "--status" ]; then
-            [ -f "$PROJECTPATH/.warp/docker/config/php/ext-xdebug.ini" ] && grep --quiet -w "^;zend_extension" "$PROJECTPATH/.warp/docker/config/php/ext-xdebug.ini"
-
-            # Exit status 0 means string was found
-            # Exit status 1 means string was not found
-            if [ $? = 1 ] ; then
+            if grep -Eq '^[[:space:]]*zend_extension[[:space:]]*=' "$PROJECTPATH/.warp/docker/config/php/ext-xdebug.ini"; then
                 warp_message "Xdebug is enabled."    
             else
                 warp_message "Xdebug is disabled."    
