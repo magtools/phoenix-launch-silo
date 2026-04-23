@@ -150,6 +150,36 @@ Comando:
 
 - `warp php --version`: imprime la versión real del runtime PHP.
 
+## Diagnóstico explícito de runtime Nginx (`warp nginx version`)
+
+Se agregó una forma directa de consultar la versión efectiva de Nginx sin tener
+que entrar manualmente al contenedor.
+
+Qué aporta al equipo:
+
+- confirma rápido la versión real del `web` runtime,
+- permite detectar drift entre imagen publicada y runtime activo,
+- deja una advertencia visible cuando la versión detectada es menor a `1.25.1`.
+
+Comando:
+
+- `warp nginx version`: imprime solo la línea `nginx version: ...`.
+
+## Drift de releases de Nginx (`warp nginx check`)
+
+Warp ahora puede comparar la versión real de Nginx contra los tags publicados
+en Docker Hub y clasificar el estado operativo de esa imagen.
+
+Qué aporta al equipo:
+
+- visibilidad rápida de cuántas releases publicadas separan al runtime local de la última disponible,
+- un criterio operativo simple para distinguir entre `up to date`, `still a valid version` y `outdated`,
+- una recomendación explícita de actualización cuando el gap ya es alto.
+
+Comando:
+
+- `warp nginx check`: imprime versión local, última versión remota, releases behind y estado.
+
 ## Compatibilidad ampliada con Compose y runtime mixto
 
 Warp mejoró su tolerancia a entornos donde el proyecto no cae exactamente en el caso clásico de `full warp`.

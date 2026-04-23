@@ -30,6 +30,7 @@ Warp started as a tool to simplify development environments. The project is now 
 - `warp telemetry scan` for memory diagnostics and recommendations
 - `warp db`, `warp cache`, `warp search` for capability-first operations
 - `warp php --version` for runtime PHP inspection
+- `warp nginx version` for runtime Nginx inspection
 - Sandbox mode for Magento 2 developer modules
 
 ## What Warp Is Good At
@@ -113,6 +114,8 @@ Stop the environment when you are done:
 | `warp audit phpstan` | Run PHPStan using the default project scope |
 | `warp telemetry scan` | Show memory usage and recommendations |
 | `warp php --version` | Print the effective runtime PHP version |
+| `warp nginx version` | Print the effective runtime Nginx version |
+| `warp nginx check` | Compare the local Nginx runtime against published releases |
 
 ### Service-oriented commands
 
@@ -137,6 +140,18 @@ Stop the environment when you are done:
 
 ```bash
 ./warp php --version
+```
+
+### Check runtime Nginx version
+
+```bash
+./warp nginx version
+```
+
+### Check Nginx release drift
+
+```bash
+./warp nginx check
 ```
 
 ### Run a deploy
