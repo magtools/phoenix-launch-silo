@@ -151,8 +151,19 @@ agents_install_pending_notice() {
     agents_notice_box_border
 }
 
+agents_is_production_mode() {
+    local _env_file="$PROJECTPATH/app/etc/env.php"
+
+    [ -f "$_env_file" ] || return 1
+    grep -Eq "['\"]MAGE_MODE['\"][[:space:]]*=>[[:space:]]*['\"]production['\"]" "$_env_file"
+}
+
 agents_post_start_update() {
     local _repo=""
+
+    if agents_is_production_mode; then
+        return 0
+    fi
 
     if [ ! -f "$WARP_AGENTS_DIR/update.sh" ]; then
         if [ -f "$WARP_AGENTS_CONFIG_FILE" ]; then

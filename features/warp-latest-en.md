@@ -135,6 +135,21 @@ Command:
 
 - `warp php --version`: prints the real PHP runtime version.
 
+## Nginx release drift diagnostics (`warp nginx check`)
+
+Warp can now compare the real Nginx runtime version with published Docker Hub
+tags and classify the runtime status.
+
+What it brings to the team:
+
+- fast visibility into how many published releases the local runtime trails behind the latest available version,
+- a simple operational status split between `up to date`, `still a valid version`, and `outdated`,
+- an explicit update recommendation when the release gap is already high.
+
+Command:
+
+- `warp nginx check`: prints the local version, latest remote version, released versions behind, and status.
+
 ## Broader Compose compatibility and mixed-runtime support
 
 Warp improved its tolerance for environments that do not fit the classic `full warp` case exactly.

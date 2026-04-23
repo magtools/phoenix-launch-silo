@@ -892,10 +892,10 @@ warp_check_latest_version() {
         {
             warp_pending_update_box_border
             warp_pending_update_box_line "WARP UPDATE CHECK ERROR"
-            warp_pending_update_box_line "Ultima version estable: No se pudo leer"
-            warp_pending_update_box_line "el origen remoto (GitHub/raw)."
-            warp_pending_update_box_line "Detalle: ${WARP_LAST_CHECK_ERROR:-error desconocido}"
-            warp_pending_update_box_line "Reintento automatico: 1 dia"
+            warp_pending_update_box_line "Latest stable version: unavailable"
+            warp_pending_update_box_line "from the remote source (GitHub/raw)."
+            warp_pending_update_box_line "Details: ${WARP_LAST_CHECK_ERROR:-unknown error}"
+            warp_pending_update_box_line "Automatic retry: 1 day"
             warp_pending_update_box_border
         } | warp_pending_update_write
         return 1
@@ -908,11 +908,11 @@ warp_check_latest_version() {
         if [ "$WARP_VERSION_LOCAL_INT" -lt "$WARP_VERSION_LATEST_INT" ]; then
             {
                 warp_pending_update_box_border
-                warp_pending_update_box_line "WARP UPDATE PENDIENTE"
-                warp_pending_update_box_line "Buscando actualizaciones..."
-                warp_pending_update_box_line "Ultima version estable: $WARP_VERSION_LATEST"
-                warp_pending_update_box_line "Estado: desactualizado"
-                warp_pending_update_box_line "Ejecutar: ./warp update"
+                warp_pending_update_box_line "WARP UPDATE PENDING"
+                warp_pending_update_box_line "Checking for updates..."
+                warp_pending_update_box_line "Latest stable version: $WARP_VERSION_LATEST"
+                warp_pending_update_box_line "Status: outdated"
+                warp_pending_update_box_line "Run: ./warp update"
                 warp_pending_update_box_border
             } | warp_pending_update_write
         else
@@ -922,10 +922,10 @@ warp_check_latest_version() {
         {
             warp_pending_update_box_border
             warp_pending_update_box_line "WARP UPDATE CHECK ERROR"
-            warp_pending_update_box_line "Version local/remota con formato invalido."
+            warp_pending_update_box_line "Local/remote version has an invalid format."
             warp_pending_update_box_line "Local: $WARP_VERSION"
-            warp_pending_update_box_line "Remota: $WARP_VERSION_LATEST"
-            warp_pending_update_box_line "Reintento automatico: 1 dia"
+            warp_pending_update_box_line "Remote: $WARP_VERSION_LATEST"
+            warp_pending_update_box_line "Automatic retry: 1 day"
             warp_pending_update_box_border
         } | warp_pending_update_write
         return 1
@@ -972,8 +972,8 @@ warp_update() {
     fi
 
     if [ "$1" = "self" ] || [ "$1" = "--self" ] ; then
-        warp_message_info "Buscando actualizaciones..."
-        warp_message_info "Self update mode: aplicando payload de ./warp actual"
+        warp_message_info "Checking for updates..."
+        warp_message_info "Self update mode: applying payload from the current ./warp"
         warp_message_info2 "No remote version will be downloaded in self mode"
         warp_pending_update_ensure
         warp_update_tmp_clean
@@ -987,7 +987,7 @@ warp_update() {
         tail -n+"${ARCHIVE}" "$WARP_TARGET_FILE" | tar xpJ -C "$WARP_TMP_EXTRACT_DIR" || { warp_message_error "unable to extract current payload"; exit 1; }
         [ ! -d "$WARP_TMP_EXTRACT_DIR/.warp" ] && warp_message_error "current payload does not contain .warp" && exit 1
 
-        warp_message_info "Aplicando cambios"
+        warp_message_info "Applying changes"
         # Update .warp without touching .warp/docker/config
         mkdir -p "$PROJECTPATH/.warp" 2>/dev/null
         tar -C "$WARP_TMP_EXTRACT_DIR/.warp" --exclude='./docker/config' --exclude='./docker/config/*' -cf - . | tar -C "$PROJECTPATH/.warp" -xf - || { warp_message_error "unable to update .warp"; exit 1; }
@@ -1003,7 +1003,7 @@ warp_update() {
         exit 0
     fi
 
-    warp_message_info "Buscando actualizaciones..."
+    warp_message_info "Checking for updates..."
     warp_pending_update_ensure
     warp_update_tmp_clean
     mkdir -p "$WARP_TMP_EXTRACT_DIR" || { warp_message_error "unable to create $WARP_TMP_EXTRACT_DIR"; exit 1; }
@@ -1016,7 +1016,7 @@ warp_update() {
         exit 1
     fi
 
-    warp_message_info "Ultima version estable: $WARP_VERSION_LATEST"
+    warp_message_info "Latest stable version: $WARP_VERSION_LATEST"
     . "$PROJECTPATH/.warp/lib/version.sh"
     WARP_VERSION_LOCAL_INT=$(warp_update_version_to_int "$WARP_VERSION")
     WARP_VERSION_LATEST_INT=$(warp_update_version_to_int "$WARP_VERSION_LATEST")
@@ -1027,7 +1027,7 @@ warp_update() {
     fi
 
     if [ "$WARP_FORCE_UPDATE" -ne 1 ] && [ "$WARP_VERSION_LOCAL_INT" -ge "$WARP_VERSION_LATEST_INT" ]; then
-        warp_message_info "Estado: actualizado"
+        warp_message_info "Status: up to date"
         warp_message_info2 "warp is up to date ($WARP_VERSION)"
         warp_pending_update_clear
         warp_update_ensure_php_optional_ini_files || exit 1
@@ -1035,11 +1035,11 @@ warp_update() {
         exit 0
     fi
 
-    warp_message_warn "Estado: Actualizando a ultima version..."
+    warp_message_warn "Status: updating to the latest version..."
     curl --silent --show-error --fail --location "${WARP_REMOTE_BASE_URL}/sha256sum.md" -o "$WARP_TMP_SHA256" || { warp_message_error "unable to download sha256sum.md"; exit 1; }
     curl --silent --show-error --fail --location "${WARP_REMOTE_BASE_URL}/warp" -o "$WARP_TMP_WARP" || { warp_message_error "unable to download warp"; exit 1; }
 
-    warp_message_info "Chequeando suma de comprobacion"
+    warp_message_info "Checking checksum"
     WARP_EXPECTED_SHA256=$(awk 'NR==1 {print $1}' "$WARP_TMP_SHA256" | tr -d '\r\n')
     [ -z "$WARP_EXPECTED_SHA256" ] && warp_message_error "sha256sum.md is empty" && exit 1
 
@@ -1057,7 +1057,7 @@ warp_update() {
     tail -n+"${ARCHIVE}" "$WARP_TMP_WARP" | tar xpJ -C "$WARP_TMP_EXTRACT_DIR" || { warp_message_error "unable to extract downloaded payload"; exit 1; }
     [ ! -d "$WARP_TMP_EXTRACT_DIR/.warp" ] && warp_message_error "downloaded payload does not contain .warp" && exit 1
 
-    warp_message_info "Aplicando cambios"
+    warp_message_info "Applying changes"
     # Update .warp without touching .warp/docker/config
     mkdir -p "$PROJECTPATH/.warp" 2>/dev/null
     tar -C "$WARP_TMP_EXTRACT_DIR/.warp" --exclude='./docker/config' --exclude='./docker/config/*' -cf - . | tar -C "$PROJECTPATH/.warp" -xf - || { warp_message_error "unable to update .warp"; exit 1; }

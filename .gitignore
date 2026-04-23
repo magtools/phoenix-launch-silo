@@ -15,6 +15,6 @@ dist/*
 **/auth.json
 /deploy
 /.codex/config.toml
-/var
+/var/*
 .known-*
 /.agents-md

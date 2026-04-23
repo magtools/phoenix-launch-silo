@@ -226,7 +226,7 @@ memory_ceil_number() {
 memory_alert_level() {
     _ratio="$1"
     if awk -v r="$_ratio" 'BEGIN { exit !(r >= 90) }'; then
-        echo "CRITICO"
+        echo "CRITICAL"
     elif awk -v r="$_ratio" 'BEGIN { exit !(r >= 75) }'; then
         echo "WARNING"
     else
@@ -577,7 +577,7 @@ memory_redis_recommend() {
             _safe=$(awk -v p="$_peak_mb" 'BEGIN { print p*1.15 }')
             _safe_mb=$(memory_round_up_64 "$(memory_ceil_number "$_safe")")
             [ "$_safe_mb" -lt "$_base_mb" ] && _safe_mb="$_base_mb"
-        elif [ "$_level" = "CRITICO" ]; then
+        elif [ "$_level" = "CRITICAL" ]; then
             _safe=$(awk -v p="$_peak_mb" 'BEGIN { print p*1.30 }')
             _safe_mb=$(memory_round_up_64 "$(memory_ceil_number "$_safe")")
             [ "$_safe_mb" -lt "$_base_mb" ] && _safe_mb="$_base_mb"
@@ -615,7 +615,7 @@ memory_es_recommend() {
             _safe=$(awk -v p="$_peak_mb" 'BEGIN { print p*1.15 }')
             _safe_mb=$(memory_round_up_64 "$(memory_ceil_number "$_safe")")
             [ "$_safe_mb" -lt "$_base_mb" ] && _safe_mb="$_base_mb"
-        elif [ "$_level" = "CRITICO" ]; then
+        elif [ "$_level" = "CRITICAL" ]; then
             _safe=$(awk -v p="$_peak_mb" 'BEGIN { print p*1.30 }')
             _safe_mb=$(memory_round_up_64 "$(memory_ceil_number "$_safe")")
             [ "$_safe_mb" -lt "$_base_mb" ] && _safe_mb="$_base_mb"
@@ -749,13 +749,13 @@ memory_report_print_text() {
     _rs_alert=$(memory_alert_level "${_rs_ratio:-0}")
     _es_alert=$(memory_alert_level "${_es_ratio:-0}")
 
-    _rc_warn="sin limite configurado"
-    _rf_warn="sin limite configurado"
-    _rs_warn="sin limite configurado"
+    _rc_warn="no configured limit"
+    _rf_warn="no configured limit"
+    _rs_warn="no configured limit"
     if [[ "$_rc_max_mb" =~ ^[0-9]+$ ]] && [ "$_rc_max_mb" -gt 0 ]; then _rc_warn="${_rc_alert} (${_rc_ratio}%)"; fi
     if [[ "$_rf_max_mb" =~ ^[0-9]+$ ]] && [ "$_rf_max_mb" -gt 0 ]; then _rf_warn="${_rf_alert} (${_rf_ratio}%)"; fi
     if [[ "$_rs_max_mb" =~ ^[0-9]+$ ]] && [ "$_rs_max_mb" -gt 0 ]; then _rs_warn="${_rs_alert} (${_rs_ratio}%)"; fi
-    _es_warn="sin limite detectable"
+    _es_warn="no detectable limit"
     if [[ "$_es_assigned_mb" =~ ^[0-9]+$ ]] && [ "$_es_assigned_mb" -gt 0 ] && [[ "$_es_used_mb" =~ ^[0-9]+$ ]]; then
         _es_warn="${_es_alert} (${_es_ratio}%)"
     fi
@@ -771,11 +771,11 @@ memory_report_print_text() {
     memory_print_kv "Host logical threads" "${_host_threads}"
     memory_print_kv "Host threads/core" "${_host_threads_per_core}"
     memory_print_kv "Host thread reserve" "${_host_threads_reserve}"
-    memory_print_kv "Deploy THREADS sugeridos" "${_host_deploy_threads}"
+    memory_print_kv "Suggested deploy THREADS" "${_host_deploy_threads}"
     memory_print_kv "Host load (1m)" "${_host_load_1m}"
     memory_print ""
 
-    memory_print_info "[USO ACTUAL]"
+    memory_print_info "[CURRENT USAGE]"
     memory_print_kv "php (container)" "${_usage_php}"
     memory_print_kv "mysql (container)" "${_usage_mysql}"
     memory_print_kv "elasticsearch (container)" "${_usage_es_container}"
@@ -784,7 +784,7 @@ memory_report_print_text() {
     memory_print_kv "redis-session (container)" "${_usage_rs_container}"
     memory_print ""
 
-    memory_print_info "[USO SERVICIO]"
+    memory_print_info "[SERVICE USAGE]"
     memory_print_separator
     memory_print_kv "elasticsearch used (heap)" "$(memory_mb_human_or_na "$_es_used_mb")"
     memory_print_kv "elasticsearch max (heap)" "$(memory_mb_human_or_na "$_es_assigned_mb")"
@@ -801,7 +801,7 @@ memory_report_print_text() {
     memory_print_separator
     memory_print ""
 
-    memory_print_info "[CONFIG ACTUAL]"
+    memory_print_info "[CURRENT CONFIG]"
     memory_print_separator
     memory_print_kv "ES_MEMORY" "${_cfg_es}"
     memory_print_separator
@@ -822,27 +822,27 @@ memory_report_print_text() {
     memory_print_separator
     memory_print ""
 
-    memory_print_info "[ALERTAS DE USO ASIGNADO]"
+    memory_print_info "[ASSIGNED USAGE ALERTS]"
     memory_print_separator
     memory_print_kv "redis-cache" "${_rc_warn}"
     memory_print_kv "redis-fpc" "${_rf_warn}"
     memory_print_kv "redis-session" "${_rs_warn}"
     memory_print_separator
     memory_print_kv "elasticsearch" "${_es_warn}"
-    memory_print_kv "elasticsearch fuente datos" "${_es_source}"
+    memory_print_kv "elasticsearch data source" "${_es_source}"
     memory_print_separator
     memory_print ""
 
     if [ "$_show_suggest" = "0" ]; then
-        memory_print_info "Nota operador:"
-        memory_print " - Redis/ES usan warning>=75% y critico>=90% sobre memoria asignada detectada."
-        memory_print " - Si un servicio figura sin limite, se recomienda definir maxmemory/heap antes de operar."
+        memory_print_info "Operator note:"
+        memory_print " - Redis/ES use warning>=75% and critical>=90% against detected assigned memory."
+        memory_print " - If a service shows no limit, define maxmemory/heap before operating."
         memory_print ""
         return 0
     fi
 
     if ! [[ "$_host_mb" =~ ^[0-9]+$ ]]; then
-        memory_print_warn "No se pudo calcular sugerencias: RAM total no disponible."
+        memory_print_warn "Could not calculate suggestions: total RAM is unavailable."
         memory_print ""
         return 0
     fi
@@ -855,30 +855,30 @@ memory_report_print_text() {
     _php_suggest=$(memory_php_suggest_values "$_host_mb")
     memory_progress_end 0 "calculate recommendations"
 
-    memory_print_info "[SUGERIDO]"
+    memory_print_info "[SUGGESTED]"
     memory_print_separator
-    memory_print_kv "ES cálculo base (servicio)" "used=$(memory_mb_human_or_na "$_es_used_mb"), fuente=${_es_source}"
+    memory_print_kv "ES base calculation (service)" "used=$(memory_mb_human_or_na "$_es_used_mb"), source=${_es_source}"
     memory_print_kv "ES_MEMORY (base)" "$(memory_with_unit "$_es_base" "m")"
-    memory_print_kv "ES_MEMORY (seguridad min)" "$(memory_with_unit "$_es_safe" "m")  [peak:${_es_note} $(memory_ratio_display "$_es_peak_ratio")]"
+    memory_print_kv "ES_MEMORY (minimum safe)" "$(memory_with_unit "$_es_safe" "m")  [peak:${_es_note} $(memory_ratio_display "$_es_peak_ratio")]"
     memory_print_separator
     memory_print_kv "REDIS_CACHE_MAXMEMORY (base)" "$(memory_with_unit "$_rc_base" "mb")"
-    memory_print_kv "REDIS_CACHE_MAXMEMORY (seguridad min)" "$(memory_with_unit "$_rc_safe" "mb")  [peak:${_rc_note} $(memory_ratio_display "$_rc_peak_ratio")]"
+    memory_print_kv "REDIS_CACHE_MAXMEMORY (minimum safe)" "$(memory_with_unit "$_rc_safe" "mb")  [peak:${_rc_note} $(memory_ratio_display "$_rc_peak_ratio")]"
     memory_print_kv "REDIS_CACHE_MAXMEMORY_POLICY" "allkeys-lru"
     memory_print_kv "REDIS_FPC_MAXMEMORY (base)" "$(memory_with_unit "$_rf_base" "mb")"
-    memory_print_kv "REDIS_FPC_MAXMEMORY (seguridad min)" "$(memory_with_unit "$_rf_safe" "mb")  [peak:${_rf_note} $(memory_ratio_display "$_rf_peak_ratio")]"
+    memory_print_kv "REDIS_FPC_MAXMEMORY (minimum safe)" "$(memory_with_unit "$_rf_safe" "mb")  [peak:${_rf_note} $(memory_ratio_display "$_rf_peak_ratio")]"
     memory_print_kv "REDIS_FPC_MAXMEMORY_POLICY" "allkeys-lru"
     memory_print_kv "REDIS_SESSION_MAXMEMORY (base)" "$(memory_with_unit "$_rs_base" "mb")"
-    memory_print_kv "REDIS_SESSION_MAXMEMORY (seguridad min)" "$(memory_with_unit "$_rs_safe" "mb")  [peak:${_rs_note} $(memory_ratio_display "$_rs_peak_ratio")]"
+    memory_print_kv "REDIS_SESSION_MAXMEMORY (minimum safe)" "$(memory_with_unit "$_rs_safe" "mb")  [peak:${_rs_note} $(memory_ratio_display "$_rs_peak_ratio")]"
     memory_print_kv "REDIS_SESSION_MAXMEMORY_POLICY" "noeviction"
     memory_print_separator
     memory_print_php_suggest_block "$_php_suggest"
     memory_print_separator
     memory_print ""
 
-    memory_print_info "Nota operador:"
-    memory_print " - Recomendaciones de Redis/ES se calculan sobre used_memory y se redondean a bloques de 64MB."
-    memory_print " - Si peak marca WARNING/CRITICO, usar valor de seguridad minima."
-    memory_print " - En PHP-FPM, pm.max_children usa extrapolacion por RAM y redondeo optimista (<20 => ceil+1, >=20 => ceil+2)."
+    memory_print_info "Operator note:"
+    memory_print " - Redis/ES recommendations are calculated from used_memory and rounded to 64MB blocks."
+    memory_print " - If peak is WARNING/CRITICAL, use the minimum safe value."
+    memory_print " - In PHP-FPM, pm.max_children uses RAM extrapolation and optimistic rounding (<20 => ceil+1, >=20 => ceil+2)."
     memory_print ""
 }
 
@@ -1124,34 +1124,34 @@ memory_guide() {
 
     memory_print ""
     memory_print_info "WARP Memory Guide"
-    memory_print "Referencia práctica: donde configurar cada parámetro del reporte (agrupado por servicio)."
+    memory_print "Practical reference: where to configure each report parameter (grouped by service)."
     memory_print ""
 
     memory_print_info "==============================================================================="
     memory_print_info "REDIS (cache / fpc / session)"
     memory_print_info "==============================================================================="
     memory_print "1) .env (${FCYN}$PROJECTPATH/.env${RS})"
-    memory_print "  REDIS_CACHE_MAXMEMORY=<ej: 512mb>"
+    memory_print "  REDIS_CACHE_MAXMEMORY=<example: 512mb>"
     memory_print "  REDIS_CACHE_MAXMEMORY_POLICY=<allkeys-lru>"
-    memory_print "  REDIS_FPC_MAXMEMORY=<ej: 512mb>"
+    memory_print "  REDIS_FPC_MAXMEMORY=<example: 512mb>"
     memory_print "  REDIS_FPC_MAXMEMORY_POLICY=<allkeys-lru>"
-    memory_print "  REDIS_SESSION_MAXMEMORY=<ej: 128mb>"
+    memory_print "  REDIS_SESSION_MAXMEMORY=<example: 128mb>"
     memory_print "  REDIS_SESSION_MAXMEMORY_POLICY=<noeviction>"
     memory_print ""
     memory_print "2) docker-compose-warp.yml (${FCYN}$DOCKERCOMPOSEFILE${RS})"
-    memory_print "  Servicios: redis-cache, redis-fpc, redis-session"
-    memory_print "  command (ejemplo por servicio):"
+    memory_print "  Services: redis-cache, redis-fpc, redis-session"
+    memory_print "  command (example per service):"
     memory_print "    redis-server /usr/local/etc/redis/redis.conf \\"
     memory_print "      --maxmemory \${REDIS_CACHE_MAXMEMORY} \\"
     memory_print "      --maxmemory-policy \${REDIS_CACHE_MAXMEMORY_POLICY}"
-    memory_print "  (Repetir con variables de FPC y SESSION en cada servicio)"
-    memory_print "  volumes (si usas redis.conf custom):"
+    memory_print "  (Repeat with FPC and SESSION variables in each service)"
+    memory_print "  volumes (if you use a custom redis.conf):"
     memory_print "    - ./<path>/redis.conf:/usr/local/etc/redis/redis.conf"
     memory_print ""
     memory_print "3) redis.conf (base)"
     memory_print "  ${FCYN}$PROJECTPATH/.warp/docker/config/redis/redis.conf${RS}"
     memory_print "  ${FCYN}$PROJECTPATH/.warp/setup/redis/config/redis/redis.conf${RS}"
-    memory_print "  Parámetros frecuentes: maxmemory, maxmemory-policy, appendonly"
+    memory_print "  Common parameters: maxmemory, maxmemory-policy, appendonly"
     memory_print ""
 
     memory_print_info "==============================================================================="
@@ -1159,12 +1159,12 @@ memory_guide() {
     memory_print_info "==============================================================================="
     memory_print "1) .env (${FCYN}$PROJECTPATH/.env${RS})"
     memory_print "  SEARCH_ENGINE=<opensearch|elasticsearch>"
-    memory_print "  ES_VERSION=<ej: 2.12.0>"
-    memory_print "  ES_MEMORY=<ej: 1024m>"
+    memory_print "  ES_VERSION=<example: 2.12.0>"
+    memory_print "  ES_MEMORY=<example: 1024m>"
     memory_print "  ES_PASSWORD=<password>"
     memory_print ""
     memory_print "2) docker-compose-warp.yml (${FCYN}$DOCKERCOMPOSEFILE${RS})"
-    memory_print "  Servicio: elasticsearch (u opensearch si aplica)"
+    memory_print "  Service: elasticsearch (or opensearch if applicable)"
     memory_print "  environment:"
     memory_print "    - ES_JAVA_OPTS=-Xms\${ES_MEMORY} -Xmx\${ES_MEMORY}"
     memory_print "    - OPENSEARCH_JAVA_OPTS=-Xms\${ES_MEMORY} -Xmx\${ES_MEMORY}"
@@ -1175,32 +1175,32 @@ memory_guide() {
     memory_print_info "PHP-FPM"
     memory_print_info "==============================================================================="
     memory_print "1) php-fpm.conf (${FCYN}${_php_conf}${RS})"
-    memory_print "  Parámetros clave:"
+    memory_print "  Key parameters:"
     memory_print "  pm=dynamic"
-    memory_print "  pm.max_children=<valor>"
-    memory_print "  pm.start_servers=<valor>"
-    memory_print "  pm.min_spare_servers=<valor>"
-    memory_print "  pm.max_spare_servers=<valor>"
-    memory_print "  pm.max_requests=<valor>"
+    memory_print "  pm.max_children=<value>"
+    memory_print "  pm.start_servers=<value>"
+    memory_print "  pm.min_spare_servers=<value>"
+    memory_print "  pm.max_spare_servers=<value>"
+    memory_print "  pm.max_requests=<value>"
     memory_print ""
 
     memory_print_info "==============================================================================="
-    memory_print_info "MYSQL / MARIADB (RECOMENDACION DE TUNING)"
+    memory_print_info "MYSQL / MARIADB (TUNING RECOMMENDATION)"
     memory_print_info "==============================================================================="
-    memory_print "MySQLTuner (https://github.com/major/MySQLTuner-perl): script Perl que revisa la"
-    memory_print "configuracion y estado de MySQL/MariaDB y sugiere ajustes de performance/estabilidad."
+    memory_print "MySQLTuner (https://github.com/major/MySQLTuner-perl): Perl script that checks"
+    memory_print "MySQL/MariaDB configuration and status and suggests performance/stability adjustments."
     memory_print ""
-    memory_print "Recomendado:"
+    memory_print "Recommended:"
     memory_print "  warp db tuner"
-    memory_print "  (descarga mysqltuner.pl en ./var o /tmp, valida perl e intenta instalarlo por distro)"
+    memory_print "  (downloads mysqltuner.pl into ./var or /tmp, validates perl and tries distro installation)"
     memory_print ""
-    memory_print "Ejemplo con opciones extra:"
+    memory_print "Example with extra options:"
     memory_print "  warp db tuner --skipsize --nocolor"
     memory_print ""
 
-    memory_print_info "Nota rápida"
-    memory_print " - 'warp telemetry scan' mide uso actual y sugiere valores."
-    memory_print " - 'warp telemetry config' sólo indica dónde tocar cada parámetro."
+    memory_print_info "Quick note"
+    memory_print " - 'warp telemetry scan' measures current usage and suggests values."
+    memory_print " - 'warp telemetry config' only shows where to edit each parameter."
     memory_print ""
 }
 

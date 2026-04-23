@@ -94,22 +94,23 @@ Secuencia:
 2. si `ENV=prod`, imprime aviso explicito:
    - el deploy no ejecuta `git pull`,
    - el working tree debe contener ya los cambios correctos.
-3. ejecuta `doctor`,
-4. confirma `prod` si `CONFIRM_PROD=1` (salvo `--yes`),
-5. si `AUTO_START=1` y contenedores apagados: `warp start`,
-6. si `prod` y `USE_MAINTENANCE=1`: `maintenance:enable`,
-7. `warp composer install` (usa `COMPOSER_FLAGS`),
-8. `setup:upgrade` (si `RUN_SETUP_UPGRADE=1`),
-9. `setup:di:compile` (si `RUN_DI_COMPILE=1`),
-10. frontend:
+3. intenta silenciosamente `chmod ug+w app/etc/config.php` si el archivo existe,
+4. ejecuta `doctor`,
+5. confirma `prod` si `CONFIRM_PROD=1` (salvo `--yes`),
+6. si `AUTO_START=1` y contenedores apagados: `warp start`,
+7. si `prod` y `USE_MAINTENANCE=1`: `maintenance:enable`,
+8. `warp composer install` (usa `COMPOSER_FLAGS`),
+9. `setup:upgrade` (si `RUN_SETUP_UPGRADE=1`),
+10. `setup:di:compile` (si `RUN_DI_COMPILE=1`),
+11. frontend:
    - local: grunt/hyva según flags y existencia de archivos,
    - prod: `hyva build` (si aplica) y static deploy admin/frontend,
-11. `search flush` (si `RUN_SEARCH_FLUSH=1`),
-12. `indexer:reindex` (si `RUN_REINDEX=1`),
-13. `cache:flush` (si `RUN_CACHE_FLUSH=1`),
-14. en `local`: si OPcache managed está activo, lo desactiva y recarga PHP-FPM; si ya está inactivo, no hace nada,
-15. en `prod`: si OPcache managed está activo, recarga PHP-FPM; si el reload falla, reinicia el servicio `php`; si no es managed o está inactivo, no hace nada,
-16. si activó maintenance: `maintenance:disable`.
+12. `search flush` (si `RUN_SEARCH_FLUSH=1`),
+13. `indexer:reindex` (si `RUN_REINDEX=1`),
+14. `cache:flush` (si `RUN_CACHE_FLUSH=1`),
+15. en `local`: si OPcache managed está activo, lo desactiva y recarga PHP-FPM; si ya está inactivo, no hace nada,
+16. en `prod`: si OPcache managed está activo, recarga PHP-FPM; si el reload falla, reinicia el servicio `php`; si no es managed o está inactivo, no hace nada,
+17. si activó maintenance: `maintenance:disable`.
 
 Todas las etapas fallan en corto circuito: si una falla, corta el deploy.
 

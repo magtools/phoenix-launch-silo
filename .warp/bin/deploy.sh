@@ -66,6 +66,14 @@ deploy_file_has_user_group_write() {
     return 0
 }
 
+deploy_prepare_config_php_permissions() {
+    local _config_php="$PROJECTPATH/app/etc/config.php"
+
+    [ -f "$_config_php" ] || return 0
+
+    chmod ug+w "$_config_php" >/dev/null 2>&1 || true
+}
+
 deploy_detect_env() {
     _env_file="$PROJECTPATH/app/etc/env.php"
     if [ -f "$_env_file" ]; then
@@ -144,7 +152,7 @@ CONFIRM_PROD=1
 ALLOW_DIR_PERMS_FIX=0
 EOF
     else
-        warp_message "I18N: ingresa locales separados por espacios. Presiona Enter para aceptar el valor por defecto."
+        warp_message "I18N: enter locales separated by spaces. Press Enter to accept the default value."
         _admin_i18n=$(warp_question_ask_default "ADMIN_I18N default [en_US es_AR]: " "en_US es_AR")
         _front_i18n=$(warp_question_ask_default "FRONT_I18N default [es_AR en_US]: " "es_AR en_US")
         _run_hyva=0
@@ -471,6 +479,8 @@ deploy_run_main() {
         warp_message_ok "dry-run recipe completed"
         return 0
     fi
+
+    deploy_prepare_config_php_permissions
 
     if ! deploy_doctor; then
         exit 1
