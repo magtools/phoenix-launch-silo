@@ -44,12 +44,12 @@ function webserver_main() {
             webserver_info
         ;;
 
-        -t | test)
+        -t | --test | test)
             shift
             webserver_test "$@"
         ;;
 
-        reload)
+        -r | --reload | reload)
             shift
             webserver_reload "$@"
         ;;
@@ -63,8 +63,12 @@ function webserver_main() {
             webserver_help_usage
         ;;
 
-        *)            
+        *)
+            if [ -n "$1" ]; then
+                warp_message_error "Unknown nginx command: $1"
+            fi
             webserver_help_usage
+            exit 1
         ;;
     esac    
 }

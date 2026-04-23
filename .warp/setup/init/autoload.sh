@@ -86,7 +86,7 @@ esac
     NETWORK_GATEWAY_OLD="NETWORK_GATEWAY=$NETWORK_GATEWAY"
 
     if [ $useproxy = 0 ]; then
-        # Cambia IP a multi-proyecto
+        # Change IP to multi-project mode
 
         HTTP_HOST_NEW="HTTP_HOST_IP=$http_container_ip"
         HTTP_BINDED_NEW="HTTP_BINDED_PORT=80"
@@ -101,11 +101,11 @@ esac
         NETWORK_SUBNET_NEW="NETWORK_SUBNET=$A.$B.$C.0\/24"
         NETWORK_GATEWAY_NEW="NETWORK_GATEWAY=$A.$B.$C.1"
 
-        # Cambio yml a multi-proyecto
+        # Switch YAML to multi-project mode
         warp_network_multi
 
     else
-        # Cambia IP a mono-proyecto
+        # Change IP to single-project mode
 
         HTTP_HOST_NEW="HTTP_HOST_IP=0.0.0.0"
         HTTP_BINDED_NEW="HTTP_BINDED_PORT=$http_port"
@@ -114,7 +114,7 @@ esac
         NETWORK_SUBNET_NEW="NETWORK_SUBNET=0.0.0.0\/24"
         NETWORK_GATEWAY_NEW="NETWORK_GATEWAY=0.0.0.0"
 
-        # Cambio yml a multi-proyecto
+        # Switch YAML to single-project mode
         warp_network_mono
 
     fi;

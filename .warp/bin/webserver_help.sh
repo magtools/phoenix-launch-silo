@@ -14,8 +14,8 @@ webserver_help_usage() {
     warp_message_info "Available commands:"
 
     warp_message_info   " info               $(warp_message 'display info available')"
-    warp_message_info   " -t, test           $(warp_message 'validate nginx configuration as root')"
-    warp_message_info   " reload             $(warp_message 'validate and reload nginx as root')"
+    warp_message_info   " -t, --test, test   $(warp_message 'validate nginx configuration as root')"
+    warp_message_info   " -r, --reload, reload $(warp_message 'validate and reload nginx as root')"
     warp_message_info   " ssh                $(warp_message 'connect to nginx by ssh')"
 }
 
@@ -54,6 +54,7 @@ webserver_test_help() {
     warp_message ""
     warp_message_info "Usage:"
     warp_message      " warp nginx -t"
+    warp_message      " warp nginx --test"
     warp_message      " warp nginx test"
     warp_message ""
 
@@ -65,6 +66,7 @@ webserver_test_help() {
 webserver_reload_help() {
     warp_message ""
     warp_message_info "Usage:"
+    warp_message      " warp nginx --reload"
     warp_message      " warp nginx reload"
     warp_message ""
 
