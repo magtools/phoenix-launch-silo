@@ -2,6 +2,57 @@
 
 ## Runtime commands
 
+`warp nginx version` and `warp nginx --version` print only the effective Nginx
+version line:
+
+```bash
+nginx version: nginx/1.23.3
+```
+
+Resolution order:
+
+- if the `web` container is running, Warp resolves its container id with
+  `docker-compose ps -q web` and runs `docker exec -i <container> nginx -v`
+- if the `web` container is not running, Warp resolves the configured image for
+  the `web` service from `docker-compose config`
+- if the compose file or image cannot be resolved, Warp falls back to
+  `nginx:latest`
+
+Because `nginx -v` can emit auxiliary text depending on the runtime, Warp
+extracts and prints only the last line that matches `nginx version: ...`.
+
+If the detected version is lower than `1.25.1`, Warp prints a red warning and
+the suggested remediation:
+
+```bash
+docker pull nginx:latest
+```
+
+`warp nginx check` builds on the same runtime resolution logic, then queries the
+published `nginx` tags on Docker Hub and prints a compact status report:
+
+```bash
+Image reference: nginx:latest
+Local nginx version: 1.29.6
+Latest remote version: 1.30.0
+Released versions behind: 3
+Newer versions: 1.29.7 , 1.29.8 , 1.30.0
+Status: still a valid version
+```
+
+Decision rules:
+
+- if the detected version is lower than `1.25.1`, Warp prints a red `must be updated` warning
+- if `Released versions behind` is `0`, Warp prints `Status: up to date` in green
+- if `Released versions behind` is between `1` and `10`, Warp prints `Status: still a valid version` in green
+- if `Released versions behind` is greater than `10`, Warp prints `Status: outdated` in yellow plus:
+  - `Recommendation: update nginx to a newer released version.`
+  - `Suggested action: docker pull nginx:latest`
+
+This check is intended for official Docker Hub style image references. If the
+configured `web` image points to a custom registry, Warp aborts with an
+explicit message instead of guessing a remote comparison target.
+
 `warp nginx -t`, `warp nginx --test`, and `warp nginx test` validate the Nginx
 configuration inside the `web` container as `root`:
 
