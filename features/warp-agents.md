@@ -144,6 +144,7 @@ Contrato del hook:
 4. el fallo del update de agents no debe bloquear `warp start` ni cambiar su exit code a error;
 5. el manejo detallado de errores y notificaciones queda en `warp agents update` y/o en el propio `.agents-md/update.sh`;
 6. si `AGENTS_REPO` esta configurado pero `./.agents-md` no existe o esta vacio, `warp start` debe mostrar un cuadro informativo indicando que falta correr `warp agents install`, sin bloquear el arranque.
+7. si el proyecto Magento esta en `MAGE_MODE=production`, `warp start` / `warp restart` no deben mostrar ese cuadro ni ejecutar el hook automatico de agents post-start.
 
 Intención:
 
