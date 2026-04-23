@@ -8,7 +8,7 @@ agents_help_usage() {
 
     warp_message_info "Commands:"
     warp_message_info " install           $(warp_message 'clone configured private agents repo and run install.sh')"
-    warp_message_info " update            $(warp_message 'run .agents_md/update.sh')"
+    warp_message_info " update            $(warp_message 'run .agents-md/update.sh')"
     warp_message ""
 
     warp_message_info "Config:"

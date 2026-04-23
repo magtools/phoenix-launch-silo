@@ -40,31 +40,31 @@ Reglas:
 
 Se propone clonar el repositorio configurado en:
 
-- `./.agents_md`
+- `./.agents-md`
 
 Reglas:
 
-1. `./.agents_md` no debe trackearse en Git;
-2. `warp agents install` debe añadir `/.agents_md` a `.gitignore` si aún no existe;
+1. `./.agents-md` no debe trackearse en Git;
+2. `warp agents install` debe añadir `/.agents-md` a `.gitignore` si aún no existe;
 3. el repositorio remoto se considera privado y perteneciente al individuo/organización del operador;
 4. si el clone falla por acceso/autenticación, Warp debe informar que se debe configurar una clave válida para poder clonarlo;
-5. si `./.agents_md` existe y está vacío, `warp agents install` puede clonar allí;
-6. si `./.agents_md` existe y no está vacío, `warp agents install` debe informar que agents ya está instalado y no hacer nada.
+5. si `./.agents-md` existe y está vacío, `warp agents install` puede clonar allí;
+6. si `./.agents-md` existe y no está vacío, `warp agents install` debe informar que agents ya está instalado y no hacer nada.
 
 ## 4) Contrato esperado del repo de agents
 
 El repositorio remoto tendrá siempre estos scripts:
 
-- `.agents_md/install.sh`
-- `.agents_md/update.sh`
+- `.agents-md/install.sh`
+- `.agents-md/update.sh`
 
 Contrato propuesto:
 
 1. `install.sh` se ejecuta luego de un clone exitoso en `warp agents install`;
 2. `update.sh` se ejecuta en `warp agents update`;
 3. Warp debe ejecutar los scripts con Bash, sin exigir bit ejecutable:
-   - `bash .agents_md/install.sh`
-   - `bash .agents_md/update.sh`
+   - `bash .agents-md/install.sh`
+   - `bash .agents-md/update.sh`
 4. Warp no necesita heredar un entorno especial propio hacia esos scripts;
 5. Warp no asume por ahora más archivos ni estructura adicional;
 6. si alguno de esos scripts falta, el comando debe fallar con mensaje claro;
@@ -85,10 +85,10 @@ Comportamiento propuesto:
 2. si el archivo no existe, copiarlo desde el template y avisar que debe completarse para continuar;
 3. leer `AGENTS_REPO`;
 4. si `AGENTS_REPO` está vacío, no intentar clone y mostrar mensaje explícito para completar la URL;
-5. si `AGENTS_REPO` tiene una URL Git SSH, intentar clonar en `./.agents_md`;
-6. asegurar `/.agents_md` en `.gitignore`;
-7. ejecutar `.agents_md/install.sh` como post-install;
-8. si `./.agents_md` ya existe y no está vacía, responder:
+5. si `AGENTS_REPO` tiene una URL Git SSH, intentar clonar en `./.agents-md`;
+6. asegurar `/.agents-md` en `.gitignore`;
+7. ejecutar `.agents-md/install.sh` como post-install;
+8. si `./.agents-md` ya existe y no está vacía, responder:
    - `agents ya esta instalado, nada que hacer`
 
 Notas de UX:
@@ -101,10 +101,10 @@ Notas de UX:
 
 Comportamiento propuesto:
 
-1. verificar que exista `./.agents_md`;
-2. verificar que exista `.agents_md/update.sh`;
-3. ejecutar `bash .agents_md/update.sh`;
-4. si `./.agents_md` no existe, fallar con mensaje claro indicando que primero debe correrse `warp agents install`.
+1. verificar que exista `./.agents-md`;
+2. verificar que exista `.agents-md/update.sh`;
+3. ejecutar `bash .agents-md/update.sh`;
+4. si `./.agents-md` no existe, fallar con mensaje claro indicando que primero debe correrse `warp agents install`.
 
 ## 6) Integración con `warp init`
 
@@ -127,7 +127,7 @@ Regla adicional:
 Se propone que `warp start` intente mantener actualizado el repo auxiliar sólo cuando ya exista:
 
 ```bash
-./.agents_md/update.sh
+./.agents-md/update.sh
 ```
 
 Momento de ejecución:
@@ -138,11 +138,12 @@ Momento de ejecución:
 
 Contrato del hook:
 
-1. si `./.agents_md/update.sh` no existe, `warp start` no debe llamar a `warp agents update`;
-2. si `./.agents_md/update.sh` existe, `warp start` debe ejecutar `bash .agents_md/update.sh` de forma silenciosa;
+1. si `./.agents-md/update.sh` no existe, `warp start` no debe llamar a `warp agents update`;
+2. si `./.agents-md/update.sh` existe, `warp start` debe ejecutar `bash .agents-md/update.sh` de forma silenciosa;
 3. si el script falla, `warp start` debe mostrar un aviso indicando que no se pudo actualizar agents;
 4. el fallo del update de agents no debe bloquear `warp start` ni cambiar su exit code a error;
-5. el manejo detallado de errores y notificaciones queda en `warp agents update` y/o en el propio `.agents_md/update.sh`.
+5. el manejo detallado de errores y notificaciones queda en `warp agents update` y/o en el propio `.agents-md/update.sh`;
+6. si `AGENTS_REPO` esta configurado pero `./.agents-md` no existe o esta vacio, `warp start` debe mostrar un cuadro informativo indicando que falta correr `warp agents install`, sin bloquear el arranque.
 
 Intención:
 
@@ -155,7 +156,7 @@ Se propone distinguir claramente dos superficies:
 | Ruta | Tracking esperado |
 | --- | --- |
 | `./.warp/docker/config/agents/config.ini` | versionado |
-| `./.agents_md` | ignorado |
+| `./.agents-md` | ignorado |
 
 Esto preserva:
 
@@ -189,7 +190,7 @@ Incluido en esta propuesta:
 
 1. nuevo comando `warp agents`;
 2. config mínima por proyecto;
-3. clone SSH a `./.agents_md`;
+3. clone SSH a `./.agents-md`;
 4. ejecución de `install.sh` y `update.sh`;
 5. hook post-start para `update`.
 
@@ -214,8 +215,8 @@ Flujo esperado:
 
 1. `warp init` copia `./.warp/docker/config/agents/config.ini`;
 2. el operador completa `AGENTS_REPO` con una URL SSH válida;
-3. `warp agents install` clona `./.agents_md`, lo ignora en Git y ejecuta `install.sh`;
+3. `warp agents install` clona `./.agents-md`, lo ignora en Git y ejecuta `install.sh`;
 4. `warp agents update` ejecuta `update.sh`;
-5. `warp start` ejecuta silenciosamente `bash .agents_md/update.sh` al finalizar el arranque de contenedores sólo si ese archivo existe.
+5. `warp start` ejecuta silenciosamente `bash .agents-md/update.sh` al finalizar el arranque de contenedores sólo si ese archivo existe.
 
 Este RFC define una primera iteración deliberadamente simple, con foco en bootstrap, claridad operativa y separación entre configuración versionada del proyecto y automatización privada externa.

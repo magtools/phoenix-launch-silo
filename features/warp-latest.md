@@ -16,15 +16,15 @@ Warp ahora puede orquestar un repositorio privado de automatizaciones auxiliares
 Qué aporta al equipo:
 
 - configuración versionable en `.warp/docker/config/agents/config.ini`,
-- clone local en `.agents_md`, ignorado por Git,
+- clone local en `.agents-md`, ignorado por Git,
 - bootstrap con `warp agents install`,
 - actualización bajo demanda con `warp agents update`,
-- hook best-effort al final de `warp start` si existe `.agents_md/update.sh`.
+- hook best-effort al final de `warp start` si existe `.agents-md/update.sh`.
 
 Comandos:
 
-- `warp agents install`: crea la config si falta, valida `AGENTS_REPO` como URL SSH, clona `.agents_md` y ejecuta `bash .agents_md/install.sh`.
-- `warp agents update`: ejecuta `bash .agents_md/update.sh`.
+- `warp agents install`: crea la config si falta, valida `AGENTS_REPO` como URL SSH, clona `.agents-md` y ejecuta `bash .agents-md/install.sh`.
+- `warp agents update`: ejecuta `bash .agents-md/update.sh`.
 
 ## Deploy unificado por entorno (`warp deploy`)
 

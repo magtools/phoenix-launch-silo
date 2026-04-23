@@ -217,7 +217,7 @@ warp_check_gitignore()
         echo "/.warp/docker/config/php/zz-warp-opcache.ini" >> "$GITIGNOREFILE"
         echo "/.warp/docker/config/php/*-local.ini" >> "$GITIGNOREFILE"
         echo "!/.warp/docker/config/php/*.sample" >> "$GITIGNOREFILE"
-        echo "/.agents_md"                            >> "$GITIGNOREFILE"
+        echo "/.agents-md"                            >> "$GITIGNOREFILE"
         echo "# FRAMEWORK WARP"                         >> "$GITIGNOREFILE"
         echo ""                                         >> "$GITIGNOREFILE"
         
@@ -228,7 +228,7 @@ warp_check_gitignore()
         "/.warp/docker/config/php/zz-warp-opcache.ini" \
         "/.warp/docker/config/php/*-local.ini" \
         "!/.warp/docker/config/php/*.sample" \
-        "/.agents_md"
+        "/.agents-md"
     do
         grep -qxF "$_line" "$GITIGNOREFILE" 2>/dev/null || echo "$_line" >> "$GITIGNOREFILE"
     done

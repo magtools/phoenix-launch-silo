@@ -4,7 +4,7 @@
 
 WARP_AGENTS_CONFIG_TEMPLATE="$PROJECTPATH/.warp/setup/init/config/agents/config.ini"
 WARP_AGENTS_CONFIG_FILE="$PROJECTPATH/.warp/docker/config/agents/config.ini"
-WARP_AGENTS_DIR="$PROJECTPATH/.agents_md"
+WARP_AGENTS_DIR="$PROJECTPATH/.agents-md"
 
 agents_config_ensure() {
     if [ -f "$WARP_AGENTS_CONFIG_FILE" ]; then
@@ -63,7 +63,7 @@ agents_dir_has_content() {
 }
 
 agents_gitignore_ensure() {
-    local _line="/.agents_md"
+    local _line="/.agents-md"
 
     [ -f "$GITIGNOREFILE" ] || : > "$GITIGNOREFILE"
     grep -qxF "$_line" "$GITIGNOREFILE" 2>/dev/null && return 0
@@ -102,7 +102,7 @@ agents_install() {
 
     agents_gitignore_ensure
     mkdir -p "$WARP_AGENTS_DIR" || {
-        warp_message_error "could not create agents directory: .agents_md"
+        warp_message_error "could not create agents directory: .agents-md"
         return 1
     }
 
@@ -113,7 +113,7 @@ agents_install() {
     fi
 
     [ -f "$WARP_AGENTS_DIR/install.sh" ] || {
-        warp_message_error "agents install script not found: .agents_md/install.sh"
+        warp_message_error "agents install script not found: .agents-md/install.sh"
         return 1
     }
 
@@ -127,15 +127,42 @@ agents_update() {
     }
 
     [ -f "$WARP_AGENTS_DIR/update.sh" ] || {
-        warp_message_error "agents update script not found: .agents_md/update.sh"
+        warp_message_error "agents update script not found: .agents-md/update.sh"
         return 1
     }
 
     bash "$WARP_AGENTS_DIR/update.sh"
 }
 
+agents_notice_box_border() {
+    printf '+%58s+\n' '' | tr ' ' '-'
+}
+
+agents_notice_box_line() {
+    printf '| %-56.56s |\n' "$1"
+}
+
+agents_install_pending_notice() {
+    agents_notice_box_border
+    agents_notice_box_line "WARP AGENTS"
+    agents_notice_box_line "AGENTS_REPO is configured, but agents is not installed."
+    agents_notice_box_line "Run: warp agents install"
+    agents_notice_box_line "Expected local path: .agents-md"
+    agents_notice_box_border
+}
+
 agents_post_start_update() {
-    [ -f "$WARP_AGENTS_DIR/update.sh" ] || return 0
+    local _repo=""
+
+    if [ ! -f "$WARP_AGENTS_DIR/update.sh" ]; then
+        if [ -f "$WARP_AGENTS_CONFIG_FILE" ]; then
+            _repo=$(agents_config_repo)
+            if [ -n "$_repo" ] && { [ ! -d "$WARP_AGENTS_DIR" ] || ! agents_dir_has_content; }; then
+                agents_install_pending_notice
+            fi
+        fi
+        return 0
+    fi
 
     if ! bash "$WARP_AGENTS_DIR/update.sh" >/dev/null 2>&1; then
         warp_message_warn "agents update could not be completed"
@@ -144,25 +171,13 @@ agents_post_start_update() {
 
 agents_main() {
     case "$1" in
-        agents)
+        install)
             shift 1
-            case "$1" in
-                install)
-                    shift 1
-                    agents_install "$@"
-                    ;;
-                update)
-                    shift 1
-                    agents_update "$@"
-                    ;;
-                -h|--help|help|"")
-                    agents_help_usage
-                    ;;
-                *)
-                    agents_help_usage
-                    return 1
-                    ;;
-            esac
+            agents_install "$@"
+            ;;
+        update)
+            shift 1
+            agents_update "$@"
             ;;
         -h|--help|help|"")
             agents_help_usage
