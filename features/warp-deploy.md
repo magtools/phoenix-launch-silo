@@ -52,7 +52,7 @@ Override opcional para estáticos frontend en `prod`:
 - `FRONT_STATIC_THEMES` vacío: deploya todos los themes frontend.
 - `FRONT_STATIC_THEMES` con valores: deploya solo el subset indicado.
 - Formato: códigos de theme separados por espacios, por ejemplo:
-  `FRONT_STATIC_THEMES="Cortassa/hyva-parfumerie Cortassa/hyva-website"`
+  `FRONT_STATIC_THEMES="Example/hyva-example Example/hyva-website"`
 - si el subset contiene un child theme, Magento resuelve el fallback del parent automáticamente.
 - incluir también el parent solo cuando ese parent se usa directamente en otro website/store.
 
@@ -80,7 +80,7 @@ Valida:
 6. config Hyva cuando `RUN_HYVA=1`,
 7. estado de `warp` en PATH:
    - si existe wrapper delegador, informa `[ok]`,
-   - si detecta binario viejo real, informa `[warn]` y sugiere instalar wrapper delegador,
+   - si detecta binario viejo real, informa `[warn]` y muestra como reemplazar ese `warp` de sistema con `.warp/setup/bin/warp-wrapper.sh`,
 8. en proyectos Magento:
    - `app/etc/config.php` existe,
    - `app/etc/config.php` tiene escritura para user y group (`ug+w`),
@@ -107,7 +107,9 @@ Secuencia:
 11. `search flush` (si `RUN_SEARCH_FLUSH=1`),
 12. `indexer:reindex` (si `RUN_REINDEX=1`),
 13. `cache:flush` (si `RUN_CACHE_FLUSH=1`),
-14. si activó maintenance: `maintenance:disable`.
+14. en `local`: si OPcache managed está activo, lo desactiva y recarga PHP-FPM; si ya está inactivo, no hace nada,
+15. en `prod`: si OPcache managed está activo, recarga PHP-FPM; si el reload falla, reinicia el servicio `php`; si no es managed o está inactivo, no hace nada,
+16. si activó maintenance: `maintenance:disable`.
 
 Todas las etapas fallan en corto circuito: si una falla, corta el deploy.
 

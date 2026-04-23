@@ -1,0 +1,12 @@
+; Warp managed Xdebug enable sample.
+; Requires a PHP image with xdebug.so installed but not auto-enabled.
+
+zend_extension=xdebug.so
+
+xdebug.discover_client_host=0
+xdebug.mode=debug
+xdebug.start_with_request=trigger
+xdebug.client_host=172.17.0.1
+xdebug.client_port=9003
+xdebug.idekey=PHPSTORM
+xdebug.max_nesting_level=300

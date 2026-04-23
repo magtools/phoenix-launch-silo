@@ -1,0 +1,5 @@
+; Warp managed Xdebug disabled sample.
+; Keep this file mounted when Compose expects ext-xdebug.ini to exist.
+; Intentionally no zend_extension directive.
+
+xdebug.mode=off

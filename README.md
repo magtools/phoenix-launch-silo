@@ -26,6 +26,7 @@ Warp started as a tool to simplify development environments. The project is now 
 
 - `warp deploy` for repeatable deploy flows
 - `warp audit` for Magento-oriented code quality checks
+- `warp agents` for private project automation lifecycle hooks
 - `warp telemetry scan` for memory diagnostics and recommendations
 - `warp db`, `warp cache`, `warp search` for capability-first operations
 - `warp php --version` for runtime PHP inspection
@@ -91,6 +92,7 @@ Stop the environment when you are done:
 | `warp init` | Initialize Warp for the project |
 | `warp start` | Start containers |
 | `warp stop` | Stop containers |
+| `warp ps` | Show containers with stable Warp columns |
 | `warp info` | Show current project and service information |
 
 ### Operations

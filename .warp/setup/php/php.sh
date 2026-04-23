@@ -15,7 +15,7 @@ done
 
 if [ "$respuesta_php" = "Y" ] || [ "$respuesta_php" = "y" ]
 then
-    warp_message_info2 "You can check the available PHP versions from: $(warp_message_info '[ https://hub.docker.com/r/summasolutions/php/tags/ ]')"
+    warp_message_info2 "You can check the available PHP versions from: $(warp_message_info '[ https://hub.docker.com/r/magtools/php/tags/ ]')"
     while : ; do
         if [ $(uname -m) == 'arm64' ] ; then
             php_version=$( warp_question_ask_default "Set the PHP version of your project: $(warp_message_info [7.4-fpm-v2_arm]) " "7.4-fpm-v2_arm" )
@@ -119,8 +119,11 @@ then
 
     echo ""  >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "# Config PHP" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "PHP_IMAGE_REPO=magtools" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "PHP_VERSION=$php_version" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "WARP_PHP_IMAGE_FAMILY=magtools" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "WARP_HOST_THREADS_RESERVE=${WARP_HOST_THREADS_RESERVE_DEFAULT:-1}" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "WARP_PHP_OPCACHE_VOLUME=./.warp/docker/config/php/.warp-empty.ini:/tmp/.warp-opcache.ini" >> $ENVIRONMENTVARIABLESFILESAMPLE
 
     echo ""  >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "# Config xdebug by Console"  >> $ENVIRONMENTVARIABLESFILESAMPLE
@@ -146,6 +149,14 @@ then
     cp -R $PROJECTPATH/.warp/setup/php/config/php $PROJECTPATH/.warp/docker/config/php
     cp -R $PROJECTPATH/.warp/setup/php/config/crontab $PROJECTPATH/.warp/docker/config/crontab
     cp -R $PROJECTPATH/.warp/setup/php/config/supervisor $PROJECTPATH/.warp/docker/config/supervisor
+
+    warp_php_config_ensure_xdebug_file || exit 1
+
+    if [ ! -f "$PROJECTPATH/.warp/docker/config/php/zz-warp-opcache.ini" ] \
+        && [ -f "$PROJECTPATH/.warp/docker/config/php/managed/zz-warp-opcache-disable.ini.sample" ]; then
+        cp "$PROJECTPATH/.warp/docker/config/php/managed/zz-warp-opcache-disable.ini.sample" \
+            "$PROJECTPATH/.warp/docker/config/php/zz-warp-opcache.ini"
+    fi
 
     # helper create .sample files
     . "$WARPFOLDER/setup/php/php-helper.sh"

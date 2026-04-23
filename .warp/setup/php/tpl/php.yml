@@ -1,12 +1,14 @@
 
   php:
-    image: summasolutions/php:${PHP_VERSION}
+    image: ${PHP_IMAGE_REPO:-magtools}/php:${PHP_VERSION}
     ports:
       - 9001
     volumes:
       - ./.warp/docker/config/php/php.ini:/usr/local/etc/php/php.ini
       - ./.warp/docker/config/php/php-fpm.conf:/usr/local/etc/php-fpm.conf
       - ./.warp/docker/config/php/ext-xdebug.ini:/usr/local/etc/php/conf.d/ext-xdebug.ini
+      # Managed profile sets this to zz-warp-opcache.ini in .env; default keeps legacy/no-op mount.
+      - ${WARP_PHP_OPCACHE_VOLUME:-./.warp/docker/config/php/.warp-empty.ini:/tmp/.warp-opcache.ini}
       - ./.warp/docker/config/php/ext-ioncube.ini:/usr/local/etc/php/conf.d/10-php-ext-ioncube.ini
       - ./.warp/docker/volumes/php-fpm/logs:/var/log/php-fpm
       - ./.warp/docker/config/crontab/cronfile:/etc/cron.d/cronfile

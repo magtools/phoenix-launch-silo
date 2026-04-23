@@ -9,6 +9,23 @@ Nota de continuidad de repositorio:
 - este fork se mantiene como puente de compatibilidad e histórico,
 - la evolución activa del proyecto continúa en `https://github.com/magtools/phoenix-launch-silo`.
 
+## Agents privados por proyecto (`warp agents`)
+
+Warp ahora puede orquestar un repositorio privado de automatizaciones auxiliares por proyecto, sin mezclar su lógica interna con el core.
+
+Qué aporta al equipo:
+
+- configuración versionable en `.warp/docker/config/agents/config.ini`,
+- clone local en `.agents-md`, ignorado por Git,
+- bootstrap con `warp agents install`,
+- actualización bajo demanda con `warp agents update`,
+- hook best-effort al final de `warp start` si existe `.agents-md/update.sh`.
+
+Comandos:
+
+- `warp agents install`: crea la config si falta, valida `AGENTS_REPO` como URL SSH, clona `.agents-md` y ejecuta `bash .agents-md/install.sh`.
+- `warp agents update`: ejecuta `bash .agents-md/update.sh`.
+
 ## Deploy unificado por entorno (`warp deploy`)
 
 Warp ahora incluye un flujo de deploy nativo para `local` y `prod`, con configuración por proyecto en `.deploy`.
@@ -36,7 +53,25 @@ Impacto funcional:
 
 - menos scripts ad-hoc por proyecto,
 - mayor previsibilidad del orden de pasos,
-- mejor seguridad operativa en producción (confirmaciones y gates).
+- mejor seguridad operativa en producción (confirmaciones y gates),
+- manejo de OPcache al cierre del deploy:
+  - en `local`, si OPcache managed está activo, se desactiva y se recarga PHP-FPM;
+  - en `prod`, PHP-FPM se recarga solo si OPcache managed está activo.
+
+## Estado de contenedores estable (`warp ps`)
+
+`warp ps` ahora evita depender del formato nativo de Compose v1/v2 para su salida principal.
+
+Qué aporta al equipo:
+
+- columnas estables (`IMAGE`, `CONTAINER`, `STATUS`, `PORTS`) en ambientes con `docker-compose` v1 o `docker compose` v2,
+- `IMAGE` usa nombre corto (`img:version`) para evitar diferencias por namespace/proveedor,
+- salida nativa disponible con `warp ps --raw`,
+- formatos útiles para scripts:
+  - `warp ps --services`,
+  - `warp ps -q`,
+  - `warp ps --format json`,
+  - `warp ps --format names`.
 
 ## Frontend Hyvä integrado (`warp hyva`)
 
@@ -223,6 +258,38 @@ Qué aporta al equipo:
 - separación clara entre uso de contenedor y uso interno de servicio,
 - salida en texto y JSON para troubleshooting y documentación,
 
+## Diagnóstico de scraping en access logs (`warp scan scraping`)
+
+Warp agrega un scanner read-only para detectar patrones compatibles con scraping
+costoso sobre access logs locales o externos.
+
+Qué aporta al equipo:
+
+- analiza logs plain y `.gz` de Nginx/PHP-FPM sin modificar configuración,
+- soporta `--path`, `--since`, `--window`, `--page-gap`, `--json`, `--save`,
+  `--output` y `--output-dir`,
+- reporta clientes sospechosos, paths calientes, familias de user-agent y
+  firmas por `path + query normalizada + ua_family`,
+- muestra progreso interactivo tipo `pv` en `stderr` con fase actual, bytes
+  ingeridos, líneas vistas y líneas parseadas,
+- mantiene `stdout` limpio para reportes humanos, JSON y redirecciones,
+- permite desactivar el progreso con `--no-progress`.
+
+Impacto funcional:
+
+- ayuda a investigar scrapers que rotan IP agrupando por firma,
+- evita la sensación de comando colgado durante ingesta, métricas finales y
+  render del reporte,
+- reduce el costo de cierre del análisis calculando métricas de paginación por
+  cliente sin recorrer globalmente todas las páginas por cada cliente.
+
+Comandos:
+
+- `warp scan scraping --path /var/log/nginx/access.log --top 20`
+- `warp scan scraping --since 24h --window 5m`
+- `warp scan scraping --json --output var/log/warp-scan-scraping.json`
+- `warp scan scraping --no-progress`
+
 ## Security scan y check más útiles (`warp security`)
 
 `warp security` siguió ajustando el balance entre señal real y ruido operativo.
@@ -302,6 +369,8 @@ Se fortaleció el flujo de actualización del framework:
 - verificación de integridad (checksum) antes de reemplazo,
 - control de estado de update pendiente,
 - chequeo automático de versión sin interrumpir comandos críticos,
+- creación no destructiva de `ext-xdebug.ini` y `zz-warp-opcache.ini` vacíos si faltan,
+- verificación de `.gitignore` para esos INI efectivos locales,
 - separación clara entre actualización de Warp e imágenes Docker.
 
 Origen remoto actual del update runtime:

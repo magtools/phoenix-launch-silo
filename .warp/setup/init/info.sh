@@ -4,9 +4,8 @@ warp_message "* Configuring environment variable files $(warp_message_ok [ok])"
  [ ! -f $DOCKERIGNOREFILE ] && cp $PROJECTPATH/.warp/setup/init/.dockerignore $DOCKERIGNOREFILE
 
 # creating ext-xdebug.ini
-if  [ ! -f $PROJECTPATH/.warp/docker/config/php/ext-xdebug.ini ] && [ -f $PROJECTPATH/.warp/docker/config/php/ext-xdebug.ini.sample ]
-then
-    cp $PROJECTPATH/.warp/docker/config/php/ext-xdebug.ini.sample $PROJECTPATH/.warp/docker/config/php/ext-xdebug.ini
+if [ ! -f "$PROJECTPATH/.warp/docker/config/php/ext-xdebug.ini" ]; then
+    warp_php_config_ensure_xdebug_file || exit 1
 
     case "$(uname -s)" in
         Darwin)
@@ -88,9 +87,38 @@ warp_message "* Applying permissions to subdirectories .warp/docker/volumes $(wa
     mkdir -p   $PROJECTPATH/.warp/docker/volumes/elasticsearch
     sudo chmod -R 777 $PROJECTPATH/.warp/docker/volumes/elasticsearch
 
-if [ ! -f $WARP_BINARY_FILE ] ; then
-    warp_message "* Creating binary warp file $(warp_message_ok [ok])"
-    sudo sh $PROJECTPATH/.warp/lib/binary.sh $WARP_BINARY_FILE
+warp_init_is_current_wrapper() {
+    local _target="$1"
+    local _template="$2"
+
+    [ -f "$_target" ] || return 1
+    [ -f "$_template" ] || return 1
+    cmp -s "$_target" "$_template"
+}
+
+warp_init_is_legacy_wrapper() {
+    local _target="$1"
+
+    [ -f "$_target" ] || return 1
+    grep -Eq 'bash[[:space:]]+\./warp([[:space:]]|"$@")' "$_target" 2>/dev/null || return 1
+    grep -Eq 'exec[[:space:]]+\./warp|exec[[:space:]]+bash[[:space:]]+\./warp\.sh|\./warp\.sh' "$_target" 2>/dev/null && return 1
+
+    return 0
+}
+
+WARP_WRAPPER_TEMPLATE="$PROJECTPATH/.warp/setup/bin/warp-wrapper.sh"
+if [ ! -f "$WARP_BINARY_FILE" ] ; then
+    warp_message "* Installing warp wrapper $(warp_message_ok [ok])"
+    sudo sh "$PROJECTPATH/.warp/lib/binary.sh" "$WARP_BINARY_FILE" "$WARP_WRAPPER_TEMPLATE"
+elif warp_init_is_current_wrapper "$WARP_BINARY_FILE" "$WARP_WRAPPER_TEMPLATE"; then
+    warp_message "* Warp wrapper $(warp_message_ok [ok])"
+elif warp_init_is_legacy_wrapper "$WARP_BINARY_FILE"; then
+    warp_message "* Replacing legacy warp wrapper $(warp_message_ok [ok])"
+    sudo sh "$PROJECTPATH/.warp/lib/binary.sh" "$WARP_BINARY_FILE" "$WARP_WRAPPER_TEMPLATE"
+else
+    warp_message "* Warp binary exists at $WARP_BINARY_FILE $(warp_message_warn [skip])"
+    warp_message_warn "To replace it manually with the canonical wrapper:"
+    warp_message_warn "sudo cp \"$WARP_WRAPPER_TEMPLATE\" \"$WARP_BINARY_FILE\" && sudo chmod 755 \"$WARP_BINARY_FILE\""
 fi
 
 warp_message ""

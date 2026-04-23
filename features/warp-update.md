@@ -28,14 +28,20 @@ El flujo actual de `warp update`:
 
 1. Descarga `version.md`.
 2. Compara version local vs remota (`yyyy.mm.dd` convertido a entero sin puntos).
-3. Si ya esta actualizado (sin `--force`), limpia pending y termina.
+3. Si ya esta actualizado (sin `--force`), limpia pending, asegura archivos INI opcionales de PHP, verifica `.gitignore` y termina.
 4. Descarga `sha256sum.md` y `warp`.
 5. Valida SHA-256 del binario descargado.
 6. Extrae payload `__ARCHIVE__` en temporal.
 7. Actualiza `.warp` desde payload, excluyendo:
    - `.warp/docker/config`
 8. Reemplaza `./warp` y aplica `chmod 755`.
-9. Limpia temporal y limpia `.pending-update`.
+9. Asegura como archivos vacios si faltan, reparando directorios vacios dejados por bind mounts:
+   - `.warp/docker/config/php/ext-xdebug.ini`
+   - `.warp/docker/config/php/zz-warp-opcache.ini`
+10. Verifica que `.gitignore` contenga:
+   - `/.warp/docker/config/php/ext-xdebug.ini`
+   - `/.warp/docker/config/php/zz-warp-opcache.ini`
+11. Limpia temporal y limpia `.pending-update`.
 
 Importante:
 
@@ -69,10 +75,11 @@ Comportamiento:
    - copia `.warp` desde payload
    - excluye `.warp/docker/config`
 5. Ajusta permisos ejecutables del `./warp` actual (`chmod 755`).
-6. Limpia temporales y limpia `.pending-update`.
-7. Al finalizar el comando, el chequeo remoto normal sigue activo.
-8. Si el remoto es mas nuevo, deja la marca de update pendiente en `.pending-update`.
-9. Si el remoto es mas viejo, no degrada el binario local aplicado por `--self`.
+6. Asegura archivos INI opcionales de PHP y sus entradas en `.gitignore`.
+7. Limpia temporales y limpia `.pending-update`.
+8. Al finalizar el comando, el chequeo remoto normal sigue activo.
+9. Si el remoto es mas nuevo, deja la marca de update pendiente en `.pending-update`.
+10. Si el remoto es mas viejo, no degrada el binario local aplicado por `--self`.
 
 Nota:
 
@@ -100,7 +107,7 @@ Comportamiento esperado del chequeo:
 
 Remediación sugerida actual:
 
-- instalar el wrapper delegador canónico en la ruta vieja detectada, por ejemplo:
+- pisar/reemplazar el `warp` de sistema desincronizado con el wrapper delegador canónico versionado en `.warp/setup/bin/warp-wrapper.sh`, por ejemplo:
 
 ```bash
 sudo cp ".warp/setup/bin/warp-wrapper.sh" "/ruta/del/warp" && sudo chmod 755 "/ruta/del/warp"
@@ -110,7 +117,7 @@ Motivo:
 
 1. evita drift entre binario global y `.warp`,
 2. permite que `warp` use siempre `./warp` del proyecto,
-3. reduce necesidad de copiar binarios del proyecto a rutas globales del host.
+3. evita copiar el binario `./warp` del proyecto a rutas globales del host.
 
 ## 5) Chequeo automatico post-comando
 
@@ -159,6 +166,8 @@ Cambios clave garantizados por el flujo actual:
 
 - checksum obligatorio antes de reemplazar `./warp`
 - no sobrescribir `.warp/docker/config`
+- asegurar placeholders efectivos vacios para `ext-xdebug.ini` y `zz-warp-opcache.ini` si faltan
+- asegurar que esos placeholders efectivos esten ignorados por Git
 - no ejecutar setup/wizard durante update
 - conservar estado de aviso/error en `.pending-update`
 - limpieza de temporales al finalizar
@@ -190,5 +199,5 @@ Estado actual:
 
 1. `warp deploy doctor` imprime el estado de `warp` encontrado en PATH.
 2. si detecta wrapper delegador, informa `[ok]`.
-3. si detecta binario viejo real y no hay wrapper, informa `[warn]` y sugiere instalar el wrapper canónico en esa ruta.
+3. si detecta binario viejo real y no hay wrapper, informa `[warn]` y muestra como reemplazar esa ruta con el wrapper canónico.
 4. al finalizar `warp update` y `warp update --self`, Warp vuelve a mostrar esta sugerencia si detecta un `warp` viejo en PATH y no existe wrapper delegador.

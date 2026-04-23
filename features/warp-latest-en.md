@@ -36,7 +36,25 @@ Functional impact:
 
 - fewer ad-hoc scripts per project,
 - more predictable step ordering,
-- better operational safety in production (confirmations and gates).
+- better operational safety in production (confirmations and gates),
+- OPcache handling at the end of deploy:
+  - in `local`, if managed OPcache is active, it is disabled and PHP-FPM is reloaded;
+  - in `prod`, PHP-FPM is reloaded only when managed OPcache is active.
+
+## Stable Container Status (`warp ps`)
+
+`warp ps` now avoids depending on the native Compose v1/v2 table format for its primary output.
+
+What it brings to the team:
+
+- stable columns (`IMAGE`, `CONTAINER`, `STATUS`, `PORTS`) across environments using `docker-compose` v1 or `docker compose` v2,
+- `IMAGE` uses the short name (`img:version`) to avoid namespace/provider differences,
+- native Compose output remains available with `warp ps --raw`,
+- script-friendly formats:
+  - `warp ps --services`,
+  - `warp ps -q`,
+  - `warp ps --format json`,
+  - `warp ps --format names`.
 
 ## Integrated Hyva frontend flows (`warp hyva`)
 
@@ -225,6 +243,38 @@ What it brings to the team:
 - clear separation between container usage and internal service usage,
 - text and JSON output for troubleshooting and documentation,
 
+## Access-log scraping diagnostics (`warp scan scraping`)
+
+Warp adds a read-only scanner to detect patterns compatible with expensive
+scraping over local or external access logs.
+
+What it brings to the team:
+
+- analyzes plain and `.gz` Nginx/PHP-FPM logs without changing configuration,
+- supports `--path`, `--since`, `--window`, `--page-gap`, `--json`, `--save`,
+  `--output`, and `--output-dir`,
+- reports suspicious clients, hot paths, user-agent families, and signatures by
+  `path + normalized query + ua_family`,
+- shows interactive pv-like progress on `stderr` with current stage, ingested
+  bytes, seen lines, and parsed lines,
+- keeps `stdout` clean for human reports, JSON, and redirection,
+- allows disabling progress with `--no-progress`.
+
+Functional impact:
+
+- helps investigate IP-rotating scrapers by grouping repeated signatures,
+- avoids the appearance of a hung command during ingestion, final metrics, and
+  report rendering,
+- reduces analysis finalization cost by computing pagination metrics per client
+  without scanning all global pages for every client.
+
+Commands:
+
+- `warp scan scraping --path /var/log/nginx/access.log --top 20`
+- `warp scan scraping --since 24h --window 5m`
+- `warp scan scraping --json --output var/log/warp-scan-scraping.json`
+- `warp scan scraping --no-progress`
+
 ## More useful security scan and check (`warp security`)
 
 `warp security` continued tightening the balance between real signal and operational noise.
@@ -304,6 +354,8 @@ The framework update flow was hardened:
 - integrity verification (checksum) before replacement,
 - pending update state tracking,
 - automatic version checks without interrupting critical commands,
+- non-destructive creation of empty `ext-xdebug.ini` and `zz-warp-opcache.ini` files when missing,
+- `.gitignore` verification for those local effective INI files,
 - clear separation between Warp updates and Docker image updates.
 
 Current remote sources for runtime update:

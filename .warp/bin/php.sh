@@ -173,9 +173,8 @@ function php_switch()
         mv "$ENVIRONMENTVARIABLESFILESAMPLE.warp_tmp" $ENVIRONMENTVARIABLESFILESAMPLE
 
         # creating ext-xdebug.ini
-        if  [ ! -f $PROJECTPATH/.warp/docker/config/php/ext-xdebug.ini ] && [ -f $PROJECTPATH/.warp/docker/config/php/ext-xdebug.ini.sample ]
-        then
-            cp $PROJECTPATH/.warp/docker/config/php/ext-xdebug.ini.sample $PROJECTPATH/.warp/docker/config/php/ext-xdebug.ini
+        if [ ! -f "$PROJECTPATH/.warp/docker/config/php/ext-xdebug.ini" ]; then
+            warp_php_config_ensure_xdebug_file || exit 1
 
             case "$(uname -s)" in
                 Darwin)

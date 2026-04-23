@@ -65,6 +65,26 @@ main () {
         warp_run_loaded_command php_main "php" "$@"
         ;;
 
+        phpini)
+        shift 1
+        warp_run_loaded_command phpini_main "phpini" "$@"
+        ;;
+
+        opcache)
+        shift 1
+        warp_run_loaded_command opcache_main "opcache" "$@"
+        ;;
+
+        profiler)
+        shift 1
+        warp_run_loaded_command profiler_main "profiler" "$@"
+        ;;
+
+        agents)
+        shift 1
+        warp_run_loaded_command agents_main "agents" "$@"
+        ;;
+
         start)
         warp_run_loaded_command start_main "start" "$@"
         ;;
@@ -140,7 +160,13 @@ main () {
 
         audit)
         shift 1
-        warp_run_loaded_command scan_main "audit" "$@"
+        warp_run_loaded_command audit_main "audit" "$@"
+        exit $?
+        ;;
+
+        scan)
+        shift 1
+        warp_run_loaded_command scan_main "scan" "$@"
         exit $?
         ;;
 
@@ -310,9 +336,9 @@ warp_runtime_mode_read_raw_from_env() {
 }
 
 warp_command_supports_host_runtime() {
-    _cmd="$1"
+    local _cmd="$1"
     case "$_cmd" in
-        ""|-h|--help|help|init|db|mysql|cache|redis|valkey|search|elasticsearch|opensearch|php|magento|ece-tools|ece-patches|telemetry|info|composer|audit|security)
+        ""|-h|--help|help|init|db|mysql|cache|redis|valkey|search|elasticsearch|opensearch|php|phpini|opcache|xdebug|profiler|agents|magento|ece-tools|ece-patches|telemetry|info|composer|audit|scan|security)
             return 0
             ;;
         *)
@@ -322,7 +348,9 @@ warp_command_supports_host_runtime() {
 }
 
 warp_runtime_mode_resolve_boot() {
-    _cmd="$1"
+    local _cmd="$1"
+    local _mode
+
     _mode=$(warp_runtime_mode_read_raw_from_env)
     case "$_mode" in
         host|docker)
@@ -330,6 +358,11 @@ warp_runtime_mode_resolve_boot() {
             return 0
             ;;
     esac
+
+    if [ "$_cmd" = "scan" ]; then
+        echo "host"
+        return 0
+    fi
 
     if [ -f "$PROJECTPATH/docker-compose-warp.yml" ]; then
         echo "docker"
@@ -607,6 +640,27 @@ warp_wrapper_install_command() {
     printf 'sudo cp "%s" "%s" && sudo chmod 755 "%s"' "$_template" "$_target" "$_target"
 }
 
+warp_wrapper_overwrite_system_lines() {
+    local _target="$1"
+    local _mode="${2:-plain}"
+    local _command=""
+
+    _command=$(warp_wrapper_install_command "$_target")
+
+    if [ "$_mode" = "warn" ]; then
+        warp_message_warn "overwrite system warp with the project wrapper:"
+        warp_message_warn "$_command"
+        warp_message_warn "source wrapper: .warp/setup/bin/warp-wrapper.sh"
+        warp_message_warn "after this, ${_target} delegates to ./warp or ./warp.sh in the current project"
+        return 0
+    fi
+
+    warp_message "  overwrite system warp with the project wrapper:"
+    warp_message "    $_command"
+    warp_message "  source wrapper: .warp/setup/bin/warp-wrapper.sh"
+    warp_message "  effect: ${_target} delegates to ./warp or ./warp.sh in the current project"
+}
+
 warp_global_binary_paths() {
     type -aP warp 2>/dev/null | awk '!seen[$0]++'
 }
@@ -718,7 +772,7 @@ warp_global_binary_diff_doctor_lines() {
     while IFS='|' read -r _path _reason; do
         [ -n "$_path" ] || continue
         warp_message "* PATH warp binary differs from project: $(warp_message_warn "[warn]") ${_path} (${_reason})"
-        warp_message "  suggest wrapper: $(warp_wrapper_install_command "$_path")"
+        warp_wrapper_overwrite_system_lines "$_path"
     done <<EOF
 $WARP_GLOBAL_BINARY_DIFF_NOTICE
 EOF
@@ -736,7 +790,7 @@ warp_global_binary_diff_notice_show() {
     while IFS='|' read -r _path _reason; do
         [ -n "$_path" ] || continue
         warp_message_warn "system warp binary differs from project warp: ${_path} (${_reason})"
-        warp_message_warn "suggested wrapper install: $(warp_wrapper_install_command "$_path")"
+        warp_wrapper_overwrite_system_lines "$_path" "warn"
     done <<EOF
 $WARP_GLOBAL_BINARY_DIFF_NOTICE
 EOF
@@ -760,6 +814,52 @@ warp_checksum_file_sha256() {
     else
         return 1
     fi
+}
+
+warp_update_ensure_php_optional_ini_files() {
+    local _config_dir="$PROJECTPATH/.warp/docker/config/php"
+    local _gitignore="$PROJECTPATH/.gitignore"
+    local _line=""
+
+    mkdir -p "$_config_dir" || {
+        warp_message_error "unable to create PHP config directory: $_config_dir"
+        return 1
+    }
+
+    for _line in \
+        "$_config_dir/ext-xdebug.ini" \
+        "$_config_dir/zz-warp-opcache.ini"
+    do
+        if [ -d "$_line" ]; then
+            if rmdir "$_line" 2>/dev/null; then
+                warp_message_warn "PHP optional ini path was a directory; recreated it as a file: $_line"
+            else
+                warp_message_error "PHP optional ini path is a non-empty directory: $_line"
+                warp_message_warn "move or remove that directory, then rerun warp update"
+                return 1
+            fi
+        fi
+
+        [ -f "$_line" ] || touch "$_line" || {
+            warp_message_error "unable to create PHP optional ini file: $_line"
+            return 1
+        }
+    done
+
+    [ -f "$_gitignore" ] || touch "$_gitignore" || {
+        warp_message_error "unable to create .gitignore"
+        return 1
+    }
+
+    for _line in \
+        "/.warp/docker/config/php/ext-xdebug.ini" \
+        "/.warp/docker/config/php/zz-warp-opcache.ini"
+    do
+        grep -qxF "$_line" "$_gitignore" 2>/dev/null || echo "$_line" >> "$_gitignore" || {
+            warp_message_error "unable to update .gitignore with $_line"
+            return 1
+        }
+    done
 }
 
 warp_fetch_latest_version() {
@@ -895,6 +995,7 @@ warp_update() {
         chmod 755 "$WARP_TARGET_FILE" || { warp_message_error "unable to set executable permissions on warp"; exit 1; }
         WARP_BINARY_SYNC_NOTICE=""
         warp_pending_update_clear
+        warp_update_ensure_php_optional_ini_files || exit 1
         warp_update_tmp_clean
 
         warp_message_info2 "warp self update applied successfully"
@@ -929,6 +1030,7 @@ warp_update() {
         warp_message_info "Estado: actualizado"
         warp_message_info2 "warp is up to date ($WARP_VERSION)"
         warp_pending_update_clear
+        warp_update_ensure_php_optional_ini_files || exit 1
         warp_update_tmp_clean
         exit 0
     fi
@@ -964,6 +1066,7 @@ warp_update() {
     chmod 755 "$WARP_TARGET_FILE" || { warp_message_error "unable to set executable permissions on warp"; exit 1; }
     WARP_BINARY_SYNC_NOTICE=""
     warp_pending_update_clear
+    warp_update_ensure_php_optional_ini_files || exit 1
     warp_update_tmp_clean
 
     warp_message_info2 "warp updated successfully to $WARP_VERSION_LATEST"

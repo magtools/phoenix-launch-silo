@@ -1,6 +1,6 @@
 
   appdata:
-    image: summasolutions/appdata:latest
+    image: ${APPDATA_IMAGE_REPO:-magtools}/appdata:${APPDATA_VERSION:-bookworm}
     ports:
       - 873
     volumes:
