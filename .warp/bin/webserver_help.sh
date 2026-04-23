@@ -15,7 +15,7 @@ webserver_help_usage() {
 
     warp_message_info   " info               $(warp_message 'display info available')"
     warp_message_info   " -t, --test, test   $(warp_message 'validate nginx configuration as root')"
-    warp_message_info   " -r, --reload, reload $(warp_message 'validate and reload nginx as root')"
+    warp_message_info   " -r, --reload, reload $(warp_message 'validate and reload nginx as root, restarting web if the vhost mount is stale')"
     warp_message_info   " ssh                $(warp_message 'connect to nginx by ssh')"
 }
 
@@ -72,5 +72,6 @@ webserver_reload_help() {
 
     warp_message_info "Help:"
     warp_message " Validate nginx configuration and reload nginx inside the web container as root."
+    warp_message " If Docker still exposes an older vhost bind mount, restart only the web container."
     warp_message ""
 }
