@@ -66,6 +66,14 @@ deploy_file_has_user_group_write() {
     return 0
 }
 
+deploy_prepare_config_php_permissions() {
+    local _config_php="$PROJECTPATH/app/etc/config.php"
+
+    [ -f "$_config_php" ] || return 0
+
+    chmod ug+w "$_config_php" >/dev/null 2>&1 || true
+}
+
 deploy_detect_env() {
     _env_file="$PROJECTPATH/app/etc/env.php"
     if [ -f "$_env_file" ]; then
@@ -471,6 +479,8 @@ deploy_run_main() {
         warp_message_ok "dry-run recipe completed"
         return 0
     fi
+
+    deploy_prepare_config_php_permissions
 
     if ! deploy_doctor; then
         exit 1
