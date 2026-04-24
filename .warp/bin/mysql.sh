@@ -276,24 +276,24 @@ mysql_detect_distro_id() {
 }
 
 mysql_pick_external_client_bin() {
-    if command -v mysql >/dev/null 2>&1; then
-        echo "mysql"
-        return 0
-    fi
     if command -v mariadb >/dev/null 2>&1; then
         echo "mariadb"
+        return 0
+    fi
+    if command -v mysql >/dev/null 2>&1; then
+        echo "mysql"
         return 0
     fi
     echo ""
 }
 
 mysql_pick_external_dump_bin() {
-    if command -v mysqldump >/dev/null 2>&1; then
-        echo "mysqldump"
-        return 0
-    fi
     if command -v mariadb-dump >/dev/null 2>&1; then
         echo "mariadb-dump"
+        return 0
+    fi
+    if command -v mysqldump >/dev/null 2>&1; then
+        echo "mysqldump"
         return 0
     fi
     echo ""
