@@ -13,6 +13,14 @@ main () {
     ORIGINAL_COMMAND="$1"
     BOOT_RUNTIME_MODE=$(warp_runtime_mode_resolve_boot "$ORIGINAL_COMMAND")
 
+    # Host-capable commands must not die in the global Docker precheck when the
+    # host has no Docker binary at all. Let the command-level fallback decide.
+    if [ "$BOOT_RUNTIME_MODE" = "docker" ] && ! hash docker 2>/dev/null; then
+        if warp_command_supports_host_runtime "$ORIGINAL_COMMAND"; then
+            BOOT_RUNTIME_MODE="host"
+        fi
+    fi
+
     # Check docker tooling only when runtime mode requires docker.
     if [ "$BOOT_RUNTIME_MODE" = "docker" ]; then
         hash docker 2>/dev/null || { echo >&2 "warp framework requires \"docker\""; exit 1; }
@@ -31,7 +39,7 @@ main () {
         include_warp_framework
     fi;
 
-    if [ -d "$PROJECTPATH/.warp/lib" ] && [ "$BOOT_RUNTIME_MODE" = "docker" ]; then
+    if [ -d "$PROJECTPATH/.warp/lib" ] && [ "$BOOT_RUNTIME_MODE" = "docker" ] && ! warp_command_supports_host_runtime "$ORIGINAL_COMMAND"; then
         # Check minimum versions
         warp_check_docker_version
     fi;
