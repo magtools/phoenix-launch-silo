@@ -267,7 +267,7 @@ memory_env_value() {
     _v=$(warp_env_read_var "$_k")
     _v=$(memory_trim "$_v")
     if [ -z "$_v" ]; then
-        echo "no seteado"
+        echo "not set"
     else
         echo "$_v"
     fi
