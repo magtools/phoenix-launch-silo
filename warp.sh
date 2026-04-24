@@ -338,7 +338,7 @@ warp_runtime_mode_read_raw_from_env() {
 warp_command_supports_host_runtime() {
     local _cmd="$1"
     case "$_cmd" in
-        ""|-h|--help|help|init|db|mysql|cache|redis|valkey|search|elasticsearch|opensearch|php|phpini|opcache|xdebug|profiler|agents|magento|ece-tools|ece-patches|telemetry|info|composer|audit|scan|security)
+        ""|-h|--help|help|init|update|db|mysql|cache|redis|valkey|search|elasticsearch|opensearch|php|phpini|opcache|xdebug|profiler|agents|magento|ece-tools|ece-patches|telemetry|info|composer|audit|scan|security)
             return 0
             ;;
         *)
@@ -383,10 +383,94 @@ include_warp_framework() {
     . "$PROJECTPATH/.warp/includes.sh"
 }
 
+warp_init_host_detect_framework_value() {
+    local _framework_value="php"
+
+    if command -v warp_app_context_detect >/dev/null 2>&1; then
+        warp_app_context_detect
+    fi
+
+    case "${WARP_APP_FRAMEWORK:-unknown}" in
+        magento)
+            _framework_value="m2"
+            ;;
+        oro)
+            _framework_value="oro"
+            ;;
+        php)
+            _framework_value="php"
+            ;;
+    esac
+
+    printf '%s\n' "$_framework_value"
+}
+
+warp_init_host_write_sample_if_missing() {
+    local _sample_file="$ENVIRONMENTVARIABLESFILESAMPLE"
+    local _framework_value=""
+    local _warp_version_value=""
+
+    [ -f "$_sample_file" ] && return 0
+
+    _framework_value=$(warp_init_host_detect_framework_value)
+    _warp_version_value="${WARP_VERSION:-$WARP_BINARY_VERSION}"
+
+    cat > "$_sample_file" <<EOF
+# Warp host mode bootstrap
+FRAMEWORK=${_framework_value}
+WARP_VERSION=${_warp_version_value}
+WARP_RUNTIME_MODE=host
+EOF
+}
+
+warp_init_host_bootstrap() {
+    local _warp_version_value=""
+
+    [ -d "$PROJECTPATH/.warp/lib" ] || {
+        warp_message_error "warp framework is not installed"
+        return 1
+    }
+
+    include_warp_framework
+
+    _warp_version_value="${WARP_VERSION:-$WARP_BINARY_VERSION}"
+
+    warp_init_host_write_sample_if_missing || {
+        warp_message_error "could not prepare $(basename "$ENVIRONMENTVARIABLESFILESAMPLE")"
+        return 1
+    }
+
+    if [ ! -f "$ENVIRONMENTVARIABLESFILE" ]; then
+        cp "$ENVIRONMENTVARIABLESFILESAMPLE" "$ENVIRONMENTVARIABLESFILE" || {
+            warp_message_error "could not create $(basename "$ENVIRONMENTVARIABLESFILE") from $(basename "$ENVIRONMENTVARIABLESFILESAMPLE")"
+            return 1
+        }
+    fi
+
+    warp_env_file_set_var "$ENVIRONMENTVARIABLESFILESAMPLE" "WARP_VERSION" "$_warp_version_value" || return 1
+    warp_env_file_set_var "$ENVIRONMENTVARIABLESFILESAMPLE" "WARP_RUNTIME_MODE" "host" || return 1
+    warp_env_file_set_var "$ENVIRONMENTVARIABLESFILE" "WARP_VERSION" "$_warp_version_value" || return 1
+    warp_env_file_set_var "$ENVIRONMENTVARIABLESFILE" "WARP_RUNTIME_MODE" "host" || return 1
+    warp_check_gitignore
+
+    warp_message_info2 "host mode bootstrap completed"
+    warp_message_info "runtime mode: host"
+    warp_message_info "docker-compose setup was not generated"
+    warp_message_info "supported host workflows include telemetry, scan, security, composer and update"
+}
+
 setup_main() {
     if [ "$1" = "-h" ] || [ "$1" = "--help" ] ; then
         setup_help_usage
         exit 0;
+    elif [ "$1" = "--host" ] ; then
+        if [ ! -d "$PROJECTPATH/.warp/setup" ]; then
+            warp_setup --host
+            exit 0;
+        fi;
+
+        warp_init_host_bootstrap
+        exit $?
     elif [ "$1" = "-n" ] || [ "$1" = "--no-interaction" ] ; then
         if [ ! -d "$PROJECTPATH/.warp/setup" ]; then
             warp_setup --no-interaction
@@ -451,6 +535,7 @@ setup_help_usage() {
         echo "  2) Configure service ports"
         echo "  "
         echo "  Please run ./warp init"
+        echo "  For a host-only bootstrap without Docker setup, run ./warp init --host"
 
         exit 0;
     fi
@@ -936,7 +1021,7 @@ warp_check_latest_version() {
 
 warp_message_not_install_yet() {
     echo "WARP-ENGINE has not been installed yet."
-    echo "Please run ./warp init or ./warp init --help"
+    echo "Please run ./warp init, ./warp init --host or ./warp init --help"
 }
 
 warp_update() {
@@ -1204,6 +1289,18 @@ function warp_setup() {
         # load banner
         warp_banner        
         exit 0;
+    fi
+
+    if [ "$OPTION" = "--host" ]
+    then
+        if [ -d "$PROJECTPATH/.warp/lib" ] && [ -d "$PROJECTPATH/.warp/bin" ] ; then
+            echo "Installing Warp host mode, wait a few moments"
+            sleep 1
+            echo "Successful installation!, preparing host bootstrap.."
+            sleep 1
+            warp_init_host_bootstrap
+            exit $?
+        fi
     fi
 
     if [ "$OPTION" = "install" ]

@@ -21,6 +21,7 @@ function update_help_usage()
     warp_message " https://github.com/magtools/phoenix-launch-silo and validates SHA-256 before replacing ./warp."
     warp_message " warp update self / --self does not download remote artifacts: it applies the payload embedded in"
     warp_message " the current local ./warp and is the correct command when the executable is newer than .warp."
+    warp_message " update and update --self are host-safe: with WARP_RUNTIME_MODE=host they do not require Docker."
     warp_message " if Warp warns that the binary and installed framework are out of sync, run ./warp update --self."
     warp_message " if a global PATH warp is outdated, Warp now prefers installing a delegating wrapper from"
     warp_message " .warp/setup/bin/warp-wrapper.sh instead of copying the project binary into system paths."
