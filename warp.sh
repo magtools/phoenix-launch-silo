@@ -351,6 +351,11 @@ warp_runtime_mode_resolve_boot() {
     local _cmd="$1"
     local _mode
 
+    if [ "$_cmd" = "update" ]; then
+        echo "host"
+        return 0
+    fi
+
     _mode=$(warp_runtime_mode_read_raw_from_env)
     case "$_mode" in
         host|docker)
@@ -452,6 +457,7 @@ warp_init_host_bootstrap() {
     warp_env_file_set_var "$ENVIRONMENTVARIABLESFILE" "WARP_VERSION" "$_warp_version_value" || return 1
     warp_env_file_set_var "$ENVIRONMENTVARIABLESFILE" "WARP_RUNTIME_MODE" "host" || return 1
     warp_check_gitignore
+    warp_install_system_wrapper || return 1
 
     warp_message_info2 "host mode bootstrap completed"
     warp_message_info "runtime mode: host"
@@ -705,6 +711,25 @@ warp_delegate_wrapper_template() {
     echo "$PROJECTPATH/.warp/setup/bin/warp-wrapper.sh"
 }
 
+warp_is_current_wrapper() {
+    local _target="$1"
+    local _template="$2"
+
+    [ -f "$_target" ] || return 1
+    [ -f "$_template" ] || return 1
+    cmp -s "$_target" "$_template"
+}
+
+warp_is_legacy_wrapper() {
+    local _target="$1"
+
+    [ -f "$_target" ] || return 1
+    grep -Eq 'bash[[:space:]]+\./warp([[:space:]]|"$@")' "$_target" 2>/dev/null || return 1
+    grep -Eq 'exec[[:space:]]+\./warp|exec[[:space:]]+bash[[:space:]]+\./warp\.sh|\./warp\.sh' "$_target" 2>/dev/null && return 1
+
+    return 0
+}
+
 warp_is_delegate_wrapper_file() {
     local _path="$1"
 
@@ -722,7 +747,7 @@ warp_wrapper_install_command() {
     local _template=""
 
     _template=$(warp_delegate_wrapper_template)
-    printf 'sudo cp "%s" "%s" && sudo chmod 755 "%s"' "$_template" "$_target" "$_target"
+    printf 'sudo sh "%s" "%s" "%s"' "$PROJECTPATH/.warp/lib/binary.sh" "$_target" "$_template"
 }
 
 warp_wrapper_overwrite_system_lines() {
@@ -744,6 +769,43 @@ warp_wrapper_overwrite_system_lines() {
     warp_message "    $_command"
     warp_message "  source wrapper: .warp/setup/bin/warp-wrapper.sh"
     warp_message "  effect: ${_target} delegates to ./warp or ./warp.sh in the current project"
+}
+
+warp_install_system_wrapper() {
+    local _target="${1:-$WARP_BINARY_FILE}"
+    local _template=""
+    local _install_cmd=""
+
+    _template=$(warp_delegate_wrapper_template)
+    [ -f "$_template" ] || return 0
+
+    if [ ! -f "$_target" ]; then
+        warp_message "* Installing warp wrapper $(warp_message_ok [ok])"
+    elif warp_is_current_wrapper "$_target" "$_template"; then
+        warp_message "* Warp wrapper $(warp_message_ok [ok])"
+        return 0
+    elif warp_is_legacy_wrapper "$_target"; then
+        warp_message "* Replacing legacy warp wrapper $(warp_message_ok [ok])"
+    else
+        warp_message "* Warp binary exists at $_target $(warp_message_warn [skip])"
+        warp_wrapper_overwrite_system_lines "$_target" "warn"
+        return 0
+    fi
+
+    if [ -w "$(dirname "$_target")" ] || { [ -e "$_target" ] && [ -w "$_target" ]; }; then
+        sh "$PROJECTPATH/.warp/lib/binary.sh" "$_target" "$_template" || return 1
+        return 0
+    fi
+
+    if command -v sudo >/dev/null 2>&1; then
+        sudo sh "$PROJECTPATH/.warp/lib/binary.sh" "$_target" "$_template" || return 1
+        return 0
+    fi
+
+    _install_cmd=$(warp_wrapper_install_command "$_target")
+    warp_message_warn "sudo not available; install the wrapper manually with:"
+    warp_message_warn "$_install_cmd"
+    return 0
 }
 
 warp_global_binary_paths() {
@@ -1081,6 +1143,7 @@ warp_update() {
         WARP_BINARY_SYNC_NOTICE=""
         warp_pending_update_clear
         warp_update_ensure_php_optional_ini_files || exit 1
+        warp_install_system_wrapper || exit 1
         warp_update_tmp_clean
 
         warp_message_info2 "warp self update applied successfully"
@@ -1152,6 +1215,7 @@ warp_update() {
     WARP_BINARY_SYNC_NOTICE=""
     warp_pending_update_clear
     warp_update_ensure_php_optional_ini_files || exit 1
+    warp_install_system_wrapper || exit 1
     warp_update_tmp_clean
 
     warp_message_info2 "warp updated successfully to $WARP_VERSION_LATEST"
