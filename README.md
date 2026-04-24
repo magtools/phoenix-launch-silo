@@ -91,6 +91,7 @@ Stop the environment when you are done:
 | `warp --help` | Show global help |
 | `warp [command] --help` | Show command-specific help |
 | `warp init` | Initialize Warp for the project |
+| `warp init --host` | Bootstrap Warp for host-only workflows without Docker setup |
 | `warp start` | Start containers |
 | `warp stop` | Stop containers |
 | `warp ps` | Show containers with stable Warp columns |

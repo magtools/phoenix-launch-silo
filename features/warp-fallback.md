@@ -64,12 +64,14 @@ Estado actual:
 2. `warp magento` y `warp ece-tools|ece-patches` ejecutan en host usando `php` local cuando falta compose,
 3. `warp telemetry` puede correr en modo host y reportar recursos del host aunque no haya contenedores,
 4. `warp php ssh` queda limitado a modo docker (sin compose informa error claro).
+5. `warp init --host` puede bootstrappear `.warp` y `.env` minimo sin wizard Docker.
 
 Flag de control:
 
 1. `WARP_RUNTIME_MODE=auto|docker|host` (en `.env`),
 2. `auto` usa deteccion por presencia de compose y capacidad de fallback del comando,
 3. si falta compose y el contexto es ambiguo, comandos con fallback pueden preguntar y persistir modo en `.env`.
+4. `warp update` y `warp update --self` deben considerarse comandos host-safe: si no hay compose, no deben requerir Docker para ejecutar update del framework.
 
 ## 3) Problema a resolver
 
