@@ -24,3 +24,4 @@ warp shields <- scan
 
 mailhog -> mailpit
 
+reindex multihilo pcntl -> MAGE_INDEXER_THREADS_COUNT=3 php bin/magento indexer:reindex 
