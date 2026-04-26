@@ -2,7 +2,7 @@
 
 ## Decision propuesta
 
-**Si, conviene reutilizar la misma carpeta y la misma denominacion historica**, igual que hoy se hace con `mysql/mariadb`.
+**Si, conviene reutilizar la misma carpeta, los mismos nombres de servicio y las mismas variables legacy**, igual que hoy Warp ya hace en otros casos donde mantiene el contrato historico y cambia el engine real por debajo.
 
 La recomendacion es:
 
@@ -10,9 +10,29 @@ La recomendacion es:
 - mantener la carpeta `.warp/docker/config/redis`
 - mantener la carpeta `.warp/setup/redis`
 - mantener compatibilidad con variables legacy `REDIS_*`
-- resolver las diferencias reales de engine con variables/helpers de contrato (`server bin`, `cli bin`, `container user`, `container config path`, `default config file`)
+- agregar `valkey.conf` dentro de `config/redis`
+- resolver diferencias reales de engine con helpers/variables canonicas de runtime
 
-En otras palabras: **no hace falta renombrar la capa "redis" a "valkey"**, pero si hace falta desacoplarla de binarios y paths hardcodeados.
+En otras palabras: **no hace falta renombrar la capa "redis" a "valkey"**, pero si hace falta desacoplarla de binarios, usuario y paths hardcodeados.
+
+## Alcance funcional
+
+Este RFC **no esta atado a un proyecto puntual**.
+
+El objetivo es que Warp pueda:
+
+- seguir funcionando con Redis en proyectos existentes o en stacks que no usen Valkey
+- ofrecer Valkey como engine local cuando el proyecto detectado sea compatible
+- mantener Redis como opcion valida para versiones anteriores
+
+### Umbral de soporte Magento
+
+Para Magento, el soporte propuesto es:
+
+- **Magento 2.4.8 en adelante**: Valkey soportado
+- **versiones anteriores**: seguir con Redis como opcion por defecto o unica opcion compatible segun el perfil detectado
+
+Esto es consistente con la direccion ya tomada en Warp: la compatibilidad se decide por contexto de aplicacion, pero el core del framework sigue siendo generico.
 
 ## Contexto actual
 
@@ -27,7 +47,7 @@ Hay base real para soportar Valkey:
 - `.warp/lib/fallback.sh` ya puede detectar `valkey` desde el compose
 - `.warp/bin/cache.sh` ya soporta `valkey-cli` en modo `CACHE_MODE=external`
 
-Ademas, este proyecto esta en `magento/product-community-edition 2.4.8-p4` (`composer.json`), version donde Adobe ya lista **Valkey 8** como dependencia soportada.
+La base existe, pero hoy sigue siendo **parcial**: alcanza para metadata, deteccion y parte del modo external, pero no para runtime local completo.
 
 ### Donde hoy se rompe el soporte local
 
@@ -68,7 +88,7 @@ El soporte actual a `valkey` no alcanza para modo local porque la capa de runtim
 
 ### Por que falla con `valkey/valkey:8.0-alpine`
 
-Segun la documentacion del image oficial de Valkey:
+Segun el contrato esperado por la imagen oficial de Valkey:
 
 - el binario es `valkey-server`
 - el cliente es `valkey-cli`
@@ -82,9 +102,9 @@ El setup actual de Warp genera contenedores usando contrato Redis:
 - `/usr/local/etc/redis/redis.conf`
 - usuario `redis`
 
-No conviene asumir aliases `redis-*` dentro de `valkey/valkey:8.0-alpine`, porque el Dockerfile oficial documenta y valida `valkey-server` / `valkey-cli`, no `redis-server` / `redis-cli`.
+No conviene asumir aliases `redis-*` dentro de `valkey/valkey:8.0-alpine`, porque Warp ya aprendio en otros cambios que es mejor **reusar naming historico externo** y **parametrizar el contrato interno real**.
 
-## Decision de naming
+## Decision de naming y compatibilidad
 
 ### Mantener nombres de servicio
 
@@ -100,7 +120,7 @@ Motivo:
 - `.warp/bin/magento.sh` ya configura Magento contra esos hosts
 - `.warp/bin/memory.sh` y helpers varios tambien dependen de esos nombres
 
-Renombrarlos a `valkey-*` abriria un cambio transversal innecesario. El host interno puede seguir llamandose `redis-cache` aunque el engine sea Valkey, igual que el servicio `mysql` sigue existiendo cuando el image real es MariaDB.
+Renombrarlos a `valkey-*` abriria un cambio transversal innecesario. El host interno puede seguir llamandose `redis-cache` aunque el engine sea Valkey, igual que el servicio `mysql` puede seguir existiendo aunque el image real cambie.
 
 ### Mantener carpetas `redis`
 
@@ -112,12 +132,41 @@ Tambien se recomienda **mantener**:
 Motivo:
 
 - ya estan referenciadas por setup, docs, env samples y tooling
-- la carpeta representa la capacidad "cache local key/value" historica, no necesariamente el vendor del engine
+- la carpeta representa la capacidad historica de cache local, no el vendor puntual
 - evita migraciones de paths y reduce riesgo
+
+### Mantener variables legacy `REDIS_*`
+
+Conviene **mantener**:
+
+- `REDIS_CACHE_VERSION`
+- `REDIS_SESSION_VERSION`
+- `REDIS_FPC_VERSION`
+- `REDIS_*_CONF`
+- `REDIS_*_MAXMEMORY`
+- `REDIS_*_MAXMEMORY_POLICY`
+
+Aunque el engine real sea Valkey.
+
+Motivo:
+
+- esas variables hoy describen slots funcionales del stack
+- ya forman parte del contrato historico de `.env` y `.env.sample`
+- Warp suele reusar nombres existentes cuando cambia el contenido real por detras
+
+El engine real debe seguir viviendo en variables canonicas ya alineadas a capability:
+
+- `CACHE_MODE`
+- `CACHE_ENGINE`
+- `CACHE_VERSION`
+- `CACHE_IMAGE_REPO`
+- `CACHE_SCOPE`
+- `CACHE_HOST`
+- `CACHE_PORT`
 
 ## Propuesta tecnica
 
-### 1. Introducir un contrato de engine para cache
+### 1. Introducir un helper de contrato de engine para cache
 
 Agregar una capa helper central para cache local, por ejemplo en `.warp/lib/`, que resuelva desde `CACHE_ENGINE`:
 
@@ -134,7 +183,11 @@ Valores propuestos:
 | redis | redis-server | redis-cli | redis | /usr/local/etc/redis/redis.conf | ./.warp/docker/config/redis/redis.conf |
 | valkey | valkey-server | valkey-cli | valkey | /usr/local/etc/valkey/valkey.conf | ./.warp/docker/config/redis/valkey.conf |
 
-La idea es replicar el patron `mysql/mariadb`: **mismo servicio, distinto image/contrato interno**.
+Importante:
+
+- esto **no implica** que todas esas variables deban persistirse en `.env`
+- el contrato interno puede resolverse por helper en setup/runtime
+- en `.env` conviene persistir solo lo necesario para compatibilidad y compose
 
 ### 2. Parametrizar templates existentes en vez de duplicar servicios
 
@@ -161,41 +214,46 @@ La recomendacion es **misma carpeta, archivos distintos**:
 - `.warp/setup/redis/config/redis/redis.conf`
 - `.warp/setup/redis/config/redis/valkey.conf`
 
-Esto coincide con lo que pediste: misma estructura y misma denominacion, agregando los archivos especificos del otro motor.
+Esto sigue el patron historico de Warp: mismo path esperado por tooling, distinto contenido segun engine.
 
-No recomiendo cambiar el nombre de la carpeta a `valkey`, porque rompe el objetivo de compatibilidad y no aporta valor tecnico.
+No recomiendo cambiar el nombre de la carpeta a `valkey`, porque rompe compatibilidad y no aporta valor tecnico.
 
-### 4. Mantener `REDIS_*` como variables de slot, no de engine
+### 4. Resolver el archivo default segun engine
 
-Conviene **mantener**:
+Cuando el engine seleccionado sea:
 
-- `REDIS_CACHE_VERSION`
-- `REDIS_SESSION_VERSION`
-- `REDIS_FPC_VERSION`
-- `REDIS_*_CONF`
+- `redis`: default `./.warp/docker/config/redis/redis.conf`
+- `valkey`: default `./.warp/docker/config/redis/valkey.conf`
 
-Aunque el engine sea Valkey.
+Esto aplica a:
 
-Motivo:
+- wizard principal en `.warp/setup/redis/redis.sh`
+- `gandalf`
+- `sandbox`
+- samples de entorno
 
-- esas variables hoy identifican el **slot funcional** (`cache`, `session`, `fpc`), no solo el vendor
-- cambiarlas a `VALKEY_*` obligaria a duplicar codigo y compatibilidad
+### 5. Mantener el contrato CLI externo de Magento
 
-El engine real debe vivir en las variables canonicas:
+No veo razon para cambiar:
 
-- `CACHE_ENGINE`
-- `CACHE_VERSION`
-- `CACHE_IMAGE_REPO`
+- `--cache-backend=redis`
+- `--page-cache=redis`
+- `--session-save=redis`
 
-Y en las nuevas variables de contrato propuestas arriba.
+A nivel Magento, Valkey entra como compatibilidad del backend Redis; no hace falta abrir un contrato CLI nuevo del lado de `warp magento`.
 
 ## Impacto en scripts
 
 ### `.warp/setup/redis/redis.sh`
 
-Debe dejar de preguntar siempre por `./.warp/docker/config/redis/redis.conf` y resolver el default segun engine.
+Debe:
 
-Tambien debe exportar las nuevas variables canonicas de contrato, no solo `CACHE_ENGINE` y `CACHE_IMAGE_REPO`.
+- dejar de preguntar siempre por `./.warp/docker/config/redis/redis.conf`
+- resolver default segun engine
+- seguir escribiendo `REDIS_*` como contrato legacy
+- escribir `CACHE_ENGINE`, `CACHE_VERSION` y `CACHE_IMAGE_REPO` como canonicos
+
+No hace falta inflar `.env` con todo el contrato interno si puede resolverse por helper.
 
 ### `.warp/bin/redis.sh`
 
@@ -206,45 +264,34 @@ Debe dejar de asumir:
 
 Cambio recomendado:
 
-- para `cli`, `monitor` y `flush`, usar `${CACHE_CLI_BIN}` dentro del contenedor
-- para `ssh`, mapear `--cache` al usuario canonico `${CACHE_CONTAINER_USER}`
+- para `cli`, `monitor` y `flush`, usar el binario resuelto por engine
+- para `ssh`, mapear `--cache` al usuario canonico del engine
 - mantener `--redis` como alias legacy, pero no como unica opcion real
 
 ### `.warp/bin/cache.sh`
 
-Ya esta bastante bien para modo external. En modo local puede seguir delegando a `redis.sh`, pero `redis.sh` primero debe quedar engine-aware.
+Ya esta bien orientado en modo external. En modo local puede seguir delegando a `redis.sh`, pero `redis.sh` primero debe quedar engine-aware.
 
 ### `.warp/setup/sandbox/sandbox-m2.sh`
 
-Hoy esta clavado a Redis. Debe reutilizar la misma resolucion de engine que el setup principal o, al menos, aceptar `CACHE_ENGINE` y `CACHE_IMAGE_REPO`.
+Hoy esta clavado a Redis. Debe reutilizar la misma resolucion de engine que el setup principal o, como minimo:
+
+- usar Redis en perfiles sin soporte Valkey
+- usar Valkey solo cuando el perfil detectado sea Magento 2.4.8+
 
 ### `.warp/setup/init/gandalf.sh`
 
 Mismo problema que sandbox: hoy fija `CACHE_ENGINE=redis` y path `redis.conf`.
 
+Debe alinearse al mismo criterio de compatibilidad y default path.
+
 ### `.warp/bin/memory.sh`
 
-No bloquea el arranque, pero si se quiere soporte completo debe:
+No bloquea el arranque, pero para soporte completo debe:
 
 - detectar `CACHE_CLI_BIN`
 - dejar de documentar solo `redis-server /usr/local/etc/redis/redis.conf`
-
-## Magento: que no cambiaria
-
-### `warp magento setup:config:set`
-
-No veo razon para cambiar:
-
-- `--cache-backend=redis`
-- `--page-cache=redis`
-- `--session-save=redis`
-
-En el vendor de Magento 2.4.8-p4 siguen existiendo clases y opciones `Redis`, y no aparecen flags especificos `valkey`. A nivel Magento, Valkey entra como compatibilidad del backend Redis, no como backend CLI distinto.
-
-Por eso:
-
-- **si hay que cambiar el contenedor**
-- **no hace falta cambiar la integracion CLI de Magento**
+- poder leer `valkey.conf` cuando corresponda
 
 ## Implementacion recomendada
 
@@ -254,7 +301,7 @@ Por eso:
 2. Parametrizar templates `redis_*.yml`
 3. Agregar `valkey.conf` en setup + docker/config
 4. Hacer `redis.sh` engine-aware para `cli`, `monitor`, `ssh` y `flush`
-5. Exportar nuevas variables canonicas desde `.warp/setup/redis/redis.sh`
+5. Resolver defaults por engine en `.warp/setup/redis/redis.sh`
 
 ### Fase 2: cerrar bootstraps alternativos
 
@@ -277,6 +324,7 @@ Por eso:
 - `.env` resultante deja `CACHE_ENGINE=valkey`
 - `.env` resultante deja `CACHE_IMAGE_REPO=valkey/valkey`
 - el config path default para Valkey apunta a `./.warp/docker/config/redis/valkey.conf`
+- el config path default para Redis sigue apuntando a `./.warp/docker/config/redis/redis.conf`
 
 ### Runtime local
 
@@ -288,23 +336,38 @@ Por eso:
 - `warp cache flush cache`
 - `warp cache ssh cache --cache`
 
-### Magento
+### Compatibilidad Magento
 
+- en Magento 2.4.8+ se puede ofrecer `valkey` como engine soportado
+- en versiones anteriores Warp mantiene `redis` como path seguro/compatible
 - `warp magento setup:config:set` sigue configurando cache/fpc/session sin cambios de flags
 - `app/etc/env.php` queda apuntando a `redis-cache`, `redis-fpc`, `redis-session`
 
+### Smoke core de Warp
+
+- `./warp --help`
+- `./warp init --help`
+- `./warp start --help`
+- `./warp stop --help`
+- `./warp info --help`
+- `./warp docker ps`
+
 ## Conclusiones
 
-La base para soportar Valkey ya existe, pero hoy esta **incompleta** y limitada sobre todo a metadata de setup y al modo external.
+La estrategia correcta no es abrir una rama paralela con nombres `valkey-*`, sino **reusar la capa historica `redis` como naming externo y desacoplar el contrato interno del engine**.
 
-La estrategia correcta no es crear una rama paralela con nombres `valkey-*`, sino **reusar la capa actual `redis` como nombre historico/canonico del capability cache** y desacoplar solo el contrato interno del engine.
+Eso deja un cambio acotado, consistente con como Warp se viene moviendo:
 
-Eso deja un cambio acotado, consistente con el patron ya usado para `mysql/mariadb`, y evita romper:
+- reusar variables existentes
+- reusar nombres de servicio
+- reusar paths conocidos
+- cambiar contenido y comportamiento interno cuando el engine lo requiere
 
-- nombres de servicios
-- tooling ya existente
-- integracion Magento
-- paths y volumes actuales
+Con ese enfoque:
+
+- Magento 2.4.8+ puede usar Valkey
+- versiones anteriores siguen funcionando con Redis
+- no se rompe compatibilidad de `.env`, tooling ni helpers existentes
 
 ## Archivos relevados
 
