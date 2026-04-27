@@ -528,15 +528,20 @@ fi
 ############### MAILHOG
 if [[ ! -z $GF_MAILHOG ]]
 then
-    warp_message_info "Configuring Mailhog SMTP server"
+    warp_message_info "Configuring Mail service"
     cat $PROJECTPATH/.warp/setup/mailhog/tpl/mailhog.yml >> $DOCKERCOMPOSEFILESAMPLE
 
-    mailhog_binded_port="8025"
+    mailhog_binded_port="$MAIL_BINDED_PORT_DEFAULT"
 
     echo ""  >> $ENVIRONMENTVARIABLESFILESAMPLE
-    echo "#Config Mailhog" >> $ENVIRONMENTVARIABLESFILESAMPLE
-    echo "MAILHOG_BINDED_PORT=$mailhog_binded_port"  >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "# Config Mail" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "MAIL_ENGINE=$MAIL_ENGINE_DEFAULT" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "MAIL_VERSION=$MAIL_VERSION_DEFAULT" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "MAIL_BINDED_PORT=$mailhog_binded_port"  >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "" >> $ENVIRONMENTVARIABLESFILESAMPLE
+
+    warp_env_file_sync_mail_binded_port "$ENVIRONMENTVARIABLESFILESAMPLE" "$mailhog_binded_port" || exit 1
+    warp_mail_ensure_auth_files "$ENVIRONMENTVARIABLESFILESAMPLE" || exit 1
 fi
 
 ############### VARNISH

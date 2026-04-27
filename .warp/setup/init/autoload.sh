@@ -68,12 +68,14 @@ esac
         rabbit_binded_port="8080"
     fi
 
-    if [ ! -z "$MAILHOG_BINDED_PORT" ]
+    MAIL_BINDED_PORT_CURRENT=$(warp_env_read_mail_binded_port)
+
+    if [ ! -z "$MAIL_BINDED_PORT_CURRENT" ]
     then
     
-        warp_message "* Configuring Mailhog SMTP server $(warp_message_ok [ok])"
+        warp_message "* Configuring Mail service $(warp_message_ok [ok])"
 
-        mailhog_binded_port="8025"
+        mailhog_binded_port="$MAIL_BINDED_PORT_DEFAULT"
     fi
 
     HTTP_HOST_OLD="HTTP_HOST_IP=$HTTP_HOST_IP"
@@ -179,14 +181,9 @@ esac
         mv "$ENVIRONMENTVARIABLESFILE.warp7" $ENVIRONMENTVARIABLESFILE
     fi
 
-    if [ ! -z "$MAILHOG_BINDED_PORT" ]
+    if [ ! -z "$MAIL_BINDED_PORT_CURRENT" ]
     then
-        # CHANGE PORT MAILHOG
-        BINDED_PORT_OLD="MAILHOG_BINDED_PORT=$MAILHOG_BINDED_PORT"
-        BINDED_PORT_NEW="MAILHOG_BINDED_PORT=$mailhog_binded_port"
-
-        cat $ENVIRONMENTVARIABLESFILE | sed -e "s/$BINDED_PORT_OLD/$BINDED_PORT_NEW/" > "$ENVIRONMENTVARIABLESFILE.warp8"
-        mv "$ENVIRONMENTVARIABLESFILE.warp8" $ENVIRONMENTVARIABLESFILE
+        warp_env_file_sync_mail_binded_port "$ENVIRONMENTVARIABLESFILE" "$mailhog_binded_port" || exit 1
     fi
 
     if [ ! -z "$rta_use_docker_sync" ]
@@ -224,5 +221,8 @@ esac
             mv "$ENVIRONMENTVARIABLESFILE.warp10" $ENVIRONMENTVARIABLESFILE
         fi;
     fi
+
+    warp_mail_ensure_env_defaults "$ENVIRONMENTVARIABLESFILE" || exit 1
+    warp_mail_ensure_auth_files "$ENVIRONMENTVARIABLESFILE" || exit 1
 
     . "$WARPFOLDER/setup/init/info.sh"

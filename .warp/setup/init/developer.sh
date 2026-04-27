@@ -155,14 +155,16 @@ warp_message_info "Configuring Web Server - Nginx"
         done
     fi
 
-    if [ ! -z "$MAILHOG_BINDED_PORT" ]
+    MAIL_BINDED_PORT_CURRENT=$(warp_env_read_mail_binded_port)
+
+    if [ ! -z "$MAIL_BINDED_PORT_CURRENT" ]
     then
     
         warp_message ""
-        warp_message_info "Configuring Mailhog SMTP server"
+        warp_message_info "Configuring Mail service"
 
         while : ; do
-            mailhog_binded_port=$( warp_question_ask_default "Plase select the port of your machine (host) to Web interface to view the messages: $(warp_message_info [8025]) " "8025" )
+            mailhog_binded_port=$( warp_question_ask_default "Plase select the port of your machine (host) to Web interface to view the messages: $(warp_message_info [$MAIL_BINDED_PORT_DEFAULT]) " "$MAIL_BINDED_PORT_DEFAULT" )
 
             if ! warp_net_port_in_use $mailhog_binded_port ; then
                 warp_message_info2 "the selected port is: $mailhog_binded_port, Web interface to view the messages: $(warp_message_bold 'http://127.0.0.1:'$mailhog_binded_port)"
@@ -285,14 +287,10 @@ warp_message_info "Configuring Web Server - Nginx"
         mv "$ENVIRONMENTVARIABLESFILE.warp7" $ENVIRONMENTVARIABLESFILE
     fi
 
-    if [ ! -z "$MAILHOG_BINDED_PORT" ]
+    if [ ! -z "$MAIL_BINDED_PORT_CURRENT" ]
     then
         # CHANGE PORT MAILHOG
-        BINDED_PORT_OLD="MAILHOG_BINDED_PORT=$MAILHOG_BINDED_PORT"
-        BINDED_PORT_NEW="MAILHOG_BINDED_PORT=$mailhog_binded_port"
-
-        cat $ENVIRONMENTVARIABLESFILE | sed -e "s/$BINDED_PORT_OLD/$BINDED_PORT_NEW/" > "$ENVIRONMENTVARIABLESFILE.warp8"
-        mv "$ENVIRONMENTVARIABLESFILE.warp8" $ENVIRONMENTVARIABLESFILE
+        warp_env_file_sync_mail_binded_port "$ENVIRONMENTVARIABLESFILE" "$mailhog_binded_port" || exit 1
     fi
 
     if [ ! -z "$rta_use_docker_sync" ]
@@ -330,5 +328,8 @@ warp_message_info "Configuring Web Server - Nginx"
             mv "$ENVIRONMENTVARIABLESFILE.warp10" $ENVIRONMENTVARIABLESFILE
         fi;
     fi
+
+    warp_mail_ensure_env_defaults "$ENVIRONMENTVARIABLESFILE" || exit 1
+    warp_mail_ensure_auth_files "$ENVIRONMENTVARIABLESFILE" || exit 1
 
     . "$WARPFOLDER/setup/init/info.sh"

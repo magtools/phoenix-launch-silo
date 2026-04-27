@@ -100,6 +100,11 @@ DOCKER_MINIMUM_VERSION=17.05
 # Capability ordering for future helpers/UI.
 WARP_SERVICE_CAPABILITIES=("db" "cache" "search")
 
+# MAIL
+MAIL_ENGINE_DEFAULT="mailpit"
+MAIL_VERSION_DEFAULT="v1.29"
+MAIL_BINDED_PORT_DEFAULT="8025"
+
 # DB
 WARP_DB_ENGINES=("mariadb" "mysql")
 WARP_DB_ENGINE_DEFAULT="mariadb"

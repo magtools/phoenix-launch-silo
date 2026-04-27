@@ -1017,6 +1017,123 @@ warp_update_ensure_php_optional_ini_files() {
     done
 }
 
+warp_update_ensure_mail_defaults() {
+    local _env_file="$ENVIRONMENTVARIABLESFILE"
+    local _sample_file="$ENVIRONMENTVARIABLESFILESAMPLE"
+    local _file=""
+    local _mail_engine_default="${MAIL_ENGINE_DEFAULT:-mailpit}"
+    local _mail_version_default="${MAIL_VERSION_DEFAULT:-v1.29}"
+    local _mail_binded_port_default="${MAIL_BINDED_PORT_DEFAULT:-8025}"
+    local _config_dir="$PROJECTPATH/.warp/docker/config/mail"
+    local _setup_dir="$PROJECTPATH/.warp/setup/mailhog/config/mail"
+    local _target_auth="$_config_dir/ui-auth.txt"
+    local _target_sample="$_config_dir/ui-auth.txt.sample"
+    local _source_auth="$_setup_dir/ui-auth.txt"
+    local _source_sample="$_setup_dir/ui-auth.txt.sample"
+    local _canonical_port=""
+    local _legacy_port=""
+    local _resolved_port=""
+    local _mail_engine=""
+
+    for _file in "$_env_file" "$_sample_file"; do
+        [ -f "$_file" ] || continue
+
+        _canonical_port=""
+        _legacy_port=""
+        _resolved_port=""
+        _mail_engine=""
+
+        if command -v warp_mail_ensure_env_defaults >/dev/null 2>&1; then
+            warp_mail_ensure_env_defaults "$_file" || return 1
+        else
+            if command -v warp_env_file_read_var >/dev/null 2>&1; then
+                _mail_engine=$(warp_env_file_read_var "$_file" MAIL_ENGINE)
+                _canonical_port=$(warp_env_file_read_var "$_file" MAIL_BINDED_PORT)
+                _legacy_port=$(warp_env_file_read_var "$_file" MAILHOG_BINDED_PORT)
+            else
+                _mail_engine=$(grep "^MAIL_ENGINE=" "$_file" | cut -d '=' -f2-)
+                _canonical_port=$(grep "^MAIL_BINDED_PORT=" "$_file" | cut -d '=' -f2-)
+                _legacy_port=$(grep "^MAILHOG_BINDED_PORT=" "$_file" | cut -d '=' -f2-)
+            fi
+
+            [ -n "$_mail_engine" ] || [ -n "$_canonical_port" ] || [ -n "$_legacy_port" ] || continue
+
+            if [ -n "$_canonical_port" ]; then
+                _resolved_port="$_canonical_port"
+            elif [ -n "$_legacy_port" ]; then
+                _resolved_port="$_legacy_port"
+            else
+                _resolved_port="$_mail_binded_port_default"
+            fi
+
+            if command -v warp_env_file_set_var >/dev/null 2>&1; then
+                warp_env_file_set_var "$_file" MAIL_ENGINE "$_mail_engine_default" || return 1
+                warp_env_file_set_var "$_file" MAIL_VERSION "$_mail_version_default" || return 1
+                warp_env_file_set_var "$_file" MAIL_BINDED_PORT "$_resolved_port" || return 1
+                if [ -n "$_legacy_port" ]; then
+                    warp_env_file_set_var "$_file" MAILHOG_BINDED_PORT "$_resolved_port" || return 1
+                fi
+            else
+                grep -q "^MAIL_ENGINE=" "$_file" 2>/dev/null || echo "" >> "$_file"
+                grep -q "^MAIL_ENGINE=" "$_file" 2>/dev/null && \
+                    sed -e "s#^MAIL_ENGINE=.*#MAIL_ENGINE=${_mail_engine_default}#g" "$_file" > "${_file}.warp_mail_tmp" || \
+                    { cat "$_file" > "${_file}.warp_mail_tmp" && echo "MAIL_ENGINE=${_mail_engine_default}" >> "${_file}.warp_mail_tmp"; }
+                mv "${_file}.warp_mail_tmp" "$_file" || return 1
+
+                grep -q "^MAIL_VERSION=" "$_file" 2>/dev/null && \
+                    sed -e "s#^MAIL_VERSION=.*#MAIL_VERSION=${_mail_version_default}#g" "$_file" > "${_file}.warp_mail_tmp" || \
+                    { cat "$_file" > "${_file}.warp_mail_tmp" && echo "MAIL_VERSION=${_mail_version_default}" >> "${_file}.warp_mail_tmp"; }
+                mv "${_file}.warp_mail_tmp" "$_file" || return 1
+
+                grep -q "^MAIL_BINDED_PORT=" "$_file" 2>/dev/null && \
+                    sed -e "s#^MAIL_BINDED_PORT=.*#MAIL_BINDED_PORT=${_resolved_port}#g" "$_file" > "${_file}.warp_mail_tmp" || \
+                    { cat "$_file" > "${_file}.warp_mail_tmp" && echo "MAIL_BINDED_PORT=${_resolved_port}" >> "${_file}.warp_mail_tmp"; }
+                mv "${_file}.warp_mail_tmp" "$_file" || return 1
+
+                if [ -n "$_legacy_port" ]; then
+                    sed -e "s#^MAILHOG_BINDED_PORT=.*#MAILHOG_BINDED_PORT=${_resolved_port}#g" "$_file" > "${_file}.warp_mail_tmp" || return 1
+                    mv "${_file}.warp_mail_tmp" "$_file" || return 1
+                fi
+            fi
+        fi
+    done
+
+    if command -v warp_mail_ensure_auth_files >/dev/null 2>&1; then
+        if [ -f "$_env_file" ]; then
+            warp_mail_ensure_auth_files "$_env_file" || return 1
+        fi
+        if [ -f "$_sample_file" ]; then
+            warp_mail_ensure_auth_files "$_sample_file" || return 1
+        fi
+        return 0
+    fi
+
+    mkdir -p "$_config_dir" || {
+        warp_message_error "unable to create mail config directory: $_config_dir"
+        return 1
+    }
+
+    [ -f "$_source_auth" ] || {
+        warp_message_error "mail auth template not found: $_source_auth"
+        return 1
+    }
+
+    [ -f "$_source_sample" ] || {
+        warp_message_error "mail auth sample template not found: $_source_sample"
+        return 1
+    }
+
+    [ -f "$_target_auth" ] || cp "$_source_auth" "$_target_auth" || {
+        warp_message_error "unable to create mail auth file: $_target_auth"
+        return 1
+    }
+
+    [ -f "$_target_sample" ] || cp "$_source_sample" "$_target_sample" || {
+        warp_message_error "unable to create mail auth sample file: $_target_sample"
+        return 1
+    }
+}
+
 warp_fetch_latest_version() {
     warp_remote_base_url="https://raw.githubusercontent.com/magtools/phoenix-launch-silo/refs/heads/master/dist"
     _fetch_output=$(curl --silent --show-error --fail --location --connect-timeout 3 --max-time 3 "${warp_remote_base_url}/version.md" 2>&1)
@@ -1151,6 +1268,7 @@ warp_update() {
         WARP_BINARY_SYNC_NOTICE=""
         warp_pending_update_clear
         warp_update_ensure_php_optional_ini_files || exit 1
+        warp_update_ensure_mail_defaults || exit 1
         warp_install_system_wrapper || exit 1
         warp_update_tmp_clean
 
@@ -1187,6 +1305,7 @@ warp_update() {
         warp_message_info2 "warp is up to date ($WARP_VERSION)"
         warp_pending_update_clear
         warp_update_ensure_php_optional_ini_files || exit 1
+        warp_update_ensure_mail_defaults || exit 1
         warp_update_tmp_clean
         exit 0
     fi
@@ -1223,6 +1342,7 @@ warp_update() {
     WARP_BINARY_SYNC_NOTICE=""
     warp_pending_update_clear
     warp_update_ensure_php_optional_ini_files || exit 1
+    warp_update_ensure_mail_defaults || exit 1
     warp_install_system_wrapper || exit 1
     warp_update_tmp_clean
 
