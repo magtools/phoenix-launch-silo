@@ -22,6 +22,6 @@ deploy y otras herramientas detectan cores y no threads
 
 warp shields <- scan
 
-mailhog -> mailpit
+mail capability generico con backend Mailpit y compat legacy mailhog
 
 reindex multihilo pcntl -> MAGE_INDEXER_THREADS_COUNT=3 php bin/magento indexer:reindex 

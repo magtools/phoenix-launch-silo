@@ -1,169 +1,80 @@
-# RFC: soporte Warp para Mailpit con auth nativa, reutilizando la capa historica `mailhog`
+# RFC: capability `mail` en Warp con backend Mailpit y compatibilidad legacy `mailhog`
 
-## Decision propuesta
+## Decision final
 
-**Si, conviene desacoplar la RFC de cualquier proyecto puntual y mantener el contrato historico de Warp**, igual que en otros cambios donde se reusa naming existente y se cambia el engine real por detras.
+Warp adopta un contrato nuevo y mas generico para mail:
 
-La recomendacion es:
+- capability/documentacion: `mail`
+- backend actual: `Mailpit`
+- comando CLI legacy conservado: `warp mailhog`
+- servicio y hostname de compatibilidad: `mailhog`
+- carpeta canonica de config: `./.warp/docker/config/mail`
+- auth HTTP obligatoria por archivo: `./.warp/docker/config/mail/ui-auth.txt`
 
-- mantener el nombre de servicio `mailhog`
-- mantener el comando `warp mailhog`
-- mantener compatibilidad con variables legacy `MAILHOG_*`
-- cambiar la imagen real a Mailpit
-- agregar configuracion y auth en `./.warp/docker/config/mail`
-- usar auth nativa de Mailpit para UI/API
-- dejar SMTP interno y sin auth en la primera etapa
+Compatibilidad de variables:
 
-En otras palabras: **no hace falta renombrar la capa "mailhog" a "mailpit"**. Lo correcto para Warp es conservar el contrato externo y cambiar contenido/comportamiento interno cuando el engine nuevo lo requiera.
+- variable canonica nueva: `MAIL_BINDED_PORT`
+- alias legacy aceptado: `MAILHOG_BINDED_PORT`
+- engine canonico: `MAIL_ENGINE=mailpit`
+- version canonica: `MAIL_VERSION=<tag>`
 
-## Alcance funcional
+`MAILHOG_BINDED_PORT` queda solo como alias de lectura/fallback. Desde ahora Warp crea y mantiene `MAIL_BINDED_PORT`.
 
-Este RFC **no esta atado a un proyecto puntual**.
+## Alcance
 
-El objetivo es mejorar el mail catcher local de Warp para cualquier stack PHP soportado por el framework:
+Esta RFC aplica al core de Warp y no a un proyecto puntual.
 
-- Magento
-- Oro
-- PHP generico
+Objetivos:
 
-La mejora buscada es:
+- mantener SMTP interno conocido por PHP
+- proteger UI/API HTTP con auth nativa
+- bajar exposicion al host
+- introducir naming generico `mail`
+- preservar compatibilidad con la capa legacy `mailhog`
 
-- mantener el flujo SMTP local ya conocido por PHP
-- proteger la UI/API HTTP con auth
-- bajar exposicion innecesaria al host
-- evitar una migracion transversal de nombres, comandos y variables
+## Contrato operativo
 
-## Contexto actual
+### Superficie externa
 
-### Servicio Docker
+Se mantiene:
 
-Actualmente Warp expone un servicio `mailhog` y la UI web se publica con `MAILHOG_BINDED_PORT`.
-
-El servicio actual mantiene dos caracteristicas relevantes:
-
-- SMTP para red interna del compose
-- UI web publicada al host
-
-### PHP
-
-La configuracion historica de PHP apunta a:
-
+- comando `warp mailhog`
+- hostname `mailhog`
 - `SMTP = mailhog`
 - `smtp_port = 1025`
 - `sendmail_path = "/usr/local/bin/mhsendmail --smtp-addr=mailhog:1025"`
 
-Ese contrato no conviene romper en esta RFC.
-
-### CLI y setup
-
-Superficies actuales:
-
-- `.warp/bin/mailhog.sh`
-- `.warp/bin/mailhog_help.sh`
-- `.warp/setup/mailhog/mailhog.sh`
-- `.warp/setup/mailhog/tpl/mailhog.yml`
-- `.warp/setup/init/developer.sh`
-- `.warp/setup/init/autoload.sh`
-- `.warp/setup/init/gandalf.sh`
-- `.warp/bin/init.sh`
-
-Hoy Warp ya tiene una capa establecida alrededor del nombre `mailhog`. Esa capa no deberia renombrarse si el objetivo real es cambiar el engine del mail catcher.
-
-## Capacidades relevantes de Mailpit
-
-Mailpit aporta lo que hace falta para este caso:
-
-- mantiene `1025` para SMTP
-- mantiene `8025` para UI/API
-- soporta auth HTTP nativa para UI/API
-- permite montar archivo de auth
-
-Eso encaja bien con Warp porque permite reemplazar el engine sin rediseñar el flujo SMTP local.
-
-## Problema con la RFC actual
-
-La version anterior de esta RFC proponia una migracion en dos etapas:
-
-1. reemplazo funcional
-2. rename completo a `mailpit`
-
-Ese enfoque **no sigue el patron historico de Warp**.
-
-En este repo conviene hacer lo mismo que en otros cambios:
-
-- reusar nombre de servicio
-- reusar comando existente
-- reusar variables legacy
-- reusar paths esperables
-- cambiar imagen, auth y archivos de configuracion por debajo
-
-Si el servicio ya se llama `mailhog` y PHP ya habla con `mailhog:1025`, renombrarlo a `mailpit` agrega costo, ruido y mas superficie de rotura sin beneficio operativo claro.
-
-## Decision de naming y compatibilidad
-
-### Mantener el nombre de servicio `mailhog`
-
-Se recomienda **mantener**:
-
-- servicio Docker `mailhog`
-- hostname `mailhog`
-- comando `warp mailhog`
-- variables `MAILHOG_*`
-
 Motivo:
 
-- PHP ya apunta a `mailhog:1025`
-- setup, ayudas y tooling ya dependen de ese nombre
-- evita tocar superficies innecesarias
-- sigue el estilo de Warp: reusar naming historico y cambiar engine interno
+- evita romper setup, PHP y tooling historico
+- el rename visible no agrega valor operativo hoy
 
-### Introducir `config/mail` como carpeta canonica del capability
+### Superficie canonica nueva
 
-Se recomienda **agregar y usar**:
+Se adopta como naming oficial de ahora en mas:
 
-- `./.warp/docker/config/mail`
-- `./.warp/setup/mailhog/config/mail`
+- capability: `mail`
+- config: `./.warp/docker/config/mail`
+- variable de puerto: `MAIL_BINDED_PORT`
+- variable de engine: `MAIL_ENGINE`
+- variable de version: `MAIL_VERSION`
 
-Dentro de esa carpeta vivirian archivos como:
+## Runtime elegido
 
-- `ui-auth.txt`
-- `ui-auth.txt.sample`
-- futuros archivos de config mail-related si hacen falta
+Warp usa Mailpit por detras del contrato legacy `mailhog`.
 
-Motivo:
+Requisitos funcionales cubiertos:
 
-- la auth ya no pertenece a nginx sino al capability mail
-- `config/mail` es mas neutral que `config/mailpit`
-- permite reusar la misma ruta aunque en el futuro cambie el engine del mail catcher otra vez
+- SMTP en `1025`
+- UI/API en `8025`
+- auth HTTP nativa por archivo
+- imagen Docker multiarch
 
-### Mantener variables legacy `MAILHOG_*`
-
-Conviene **mantener**:
-
-- `MAILHOG_BINDED_PORT`
-
-Y sumar, si hace falta, variables compatibles y especificas del nuevo runtime, por ejemplo:
-
-- `MAILPIT_VERSION`
-
-No recomiendo una migracion obligatoria a `MAILPIT_BINDED_PORT` si el binded port ya esta estable y funcional bajo `MAILHOG_BINDED_PORT`.
-
-El criterio deberia ser:
-
-- reusar variables historicas cuando describen el slot funcional
-- agregar variables nuevas solo donde describen algo especifico del engine real
-
-## Propuesta tecnica
-
-### 1. Reemplazar imagen, no el contrato externo
-
-El servicio debe seguir llamandose `mailhog`, pero usar Mailpit como imagen real.
-
-Ejemplo de direccion esperada:
+## Compose esperado
 
 ```yaml
 mailhog:
-  image: axllent/mailpit:${MAILPIT_VERSION}
+  image: axllent/mailpit:${MAIL_VERSION}
   env_file: .env
   hostname: "mailhog"
   environment:
@@ -174,152 +85,119 @@ mailhog:
   expose:
     - "1025"
   ports:
-    - "127.0.0.1:${MAILHOG_BINDED_PORT}:8025"
+    - "127.0.0.1:${MAIL_BINDED_PORT}:8025"
   networks:
     - back
 ```
 
-Con esto:
+Decisiones:
 
-- PHP sigue hablando con `mailhog:1025`
-- la UI sigue siendo accesible con el puerto historico de Warp
-- la auth y config viven en una carpeta neutral del capability
+- SMTP no se publica al host
+- UI/API se publica solo en loopback
+- la auth vive en Mailpit, no en nginx
 
-### 2. No publicar SMTP al host
+## Auth y config
 
-El SMTP no necesita publicarse al host si el uso esperado es interno al compose.
-
-Por eso la recomendacion es:
-
-- mantener `1025` solo en red interna
-- publicar solo `8025` hacia el host
-- preferir bind en loopback `127.0.0.1`
-
-Esto baja exposicion sin romper el flujo historico.
-
-### 3. Auth nativa de Mailpit para UI/API
-
-La autenticacion recomendada es **solo para UI/API HTTP**.
-
-No recomiendo activar auth SMTP en esta RFC porque:
-
-- el flujo actual de PHP es simple y ya conocido
-- agrega complejidad innecesaria
-- no aporta tanto valor como proteger la superficie web
-
-### 4. Archivo de auth en `config/mail`
-
-En lugar de persistir usuario/password en `.env`, conviene montar un archivo:
-
-- host: `./.warp/docker/config/mail/ui-auth.txt`
-- sample: `./.warp/docker/config/mail/ui-auth.txt.sample`
-- container: `/mail-config/ui-auth.txt`
-
-Eso deja el secreto:
-
-- fuera de variables de entorno
-- mas facil de ignorar en git
-- alineado a la idea de config por archivo que Warp ya usa en otros servicios
-
-## Impacto en superficies existentes
-
-### PHP
-
-No deberia cambiar.
-
-Mientras el servicio siga llamandose `mailhog`, esta configuracion puede permanecer:
-
-```ini
-smtp_port = 1025
-SMTP = mailhog
-sendmail_path = "/usr/local/bin/mhsendmail --smtp-addr=mailhog:1025"
-```
-
-### CLI de Warp
-
-No hace falta crear `warp mailpit`.
-
-La recomendacion es:
-
-- mantener `warp mailhog`
-- actualizar su ayuda para aclarar que el backend real puede ser Mailpit
-- si hace falta, exponer en `info` que el engine actual es Mailpit
-
-### Setup / bootstrap
-
-Los setup scripts deben:
-
-- seguir usando la capa `mailhog`
-- cambiar el template Docker a Mailpit
-- crear o copiar `config/mail`
-- seguir escribiendo `MAILHOG_BINDED_PORT`
-- escribir `MAILPIT_VERSION` si se quiere versionar la imagen
-
-### Nginx
-
-No es obligatorio tocar nginx.
-
-La auth recomendada para esta RFC vive en Mailpit, no en reverse proxy.
-
-## Estructura de config recomendada
-
-Archivos propuestos:
+Archivos canonicos:
 
 - `./.warp/docker/config/mail/ui-auth.txt`
 - `./.warp/docker/config/mail/ui-auth.txt.sample`
+- `./.warp/setup/mailhog/config/mail/ui-auth.txt`
 - `./.warp/setup/mailhog/config/mail/ui-auth.txt.sample`
 
-Si luego aparece algun ajuste adicional del runtime mail, `config/mail` ya queda como carpeta canonica para ese capability.
+Contrato:
 
-## Variables de entorno recomendadas
+- `ui-auth.txt` es obligatorio
+- contenido default: `warp:warp`
+- el archivo se versiona junto con otras configs del proyecto
+- no se trata como secreto fuerte; es una barrera minima
 
-### Mantener
+Bootstrap:
 
-- `MAILHOG_BINDED_PORT`
+- `warp init` debe crear/copiar `ui-auth.txt` si no existe
+- `warp update` y `warp update --self` deben crear/copiar `ui-auth.txt` si no existe
+- si falta el directorio `config/mail`, debe crearse
 
-### Agregar si hace falta
+## Compatibilidad
 
-```dotenv
-MAILPIT_VERSION=v1.29
-```
+### Variables
 
-No recomiendo mover el binded port a `MAILPIT_BINDED_PORT` porque el puerto publicado sigue perteneciendo al contrato historico `mailhog` de Warp, aunque el engine real sea Mailpit.
+Regla:
 
-## Implementacion recomendada
+1. usar `MAIL_BINDED_PORT` como variable canonica
+2. si no existe, aceptar `MAILHOG_BINDED_PORT`
+3. si existe el alias legacy, tratarlo como alias del valor canonico
 
-### Fase unica recomendada
+En la practica:
 
-1. Cambiar imagen `mailhog/mailhog` por `axllent/mailpit:${MAILPIT_VERSION}`
-2. Mantener servicio y hostname `mailhog`
-3. Montar `./.warp/docker/config/mail` como carpeta de config/auth
-4. Configurar `MP_UI_AUTH_FILE`
-5. Publicar la UI en `127.0.0.1:${MAILHOG_BINDED_PORT}:8025`
-6. Dejar SMTP solo interno
-7. Mantener `warp mailhog` y `MAILHOG_BINDED_PORT`
-8. Ajustar docs y help para aclarar backend Mailpit
+- nuevos proyectos escriben `MAIL_BINDED_PORT`
+- proyectos legacy pueden seguir trayendo `MAILHOG_BINDED_PORT`
+- cuando Warp materializa defaults, debe escribir la forma canonica
 
-No veo valor en una segunda fase obligatoria de rename global.
+### CLI
 
-## Riesgos y consideraciones
+`warp mailhog` se conserva por compatibilidad.
 
-1. **API protegida por auth:** cualquier consumo HTTP de la API va a requerir credenciales.
-2. **SMTP auth fuera de alcance inicial:** si luego se quiere auth SMTP, eso merece RFC separada.
-3. **Cambio de engine interno:** aunque el contrato externo no cambie, hay que validar comandos `ssh/info` porque la imagen ya no es MailHog.
-4. **Archivo de auth:** si cambia el archivo mientras el contenedor corre, puede requerirse reinicio del servicio.
+La ayuda y la documentacion deben hablar de `mail` como capability y aclarar que `warp mailhog` es el nombre legacy del comando.
 
-## Validacion propuesta
+### Shell dentro del contenedor
 
-### Mail capability
+Mailpit corre en la imagen oficial sin un usuario dedicado tipo `mailhog`.
+
+Por eso:
+
+- `warp mailhog ssh`
+- `warp mailhog ssh --root`
+- `warp mailhog ssh --mailhog`
+
+pueden resolver a shell como `root` dentro del contenedor.
+
+## Casos documentales
+
+Para evitar ambiguedad, la documentacion debe separarse asi:
+
+1. **Capability docs**
+   Usar naming `mail`.
+
+2. **Compat docs**
+   Aclarar que `warp mailhog` y `mailhog:1025` siguen vigentes.
+
+3. **Config docs**
+   Usar `config/mail`, nunca `config/mailpit`.
+
+4. **Env docs**
+   Usar `MAIL_BINDED_PORT`, `MAIL_ENGINE`, `MAIL_VERSION`.
+   Mencionar `MAILHOG_BINDED_PORT` solo como alias legacy.
+
+5. **Engine docs**
+   Hablar de Mailpit como backend actual.
+
+## Implementacion acordada
+
+1. cambiar imagen a `axllent/mailpit:${MAIL_VERSION}`
+2. mantener servicio y hostname `mailhog`
+3. montar `./.warp/docker/config/mail`
+4. configurar `MP_UI_AUTH_FILE=/mail-config/ui-auth.txt`
+5. publicar UI en `127.0.0.1:${MAIL_BINDED_PORT}:8025`
+6. dejar SMTP solo interno
+7. mantener `warp mailhog`
+8. crear/copiar `ui-auth.txt` con default `warp:warp`
+9. aceptar `MAILHOG_BINDED_PORT` como alias legacy
+
+## Validacion
+
+### Mail
 
 1. `warp start`
-2. abrir `http://127.0.0.1:${MAILHOG_BINDED_PORT}` y confirmar challenge basic auth
-3. validar acceso con credenciales correctas
-4. validar rechazo con credenciales invalidas
-5. enviar un mail de prueba desde PHP/Magento y confirmar recepcion
-6. confirmar que `curl -u user:pass http://127.0.0.1:${MAILHOG_BINDED_PORT}/api/v1/messages` responde OK
-7. confirmar que sin credenciales la API responde `401`
+2. abrir `http://127.0.0.1:${MAIL_BINDED_PORT}`
+3. confirmar challenge basic auth
+4. validar acceso con `warp:warp`
+5. validar rechazo sin credenciales o con credenciales invalidas
+6. enviar un mail de prueba desde PHP
+7. confirmar recepcion en UI
+8. confirmar que `curl -u warp:warp http://127.0.0.1:${MAIL_BINDED_PORT}/api/v1/messages` responde OK
 
-### Smoke core de Warp
+### Smoke core
 
 1. `./warp --help`
 2. `./warp init --help`
@@ -327,28 +205,3 @@ No veo valor en una segunda fase obligatoria de rename global.
 4. `./warp stop --help`
 5. `./warp info --help`
 6. `./warp docker ps`
-
-## Recomendacion final
-
-La forma correcta de incorporar Mailpit en Warp no es renombrar todo a `mailpit`, sino **mantener la capa historica `mailhog` como contrato externo y reemplazar el engine por debajo**.
-
-Ese enfoque:
-
-- desacopla la RFC de un proyecto concreto
-- respeta como Warp ya se viene moviendo
-- evita romper PHP, setup y comandos existentes
-- agrega auth donde corresponde
-- introduce `config/mail` como carpeta neutral y reutilizable del capability
-
-## Archivos relevados
-
-- `.warp/bin/mailhog.sh`
-- `.warp/bin/mailhog_help.sh`
-- `.warp/setup/mailhog/mailhog.sh`
-- `.warp/setup/mailhog/tpl/mailhog.yml`
-- `.warp/setup/init/developer.sh`
-- `.warp/setup/init/autoload.sh`
-- `.warp/setup/init/gandalf.sh`
-- `.warp/bin/init.sh`
-- `.warp/setup/php/config/php/php.ini`
-- `.warp/docker/config/php/php.ini`
