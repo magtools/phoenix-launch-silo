@@ -31,7 +31,7 @@ function init_help_usage()
     warp_message " 5) Search Service (OpenSearch/Elasticsearch compatibility)"
     warp_message " 6) Cache Service (Redis/Valkey compatibility)"
     warp_message " 7) RabbitMQ Service"
-    warp_message " 8) Mailhog SMTP Service"
+    warp_message " 8) Mail Service (legacy command: warp mailhog)"
     warp_message " 9) Varnish HTTP Acelerator"
     warp_message ""
     warp_message " If the program detects a previous configuration, it shows a shorter menu of options,"

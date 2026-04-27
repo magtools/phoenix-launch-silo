@@ -21,6 +21,16 @@ function warp_env_read_var()
     echo "$_VAR"
 }
 
+function warp_env_file_read_var()
+{
+    local _file="$1"
+    local _key="$2"
+    local _var=""
+
+    [ -f "$_file" ] && _var=$(grep "^${_key}=" "$_file" | cut -d '=' -f2-)
+    echo "$_var"
+}
+
 function warp_env_file_set_var()
 {
     local _file="$1"
@@ -55,6 +65,112 @@ function warp_env_ensure_var()
     [ -f "$ENVIRONMENTVARIABLESFILE" ] || return 1
     grep -q "^${_key}=" "$ENVIRONMENTVARIABLESFILE" 2>/dev/null && return 0
     warp_env_file_set_var "$ENVIRONMENTVARIABLESFILE" "$_key" "$_default"
+}
+
+function warp_env_read_mail_binded_port()
+{
+    local _mail_binded_port=""
+
+    _mail_binded_port=$(warp_env_read_var MAIL_BINDED_PORT)
+    [ -n "$_mail_binded_port" ] || _mail_binded_port=$(warp_env_read_var MAILHOG_BINDED_PORT)
+
+    echo "$_mail_binded_port"
+}
+
+function warp_env_file_sync_mail_binded_port()
+{
+    local _file="$1"
+    local _default="${2:-}"
+    local _canonical=""
+    local _legacy=""
+    local _resolved=""
+
+    [ -n "$_file" ] || return 1
+    [ -f "$_file" ] || return 0
+
+    _canonical=$(warp_env_file_read_var "$_file" MAIL_BINDED_PORT)
+    _legacy=$(warp_env_file_read_var "$_file" MAILHOG_BINDED_PORT)
+
+    if [ -n "$_canonical" ]; then
+        _resolved="$_canonical"
+    elif [ -n "$_legacy" ]; then
+        _resolved="$_legacy"
+    else
+        _resolved="$_default"
+    fi
+
+    [ -n "$_resolved" ] || return 0
+
+    warp_env_file_set_var "$_file" MAIL_BINDED_PORT "$_resolved" || return 1
+
+    if [ -n "$_legacy" ]; then
+        warp_env_file_set_var "$_file" MAILHOG_BINDED_PORT "$_resolved" || return 1
+    fi
+}
+
+function warp_mail_is_configured_in_file()
+{
+    local _file="$1"
+    local _mail_engine=""
+    local _mail_port=""
+    local _mail_port_legacy=""
+
+    [ -f "$_file" ] || return 1
+
+    _mail_engine=$(warp_env_file_read_var "$_file" MAIL_ENGINE)
+    _mail_port=$(warp_env_file_read_var "$_file" MAIL_BINDED_PORT)
+    _mail_port_legacy=$(warp_env_file_read_var "$_file" MAILHOG_BINDED_PORT)
+
+    [ -n "$_mail_engine" ] || [ -n "$_mail_port" ] || [ -n "$_mail_port_legacy" ]
+}
+
+function warp_mail_ensure_auth_files()
+{
+    local _env_file="${1:-$ENVIRONMENTVARIABLESFILE}"
+    local _config_dir="$PROJECTPATH/.warp/docker/config/mail"
+    local _setup_dir="$PROJECTPATH/.warp/setup/mailhog/config/mail"
+    local _target_auth="$_config_dir/ui-auth.txt"
+    local _target_sample="$_config_dir/ui-auth.txt.sample"
+    local _source_auth="$_setup_dir/ui-auth.txt"
+    local _source_sample="$_setup_dir/ui-auth.txt.sample"
+
+    warp_mail_is_configured_in_file "$_env_file" || return 0
+
+    mkdir -p "$_config_dir" || {
+        warp_message_error "unable to create mail config directory: $_config_dir"
+        return 1
+    }
+
+    [ -f "$_source_auth" ] || {
+        warp_message_error "mail auth template not found: $_source_auth"
+        return 1
+    }
+
+    [ -f "$_source_sample" ] || {
+        warp_message_error "mail auth sample template not found: $_source_sample"
+        return 1
+    }
+
+    [ -f "$_target_auth" ] || cp "$_source_auth" "$_target_auth" || {
+        warp_message_error "unable to create mail auth file: $_target_auth"
+        return 1
+    }
+
+    [ -f "$_target_sample" ] || cp "$_source_sample" "$_target_sample" || {
+        warp_message_error "unable to create mail auth sample file: $_target_sample"
+        return 1
+    }
+}
+
+function warp_mail_ensure_env_defaults()
+{
+    local _file="$1"
+
+    warp_mail_is_configured_in_file "$_file" || return 0
+
+    warp_env_file_set_var "$_file" MAIL_ENGINE "${MAIL_ENGINE_DEFAULT:-mailpit}" || return 1
+    warp_env_file_set_var "$_file" MAIL_VERSION "${MAIL_VERSION_DEFAULT:-v1.29}" || return 1
+    warp_env_file_sync_mail_binded_port "$_file" "${MAIL_BINDED_PORT_DEFAULT:-8025}" || return 1
 }
 
 # Generate RANDOM Password
