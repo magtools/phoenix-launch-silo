@@ -10,6 +10,7 @@ Warp adopta un contrato nuevo y mas generico para mail:
 - servicio y hostname de compatibilidad: `mailhog`
 - carpeta canonica de config: `./.warp/docker/config/mail`
 - auth HTTP obligatoria por archivo: `./.warp/docker/config/mail/ui-auth.txt`
+- storage persistente local: `./.warp/docker/volumes/mail`
 
 Compatibilidad de variables:
 
@@ -17,6 +18,7 @@ Compatibilidad de variables:
 - alias legacy aceptado: `MAILHOG_BINDED_PORT`
 - engine canonico: `MAIL_ENGINE=mailpit`
 - version canonica: `MAIL_VERSION=<tag>`
+- retencion canonica: `MAIL_MAX_MESSAGES=100`
 
 `MAILHOG_BINDED_PORT` queda solo como alias de lectura/fallback. Desde ahora Warp crea y mantiene `MAIL_BINDED_PORT`.
 
@@ -79,9 +81,12 @@ mailhog:
   hostname: "mailhog"
   environment:
     MP_UI_AUTH_FILE: /mail-config/ui-auth.txt
+    MP_DATABASE: /mail-data/mailpit.db
+    MP_MAX_MESSAGES: ${MAIL_MAX_MESSAGES}
     MP_DISABLE_VERSION_CHECK: 1
   volumes:
     - ./.warp/docker/config/mail:/mail-config:ro
+    - ./.warp/docker/volumes/mail:/mail-data
   expose:
     - "1025"
   ports:
@@ -102,6 +107,7 @@ Archivos canonicos:
 
 - `./.warp/docker/config/mail/ui-auth.txt`
 - `./.warp/docker/config/mail/ui-auth.txt.sample`
+- `./.warp/docker/volumes/mail`
 - `./.warp/setup/mailhog/config/mail/ui-auth.txt`
 - `./.warp/setup/mailhog/config/mail/ui-auth.txt.sample`
 
@@ -111,12 +117,15 @@ Contrato:
 - contenido default: `warp:warp`
 - el archivo se versiona junto con otras configs del proyecto
 - no se trata como secreto fuerte; es una barrera minima
+- los mensajes se persisten en SQLite local usando `./.warp/docker/volumes/mail`
+- Warp mantiene por default solo los ultimos `100` mensajes
 
 Bootstrap:
 
 - `warp init` debe crear/copiar `ui-auth.txt` si no existe
 - `warp update` y `warp update --self` deben crear/copiar `ui-auth.txt` si no existe
 - si falta el directorio `config/mail`, debe crearse
+- si falta `./.warp/docker/volumes/mail`, debe crearse
 
 ## Compatibilidad
 
@@ -166,7 +175,7 @@ Para evitar ambiguedad, la documentacion debe separarse asi:
    Usar `config/mail`, nunca `config/mailpit`.
 
 4. **Env docs**
-   Usar `MAIL_BINDED_PORT`, `MAIL_ENGINE`, `MAIL_VERSION`.
+   Usar `MAIL_BINDED_PORT`, `MAIL_ENGINE`, `MAIL_VERSION`, `MAIL_MAX_MESSAGES`.
    Mencionar `MAILHOG_BINDED_PORT` solo como alias legacy.
 
 5. **Engine docs**
@@ -178,11 +187,13 @@ Para evitar ambiguedad, la documentacion debe separarse asi:
 2. mantener servicio y hostname `mailhog`
 3. montar `./.warp/docker/config/mail`
 4. configurar `MP_UI_AUTH_FILE=/mail-config/ui-auth.txt`
-5. publicar UI en `127.0.0.1:${MAIL_BINDED_PORT}:8025`
-6. dejar SMTP solo interno
-7. mantener `warp mailhog`
-8. crear/copiar `ui-auth.txt` con default `warp:warp`
-9. aceptar `MAILHOG_BINDED_PORT` como alias legacy
+5. persistir mensajes en `./.warp/docker/volumes/mail` usando `MP_DATABASE=/mail-data/mailpit.db`
+6. limitar retencion por defecto con `MAIL_MAX_MESSAGES=100`
+7. publicar UI en `127.0.0.1:${MAIL_BINDED_PORT}:8025`
+8. dejar SMTP solo interno
+9. mantener `warp mailhog`
+10. crear/copiar `ui-auth.txt` con default `warp:warp`
+11. aceptar `MAILHOG_BINDED_PORT` como alias legacy
 
 ## Validacion
 

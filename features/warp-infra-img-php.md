@@ -82,13 +82,13 @@ mail:
   env_file: .env
   environment:
     MP_UI_AUTH_FILE: "/mail-config/ui-auth.txt"
-    MP_MAX_MESSAGES: "${MAIL_MAX_MESSAGES:-5000}"
-    MP_DATABASE: "/data/mailpit.db"
+    MP_MAX_MESSAGES: "${MAIL_MAX_MESSAGES:-100}"
+    MP_DATABASE: "/mail-data/mailpit.db"
   ports:
     - "1025"
     - "127.0.0.1:${MAIL_BINDED_PORT:-8025}:8025"
   volumes:
-    - "./.warp/docker/volumes/mailpit:/data"
+    - "./.warp/docker/volumes/mail:/mail-data"
     - "./.warp/docker/config/mail:/mail-config:ro"
   networks:
     - back
@@ -109,6 +109,7 @@ MAIL_VERSION=v1.29
 MAIL_SMTP_HOST=mailhog
 MAIL_SMTP_PORT=1025
 MAIL_BINDED_PORT=8025
+MAIL_MAX_MESSAGES=100
 ```
 
 ## 5. Configuracion PHP mail PoC
