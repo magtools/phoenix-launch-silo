@@ -170,7 +170,18 @@ function warp_mail_ensure_env_defaults()
 
     warp_env_file_set_var "$_file" MAIL_ENGINE "${MAIL_ENGINE_DEFAULT:-mailpit}" || return 1
     warp_env_file_set_var "$_file" MAIL_VERSION "${MAIL_VERSION_DEFAULT:-v1.29}" || return 1
+    warp_env_file_set_var "$_file" MAIL_MAX_MESSAGES "${MAIL_MAX_MESSAGES_DEFAULT:-100}" || return 1
     warp_env_file_sync_mail_binded_port "$_file" "${MAIL_BINDED_PORT_DEFAULT:-8025}" || return 1
+}
+
+function warp_mail_ensure_storage_dir()
+{
+    local _storage_dir="$PROJECTPATH/.warp/docker/volumes/mail"
+
+    mkdir -p "$_storage_dir" || {
+        warp_message_error "unable to create mail storage directory: $_storage_dir"
+        return 1
+    }
 }
 
 # Generate RANDOM Password

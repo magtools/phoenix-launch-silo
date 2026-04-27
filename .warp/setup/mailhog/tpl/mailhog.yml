@@ -5,9 +5,12 @@
     hostname: "mailhog"
     environment:
       MP_UI_AUTH_FILE: /mail-config/ui-auth.txt
+      MP_DATABASE: /mail-data/mailpit.db
+      MP_MAX_MESSAGES: 100
       MP_DISABLE_VERSION_CHECK: 1
     volumes:
       - ./.warp/docker/config/mail:/mail-config:ro
+      - ./.warp/docker/volumes/mail:/mail-data
     expose:
       - "1025"
     ports:

@@ -224,5 +224,6 @@ esac
 
     warp_mail_ensure_env_defaults "$ENVIRONMENTVARIABLESFILE" || exit 1
     warp_mail_ensure_auth_files "$ENVIRONMENTVARIABLESFILE" || exit 1
+    warp_mail_ensure_storage_dir || exit 1
 
     . "$WARPFOLDER/setup/init/info.sh"

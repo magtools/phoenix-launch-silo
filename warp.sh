@@ -1024,7 +1024,9 @@ warp_update_ensure_mail_defaults() {
     local _mail_engine_default="${MAIL_ENGINE_DEFAULT:-mailpit}"
     local _mail_version_default="${MAIL_VERSION_DEFAULT:-v1.29}"
     local _mail_binded_port_default="${MAIL_BINDED_PORT_DEFAULT:-8025}"
+    local _mail_max_messages_default="${MAIL_MAX_MESSAGES_DEFAULT:-100}"
     local _config_dir="$PROJECTPATH/.warp/docker/config/mail"
+    local _storage_dir="$PROJECTPATH/.warp/docker/volumes/mail"
     local _setup_dir="$PROJECTPATH/.warp/setup/mailhog/config/mail"
     local _target_auth="$_config_dir/ui-auth.txt"
     local _target_sample="$_config_dir/ui-auth.txt.sample"
@@ -1069,6 +1071,7 @@ warp_update_ensure_mail_defaults() {
             if command -v warp_env_file_set_var >/dev/null 2>&1; then
                 warp_env_file_set_var "$_file" MAIL_ENGINE "$_mail_engine_default" || return 1
                 warp_env_file_set_var "$_file" MAIL_VERSION "$_mail_version_default" || return 1
+                warp_env_file_set_var "$_file" MAIL_MAX_MESSAGES "$_mail_max_messages_default" || return 1
                 warp_env_file_set_var "$_file" MAIL_BINDED_PORT "$_resolved_port" || return 1
                 if [ -n "$_legacy_port" ]; then
                     warp_env_file_set_var "$_file" MAILHOG_BINDED_PORT "$_resolved_port" || return 1
@@ -1083,6 +1086,11 @@ warp_update_ensure_mail_defaults() {
                 grep -q "^MAIL_VERSION=" "$_file" 2>/dev/null && \
                     sed -e "s#^MAIL_VERSION=.*#MAIL_VERSION=${_mail_version_default}#g" "$_file" > "${_file}.warp_mail_tmp" || \
                     { cat "$_file" > "${_file}.warp_mail_tmp" && echo "MAIL_VERSION=${_mail_version_default}" >> "${_file}.warp_mail_tmp"; }
+                mv "${_file}.warp_mail_tmp" "$_file" || return 1
+
+                grep -q "^MAIL_MAX_MESSAGES=" "$_file" 2>/dev/null && \
+                    sed -e "s#^MAIL_MAX_MESSAGES=.*#MAIL_MAX_MESSAGES=${_mail_max_messages_default}#g" "$_file" > "${_file}.warp_mail_tmp" || \
+                    { cat "$_file" > "${_file}.warp_mail_tmp" && echo "MAIL_MAX_MESSAGES=${_mail_max_messages_default}" >> "${_file}.warp_mail_tmp"; }
                 mv "${_file}.warp_mail_tmp" "$_file" || return 1
 
                 grep -q "^MAIL_BINDED_PORT=" "$_file" 2>/dev/null && \
@@ -1105,7 +1113,10 @@ warp_update_ensure_mail_defaults() {
         if [ -f "$_sample_file" ]; then
             warp_mail_ensure_auth_files "$_sample_file" || return 1
         fi
-        return 0
+        if command -v warp_mail_ensure_storage_dir >/dev/null 2>&1; then
+            warp_mail_ensure_storage_dir || return 1
+            return 0
+        fi
     fi
 
     mkdir -p "$_config_dir" || {
@@ -1130,6 +1141,11 @@ warp_update_ensure_mail_defaults() {
 
     [ -f "$_target_sample" ] || cp "$_source_sample" "$_target_sample" || {
         warp_message_error "unable to create mail auth sample file: $_target_sample"
+        return 1
+    }
+
+    mkdir -p "$_storage_dir" || {
+        warp_message_error "unable to create mail storage directory: $_storage_dir"
         return 1
     }
 }
