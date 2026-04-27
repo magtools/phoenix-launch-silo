@@ -42,7 +42,7 @@ Estado de PoC al 2026-04-16:
 2. ambos builds `linux/amd64` funcionaron localmente;
 3. el build `linux/arm64` quedo bloqueado por falta de soporte Arm en el builder Docker local (`exec format error`);
 4. antes de estimar esfuerzo real de `c7g`, falta validar en builder Arm/QEMU que PHP 8.4 compile todas las extensiones en `arm64`;
-5. el reemplazo de mail local propuesto es Mailpit + `msmtp`, evitando `mhsendmail_linux_amd64`.
+5. el capability de mail local propuesto para Warp es `mail` con backend Mailpit; hacia afuera se conserva compatibilidad legacy `mailhog` y se evita `mhsendmail_linux_amd64`.
 
 ## 3. Datos externos relevantes
 
@@ -110,7 +110,7 @@ Imagenes efectivas del compose:
 | `mysql` | `mariadb:11.4` | Buen candidato Arm por imagen oficial moderna, sujeto a prueba de datos y tuning. |
 | `elasticsearch` | `opensearchproject/opensearch:2.12.0` | Candidato razonable, pero hay que validar tag, plugin `analysis-phonetic`, heap y volumen. |
 | `redis-*` | `redis:7.2` | Buen candidato Arm por imagen oficial moderna. |
-| `mail` | servicio legacy de captura de mail en el caso observado | Reemplazable. Para PoC multiarch se prefiere evaluar Mailpit por imagen multiarch y autenticacion UI/API. |
+| `mail` | capability de captura de mail en desarrollo | En Warp conviene documentarlo como `mail`, mantener compatibilidad legacy `mailhog` en CLI/hostname y usar Mailpit por imagen multiarch con auth UI/API. |
 
 Lectura del caso:
 

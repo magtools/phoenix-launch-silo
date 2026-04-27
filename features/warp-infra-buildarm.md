@@ -234,13 +234,14 @@ Crear red temporal:
 docker network create warp-poc
 ```
 
-Levantar Mailpit:
+Levantar Mailpit para el capability `mail` de Warp:
 
 ```bash
 docker run -d --rm \
   --name warp-poc-mail \
   --network warp-poc \
-  -e MP_UI_AUTH="dev:dev" \
+  -v "$PWD/.tmp-mail-config:/mail-config:ro" \
+  -e MP_UI_AUTH_FILE="/mail-config/ui-auth.txt" \
   axllent/mailpit:latest
 ```
 
@@ -253,7 +254,7 @@ docker run --rm --network warp-poc --entrypoint php warp/php:8.4-fpm-poc-arm64 -
 Validar por API interna:
 
 ```bash
-docker run --rm --network warp-poc curlimages/curl:latest -s -u dev:dev http://warp-poc-mail:8025/api/v1/messages
+docker run --rm --network warp-poc curlimages/curl:latest -s -u warp:warp http://warp-poc-mail:8025/api/v1/messages
 ```
 
 Limpiar:
@@ -265,8 +266,9 @@ docker network rm warp-poc
 
 Nota:
 
-1. `MP_UI_AUTH` sirve para PoC rapida.
-2. En templates de Warp conviene preferir `MP_UI_AUTH_FILE` para no exponer credenciales en `docker inspect`.
+1. para una PoC local, crear antes `mkdir -p .tmp-mail-config && printf 'warp:warp\n' > .tmp-mail-config/ui-auth.txt`.
+2. el contrato final de Warp prefiere `MP_UI_AUTH_FILE` y `config/mail/ui-auth.txt`.
+3. aunque el capability/documentacion sea `mail`, Warp mantiene compatibilidad legacy con `warp mailhog` y hostname `mailhog`.
 
 ## 8. Publicar/verificar manifest multiarch
 
@@ -356,7 +358,7 @@ Para considerar validado el hito Arm:
 5. Composer, Node, npm, Yarn y `msmtp` responden.
 6. Todas las extensiones minimas esperadas cargan.
 7. `php-fpm -t` pasa.
-8. `mail()` envia a Mailpit usando `msmtp`.
+8. `mail()` envia al capability `mail` usando Mailpit como backend.
 9. No aparece ningun binario `*_amd64` requerido en runtime.
 
 ## 11. Fallos esperables
@@ -367,7 +369,7 @@ Para considerar validado el hito Arm:
 | Falla `pecl install imagick` | Dependencias de ImageMagick o version PECL. | Revisar headers `libmagickwand-dev` y version PECL. |
 | Falla `ssh2-1.3.1` | Incompatibilidad con libssh2/PHP. | Probar version PECL mas nueva o parchear dependencia. |
 | Falla NodeSource | Repo no entrega paquete para arm64 o problema temporal. | Verificar repo, usar Node oficial o paquete Debian si alcanza. |
-| `mail()` devuelve false | `sendmail_path` o red con Mailpit. | Probar `msmtp --debug`, revisar host `mail` y red Docker. |
+| `mail()` devuelve false | `sendmail_path` o red con Mailpit. | Probar `msmtp --debug`, revisar host `mailhog` y red Docker. |
 | Imagen demasiado grande | Build deps quedan en runtime. | Separar build/runtime en una version posterior; no bloquear PoC inicial. |
 
 ## 12. Limpieza
