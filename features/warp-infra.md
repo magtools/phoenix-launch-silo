@@ -108,7 +108,7 @@ Imagenes efectivas del compose:
 | `php` | `summasolutions/php:8.4-fpm` | Principal bloqueo. Hay que verificar manifest o reemplazar/crear imagen propia. |
 | `appdata` | `summasolutions/appdata:latest` | Bloqueo secundario. Probablemente reemplazable por imagen simple multiarch. |
 | `mysql` | `mariadb:11.4` | Buen candidato Arm por imagen oficial moderna, sujeto a prueba de datos y tuning. |
-| `elasticsearch` | `opensearchproject/opensearch:2.12.0` | Candidato razonable, pero hay que validar tag, plugin `analysis-phonetic`, heap y volumen. |
+| `elasticsearch` | `opensearchproject/opensearch:2.12.0` | Candidato razonable, pero hay que validar tag, plugin `analysis-phonetic`, heap y path de datos (`data` vs legado `nodes`). |
 | `redis-*` | `redis:7.2` | Buen candidato Arm por imagen oficial moderna. |
 | `mail` | capability de captura de mail en desarrollo | En Warp conviene documentarlo como `mail`, mantener compatibilidad legacy `mailhog` en CLI/hostname y usar Mailpit por imagen multiarch con auth UI/API. |
 
