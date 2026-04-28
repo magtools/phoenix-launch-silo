@@ -8,6 +8,8 @@ La decision propuesta es:
 
 - mantener `docker-compose-warp.yml.sample` como base actual legacy/dev
 - agregar `docker-compose-warp.prod.yml.sample`
+- generar ambos samples por default en `init`
+- dejar que el TL decida manualmente en el server si toma el sample `prod`
 - en el template `prod`, bindear puertos sensibles a `127.0.0.1`
 
 Esto evita ruido innecesario en `.env` y evita abrir una matriz de politicas por servicio cuando el caso de uso real es mucho mas simple.
@@ -158,7 +160,25 @@ Con esto:
 - el servicio sigue accesible por CLI desde el server
 - no queda escuchando en interfaces externas
 
-### 3. Agregar variables de host port explicitas donde hoy no existen
+### 3. Generar ambos samples sin pedir decision en setup
+
+La decision de usar `prod` no deberia bloquear `init`.
+
+La propuesta es:
+
+- `init` genera siempre `docker-compose-warp.yml.sample`
+- `init` genera siempre `docker-compose-warp.prod.yml.sample`
+- `docker-compose-warp.yml` sigue naciendo desde el sample `dev/legacy`
+- el TL decide manualmente si en server quiere copiar o tomar el sample `prod`
+
+Esto desacopla:
+
+- la preparacion del proyecto
+- de la decision operativa final del server
+
+Y evita meter preguntas extra en el wizard para un caso que no siempre aplica.
+
+### 4. Agregar variables de host port explicitas donde hoy no existen
 
 Para que el template `prod` sea reproducible, Redis y Search no deberian depender de host ports aleatorios.
 
@@ -176,42 +196,7 @@ MySQL ya tiene:
 
 Estas variables no necesitan forzarse en el perfil legacy/dev si hoy el contrato no las usa.
 
-## 4. Seleccion del compose desde setup
-
-En vez de meter logica de exposicion por servicio, `init` solo deberia decidir que compose sample usar.
-
-Opciones recomendadas:
-
-- `legacy/dev`
-- `prod`
-
-Persistencia minima sugerida:
-
-```dotenv
-WARP_RUNTIME_PROFILE=dev
-```
-
-o
-
-```dotenv
-WARP_RUNTIME_PROFILE=prod
-```
-
-Y luego:
-
-- `dev` copia o genera desde `docker-compose-warp.yml.sample`
-- `prod` copia o genera desde `docker-compose-warp.prod.yml.sample`
-
-## 5. Seleccion equivalente en Gandalf
-
-`gandalf` deberia soportar algo como:
-
-- `--runtime-profile=dev`
-- `--runtime-profile=prod`
-
-No hace falta abrir mas flags que eso para esta feature.
-
-## 6. Mantener la red interna intacta
+## 5. Mantener la red interna intacta
 
 No conviene cambiar:
 
@@ -246,7 +231,7 @@ Eso implica definir claramente como se ensambla el compose final `prod`.
 - `.warp/setup/redis/tpl/redis_fpc.yml`
 - `.warp/setup/elasticsearch/tpl/elasticsearch.yml`
 
-### Setup y seleccion de perfil
+### Setup y generacion de samples
 
 - `.warp/setup/init/*`
 - `.warp/setup/init/gandalf.sh`
@@ -306,7 +291,7 @@ Tambien mete menos ruido porque evita:
 1. Definir el mecanismo de seleccion de compose `dev` vs `prod`.
 2. Crear variante `prod` para MySQL, Redis y Search con binds a `127.0.0.1`.
 3. Agregar variables de host port explicitas para Redis y Search.
-4. Adaptar `init` y `gandalf` para seleccionar el perfil.
+4. Adaptar `init` y `gandalf` para generar ambos samples por default.
 5. Actualizar documentacion y ayudas CLI donde se asuma exposicion publica.
 
 ## Validacion minima
