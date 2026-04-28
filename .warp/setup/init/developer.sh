@@ -189,7 +189,7 @@ warp_message_info "Configuring Web Server - Nginx"
         B="$(echo $http_container_ip | cut -f2 -d . )"
         C="$(echo $http_container_ip | cut -f3 -d . )"
         
-        NETWORK_SUBNET_NEW="NETWORK_SUBNET=$A.$B.$C.0\/24"
+        NETWORK_SUBNET_NEW="NETWORK_SUBNET=$A.$B.$C.0/24"
         NETWORK_GATEWAY_NEW="NETWORK_GATEWAY=$A.$B.$C.1"
 
         # Switch YAML to multi-project mode
@@ -202,7 +202,7 @@ warp_message_info "Configuring Web Server - Nginx"
         HTTP_BINDED_NEW="HTTP_BINDED_PORT=$http_port"
         HTTPS_BINDED_NEW="HTTPS_BINDED_PORT=$https_port"
 
-        NETWORK_SUBNET_NEW="NETWORK_SUBNET=0.0.0.0\/24"
+        NETWORK_SUBNET_NEW="NETWORK_SUBNET=0.0.0.0/24"
         NETWORK_GATEWAY_NEW="NETWORK_GATEWAY=0.0.0.0"
 
         # Switch YAML to single-project mode
