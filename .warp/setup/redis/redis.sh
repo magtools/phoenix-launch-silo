@@ -117,12 +117,14 @@ then
     cache_config_file_cache=$( warp_question_ask_default "Set Redis configuration file: $(warp_message_info [$(redis_setup_default_config)]) " "$(redis_setup_default_config)" )
     warp_message_info2 "Selected configuration file: $cache_config_file_cache"
     
-    cat $PROJECTPATH/.warp/setup/redis/tpl/redis_cache.yml >> $DOCKERCOMPOSEFILESAMPLE
+    warp_compose_sample_append_dev \
+        "$PROJECTPATH/.warp/setup/redis/tpl/redis_cache.yml" || exit 1
 
     echo "REDIS_CACHE_VERSION=$resp_version_cache" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "REDIS_CACHE_CONF=$cache_config_file_cache" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "REDIS_CACHE_MAXMEMORY=512mb" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "REDIS_CACHE_MAXMEMORY_POLICY=allkeys-lru" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "REDIS_CACHE_BINDED_PORT=6379" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "" >> $ENVIRONMENTVARIABLESFILESAMPLE
     REDIS_SERVICE_SELECTED=1
     [ -n "$CACHE_CANON_SCOPE" ] || CACHE_CANON_SCOPE="cache"
@@ -170,12 +172,14 @@ then
     cache_config_file_session=$( warp_question_ask_default "Set Redis configuration file: $(warp_message_info [$(redis_setup_default_config)]) " "$(redis_setup_default_config)" )
     warp_message_info2 "Selected configuration file: $cache_config_file_session"
 
-    cat $PROJECTPATH/.warp/setup/redis/tpl/redis_session.yml >> $DOCKERCOMPOSEFILESAMPLE
+    warp_compose_sample_append_dev \
+        "$PROJECTPATH/.warp/setup/redis/tpl/redis_session.yml" || exit 1
 
     echo "REDIS_SESSION_VERSION=$resp_version_session" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "REDIS_SESSION_CONF=$cache_config_file_session" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "REDIS_SESSION_MAXMEMORY=256mb" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "REDIS_SESSION_MAXMEMORY_POLICY=noeviction" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "REDIS_SESSION_BINDED_PORT=6380" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "" >> $ENVIRONMENTVARIABLESFILESAMPLE
     REDIS_SERVICE_SELECTED=1
     if [ -z "$CACHE_CANON_SCOPE" ]; then
@@ -225,12 +229,14 @@ then
     cache_config_file_fpc=$( warp_question_ask_default "Set Redis configuration file: $(warp_message_info [$(redis_setup_default_config)]) " "$(redis_setup_default_config)" )
     warp_message_info2 "Selected configuration file: $cache_config_file_fpc"
 
-    cat $PROJECTPATH/.warp/setup/redis/tpl/redis_fpc.yml >> $DOCKERCOMPOSEFILESAMPLE
+    warp_compose_sample_append_dev \
+        "$PROJECTPATH/.warp/setup/redis/tpl/redis_fpc.yml" || exit 1
 
     echo "REDIS_FPC_VERSION=$resp_version_fpc" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "REDIS_FPC_CONF=$cache_config_file_fpc" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "REDIS_FPC_MAXMEMORY=512mb" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "REDIS_FPC_MAXMEMORY_POLICY=allkeys-lru" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "REDIS_FPC_BINDED_PORT=6381" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "" >> $ENVIRONMENTVARIABLESFILESAMPLE
     REDIS_SERVICE_SELECTED=1
     if [ -z "$CACHE_CANON_SCOPE" ]; then

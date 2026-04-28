@@ -4,5 +4,5 @@ sleep 1
 
     if [ ! -z "$docker_private_registry" ]
     then
-        cat $PROJECTPATH/.warp/setup/volumes/tpl/volumes.yml >> $DOCKERCOMPOSEFILESAMPLE
+        warp_compose_sample_append_dev "$PROJECTPATH/.warp/setup/volumes/tpl/volumes.yml" || exit 1
     fi    

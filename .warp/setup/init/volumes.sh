@@ -1,4 +1,4 @@
-cat $PROJECTPATH/.warp/setup/init/tpl/appdata.yml >> $DOCKERCOMPOSEFILESAMPLE
+warp_compose_sample_append_dev "$PROJECTPATH/.warp/setup/init/tpl/appdata.yml" || exit 1
 
 cp -R $PROJECTPATH/.warp/setup/init/config/appdata $PROJECTPATH/.warp/docker/config/appdata
 cp -R $PROJECTPATH/.warp/setup/init/config/bash $PROJECTPATH/.warp/docker/config/bash

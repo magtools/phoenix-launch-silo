@@ -115,7 +115,7 @@ then
     unset GETOUT_F
     unset PHP_EXTRA_LIBS
 
-    cat $PROJECTPATH/.warp/setup/php/tpl/php.yml >> $DOCKERCOMPOSEFILESAMPLE
+    warp_compose_sample_append_dev "$PROJECTPATH/.warp/setup/php/tpl/php.yml" || exit 1
 
     echo ""  >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "# Config PHP" >> $ENVIRONMENTVARIABLESFILESAMPLE

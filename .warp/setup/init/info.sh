@@ -52,6 +52,8 @@ then
     mv $ENVIRONMENTVARIABLESFILE.tmp $ENVIRONMENTVARIABLESFILE
 fi
 
+warp_compose_prod_generate_from_final "$DOCKERCOMPOSEFILE" "$DOCKERCOMPOSEFILEPROD" || exit 1
+
 # creating ext-ioncube.ini
 if  [ ! -f $PROJECTPATH/.warp/docker/config/php/ext-ioncube.ini ] && [ -f $PROJECTPATH/.warp/docker/config/php/ext-ioncube.ini.sample ]
 then
@@ -130,6 +132,9 @@ fi
 
 warp_message_warn "To start the containers: $(warp_message_bold './warp start')"
 warp_message_warn "To see detailed information for each service configured: $(warp_message_bold './warp info')"
+if [ -f "$DOCKERCOMPOSEFILEPROD" ]; then
+    warp_message_warn "Production compose available: $(warp_message_bold './$(basename "$DOCKERCOMPOSEFILEPROD")')"
+fi
 
 case "$(uname -s)" in
     Darwin)

@@ -27,7 +27,7 @@ then
         fi;
     done
 
-    cat $PROJECTPATH/.warp/setup/mailhog/tpl/mailhog.yml >> $DOCKERCOMPOSEFILESAMPLE
+    warp_compose_sample_append_dev "$PROJECTPATH/.warp/setup/mailhog/tpl/mailhog.yml" || exit 1
 
     echo "# Config Mail" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "MAIL_ENGINE=$MAIL_ENGINE_DEFAULT" >> $ENVIRONMENTVARIABLESFILESAMPLE

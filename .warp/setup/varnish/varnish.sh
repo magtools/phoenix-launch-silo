@@ -40,7 +40,7 @@ then
     done
     warp_message_info2 "Selected version of varnish: $varnish_version"
 
-    cat $PROJECTPATH/.warp/setup/varnish/tpl/varnish.yml >> $DOCKERCOMPOSEFILESAMPLE
+    warp_compose_sample_append_dev "$PROJECTPATH/.warp/setup/varnish/tpl/varnish.yml" || exit 1
 fi; 
 
 echo "" >> $ENVIRONMENTVARIABLESFILESAMPLE

@@ -84,13 +84,16 @@ then
     elasticsearch_memory=$( warp_question_ask_default "Set memory limit of elasticsearch: $(warp_message_info [1g]) " "1g" )
     warp_message_info2 "Selected memory limit of elasticsearch: $elasticsearch_memory"
 
-    cat $PROJECTPATH/.warp/setup/elasticsearch/tpl/elasticsearch.yml >> $DOCKERCOMPOSEFILESAMPLE
+    warp_compose_sample_append_dev \
+        "$PROJECTPATH/.warp/setup/elasticsearch/tpl/elasticsearch.yml" || exit 1
 
     echo ""  >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "# Elasticsearch" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "ES_VERSION=$elasticsearch_version" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "ES_MEMORY=$elasticsearch_memory" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "ES_PASSWORD=XmsES_MEMORY++99" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "SEARCH_HTTP_BINDED_PORT=9200" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "SEARCH_TRANSPORT_BINDED_PORT=9300" >> $ENVIRONMENTVARIABLESFILESAMPLE
     search_setup_write_canonical_env "$search_engine" "$elasticsearch_version" "${search_image_repo}:${elasticsearch_version}"
 
     warp_search_engine_ensure_runtime_config "$search_engine" || {

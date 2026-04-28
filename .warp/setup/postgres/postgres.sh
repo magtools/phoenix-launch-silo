@@ -93,10 +93,10 @@ then
     done
 
     if [ "$psql_use_project_specific" = "Y" ] || [ "$psql_use_project_specific" = "y" ]; then
-        cat $PROJECTPATH/.warp/setup/postgres/tpl/postgres_custom.yml >> $DOCKERCOMPOSEFILESAMPLE
+        warp_compose_sample_append_dev "$PROJECTPATH/.warp/setup/postgres/tpl/postgres_custom.yml" || exit 1
     else
-        cat $PROJECTPATH/.warp/setup/postgres/tpl/postgres.yml >> $DOCKERCOMPOSEFILESAMPLE
-    fi    
+        warp_compose_sample_append_dev "$PROJECTPATH/.warp/setup/postgres/tpl/postgres.yml" || exit 1
+    fi
 
     echo ""  >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "# PostgreSQL Configuration" >> $ENVIRONMENTVARIABLESFILESAMPLE
