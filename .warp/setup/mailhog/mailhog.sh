@@ -37,7 +37,7 @@ then
 
     echo "" >> $ENVIRONMENTVARIABLESFILESAMPLE
 
-    warp_env_file_sync_mail_binded_port "$ENVIRONMENTVARIABLESFILESAMPLE" "$mailhog_binded_port" || exit 1
+    warp_env_file_set_mail_binded_port "$ENVIRONMENTVARIABLESFILESAMPLE" "$mailhog_binded_port" || exit 1
     warp_mail_ensure_auth_files "$ENVIRONMENTVARIABLESFILESAMPLE" || exit 1
     warp_mail_ensure_storage_dir || exit 1
 

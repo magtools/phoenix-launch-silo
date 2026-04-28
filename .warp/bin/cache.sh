@@ -473,6 +473,190 @@ cache_external_cli_exec() {
     fi
 }
 
+cache_scope_description() {
+    case "$1" in
+        cache) echo "app cache" ;;
+        fpc) echo "full page cache" ;;
+        session) echo "sessions" ;;
+        *) echo "cache" ;;
+    esac
+}
+
+cache_health_status_from_keys() {
+    local _keys="$1"
+
+    if [ -z "$_keys" ] || [ "$_keys" = "0" ]; then
+        echo "ok (empty)"
+        return 0
+    fi
+
+    echo "ok (in use)"
+}
+
+cache_local_cli_exec_scope() {
+    local _scope="$1"
+    local _service=""
+
+    shift
+    _service=$(redis_scope_to_service "$_scope")
+    [ -n "$_service" ] || return 1
+
+    docker-compose -f "$DOCKERCOMPOSEFILE" exec -T -u root "$_service" "$(redis_runtime_cli_bin)" "$@"
+}
+
+cache_health_local_scope() {
+    local _scope="$1"
+    local _service=""
+    local _desc=""
+    local _ping=""
+    local _version=""
+    local _keys=""
+    local _status=""
+
+    _service=$(redis_scope_to_service "$_scope")
+    _desc=$(cache_scope_description "$_scope")
+
+    if [ "$(warp_fallback_compose_has_service "$_service")" != "true" ]; then
+        return 0
+    fi
+
+    _ping=$(cache_local_cli_exec_scope "$_scope" PING 2>/dev/null | tr -d '\r' | head -n1)
+    if [ "$_ping" != "PONG" ]; then
+        warp_message " - ${_scope}   db=0   $(warp_message_warn "error")   keys=n/a   ${_desc}"
+        return 1
+    fi
+
+    _version=$(cache_local_cli_exec_scope "$_scope" INFO server 2>/dev/null | awk -F: '/^(redis_version|valkey_version):/{gsub(/\r/,"",$2); print $2; exit}')
+    _keys=$(cache_local_cli_exec_scope "$_scope" DBSIZE 2>/dev/null | tr -d '\r' | head -n1)
+    [ -z "$_keys" ] && _keys="0"
+    _status=$(cache_health_status_from_keys "$_keys")
+
+    if [ -n "$_version" ] && [ -z "$WARP_CACHE_HEALTH_VERSION" ]; then
+        WARP_CACHE_HEALTH_VERSION="$_version"
+    fi
+
+    warp_message " - ${_scope}   db=0   $(warp_message_info "$_status")   keys=$(warp_message_info "$_keys")   ${_desc}"
+    return 0
+}
+
+cache_health_external_scope() {
+    local _scope="$1"
+    local _desc=""
+    local _ping=""
+    local _version=""
+    local _keys=""
+    local _status=""
+    local _rc=0
+
+    _desc=$(cache_scope_description "$_scope")
+    cache_load_context "$_scope"
+
+    if [ -z "$WARP_CTX_HOST" ]; then
+        warp_message " - ${_scope}   db=$(warp_message_warn "[not set]")   $(warp_message_warn "warn (endpoint missing)")   keys=n/a   ${_desc}"
+        return 1
+    fi
+
+    cache_external_cli_required >/dev/null 2>&1 || {
+        warp_message_error "redis-cli/valkey-cli not found on host."
+        warp_message_warn "Install redis-tools or valkey tools and retry."
+        return 1
+    }
+
+    _ping=$(cache_external_cli_exec "PING" 2>/dev/null | tr -d '\r' | head -n1)
+    _rc=$?
+    if [ "$_rc" -ne 0 ] || [ "$_ping" != "PONG" ]; then
+        cache_print_external_connection_details "redis-cli/valkey-cli could not reach the endpoint."
+        warp_message " - ${_scope}   db=${WARP_CTX_DB_INDEX:-0}   $(warp_message_warn "error")   keys=n/a   ${_desc}"
+        return 1
+    fi
+
+    _version=$(cache_external_cli_exec "INFO server" 2>/dev/null | awk -F: '/^(redis_version|valkey_version):/{gsub(/\r/,"",$2); print $2; exit}')
+    _keys=$(cache_external_cli_exec "DBSIZE" 2>/dev/null | tr -d '\r' | head -n1)
+    [ -z "$_keys" ] && _keys="0"
+    _status=$(cache_health_status_from_keys "$_keys")
+
+    if [ -n "$_version" ] && [ -z "$WARP_CACHE_HEALTH_VERSION" ]; then
+        WARP_CACHE_HEALTH_VERSION="$_version"
+    fi
+
+    warp_message " - ${_scope}   db=${WARP_CTX_DB_INDEX:-0}   $(warp_message_info "$_status")   keys=$(warp_message_info "$_keys")   ${_desc}"
+    return 0
+}
+
+cache_health_main() {
+    local _overall="ok"
+    local _mode=""
+    local _engine=""
+    local _scope_rc=0
+    local _scopes_output=""
+    local _scope_output=""
+
+    if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
+        redis_health_help
+        return 0
+    fi
+
+    if ! warp_check_env_file; then
+        warp_message_error "file not found $(basename "$ENVIRONMENTVARIABLESFILE")"
+        return 1
+    fi
+
+    cache_load_context
+    _mode="${WARP_CTX_MODE:-unknown}"
+    _engine="${WARP_CTX_ENGINE:-redis}"
+    WARP_CACHE_HEALTH_VERSION=""
+
+    if [ "$_mode" = "local" ] && [ "$(warp_check_is_running)" = "false" ]; then
+        warp_message_error "The containers are not running"
+        warp_message_error "please, first run warp start"
+        return 1
+    fi
+
+    if [ "$_mode" = "external" ]; then
+        _scope_output=$(cache_health_external_scope "cache")
+        _scope_rc=$?
+        _scopes_output="${_scopes_output}${_scope_output}"$'\n'
+        [ "$_scope_rc" -eq 0 ] || _overall="error"
+        _scope_rc=0
+        _scope_output=$(cache_health_external_scope "fpc")
+        _scope_rc=$?
+        _scopes_output="${_scopes_output}${_scope_output}"$'\n'
+        [ "$_scope_rc" -eq 0 ] || _overall="error"
+        _scope_rc=0
+        _scope_output=$(cache_health_external_scope "session")
+        _scope_rc=$?
+        _scopes_output="${_scopes_output}${_scope_output}"$'\n'
+        [ "$_scope_rc" -eq 0 ] || _overall="error"
+    else
+        _scope_output=$(cache_health_local_scope "cache")
+        _scope_rc=$?
+        _scopes_output="${_scopes_output}${_scope_output}"$'\n'
+        [ "$_scope_rc" -eq 0 ] || _overall="error"
+        _scope_rc=0
+        _scope_output=$(cache_health_local_scope "fpc")
+        _scope_rc=$?
+        _scopes_output="${_scopes_output}${_scope_output}"$'\n'
+        [ "$_scope_rc" -eq 0 ] || _overall="error"
+        _scope_rc=0
+        _scope_output=$(cache_health_local_scope "session")
+        _scope_rc=$?
+        _scopes_output="${_scopes_output}${_scope_output}"$'\n'
+        [ "$_scope_rc" -eq 0 ] || _overall="error"
+    fi
+
+    warp_message ""
+    warp_message_info "CACHE health: ${_overall}"
+    warp_message "Engine:                     $(warp_message_info "$_engine")"
+    warp_message "Mode:                       $(warp_message_info "$_mode")"
+    [ -n "$WARP_CACHE_HEALTH_VERSION" ] && warp_message "Version:                    $(warp_message_info "$WARP_CACHE_HEALTH_VERSION")"
+    warp_message ""
+    warp_message_info "Scopes:"
+    printf '%s' "$_scopes_output"
+    warp_message ""
+
+    [ "$_overall" = "ok" ]
+}
+
 cache_info_external_scope() {
     local _scope="$1"
     local _health="unknown"
@@ -684,6 +868,11 @@ function cache_main()
             else
                 redis_info
             fi
+        ;;
+
+        health)
+            shift
+            cache_health_main "$@"
         ;;
 
         ssh)

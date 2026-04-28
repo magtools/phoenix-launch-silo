@@ -2,6 +2,30 @@
 
 let CHECK_GANDALF_ERRORS=0
 
+if [[ ! -z $GF_NAMESPACE ]]
+then
+    if ! warp_env_is_valid_image_name_component "$GF_NAMESPACE"; then
+        warp_message_info2 "Selected namespace: $GF_NAMESPACE. Use only lowercase letters or numbers, optionally separated by one hyphen."
+        let CHECK_GANDALF_ERRORS=$CHECK_GANDALF_ERRORS+1
+    fi
+fi
+
+if [[ ! -z $GF_PROJECT ]]
+then
+    if ! warp_env_is_valid_image_name_component "$GF_PROJECT"; then
+        warp_message_info2 "Selected project: $GF_PROJECT. Use only lowercase letters or numbers, optionally separated by one hyphen."
+        let CHECK_GANDALF_ERRORS=$CHECK_GANDALF_ERRORS+1
+    fi
+fi
+
+if [[ ! -z $GF_PRIVATE_REGISTRY ]]
+then
+    if ! warp_env_is_valid_private_registry "$GF_PRIVATE_REGISTRY"; then
+        warp_message_info2 "Selected private registry: $GF_PRIVATE_REGISTRY. Use host[:port][/namespace] without http:// or https:// and without trailing slash."
+        let CHECK_GANDALF_ERRORS=$CHECK_GANDALF_ERRORS+1
+    fi
+fi
+
 if [[ -z $GF_NGINX_VHOST ]]
 then
     warp_message_info2 "--vhost is a required parameter"

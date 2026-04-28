@@ -15,6 +15,7 @@ function redis_help_usage()
 
     warp_message_info "Available commands:"
 
+    warp_message_info   " health             $(warp_message 'show runtime cache health by scope')"
     warp_message_info   " cli                $(warp_message 'run the cache CLI command inside the redis/valkey container')"
     warp_message_info   " monitor            $(warp_message 'run the monitor command inside the redis/valkey container')"
     warp_message_info   " ssh                $(warp_message 'connect to cache services by shell')"
@@ -126,6 +127,20 @@ redis_info_help() {
     warp_message " show current cache connectivity information."
     warp_message " in external mode it checks cache, fpc and session endpoints from .env using redis-cli/valkey-cli and"
     warp_message " reports host, port, database, ping health and detected server version."
+    warp_message ""
+}
+
+redis_health_help() {
+    warp_message ""
+    warp_message_info "Usage:"
+    warp_message      " warp cache health"
+    warp_message ""
+
+    warp_message ""
+    warp_message_info "Help:"
+    warp_message " show current cache runtime health in a short format."
+    warp_message " it checks cache, fpc and session scopes, reports db index, key count and a short usage label."
+    warp_message " in external mode it uses redis-cli/valkey-cli against CACHE_* endpoint variables from .env."
     warp_message ""
 }
 

@@ -119,8 +119,10 @@ if [ ! -f "$WARP_BINARY_FILE" ] ; then
 elif warp_init_is_current_wrapper "$WARP_BINARY_FILE" "$WARP_WRAPPER_TEMPLATE"; then
     warp_message "* Warp wrapper $(warp_message_ok [ok])"
 elif warp_init_is_legacy_wrapper "$WARP_BINARY_FILE"; then
-    warp_message "* Replacing legacy warp wrapper $(warp_message_ok [ok])"
-    sudo sh "$PROJECTPATH/.warp/lib/binary.sh" "$WARP_BINARY_FILE" "$WARP_WRAPPER_TEMPLATE"
+    warp_message "* Legacy warp wrapper exists at $WARP_BINARY_FILE $(warp_message_warn [skip])"
+    warp_message_warn "Warp init will not replace an existing wrapper automatically."
+    warp_message_warn "To replace it manually with the canonical wrapper:"
+    warp_message_warn "sudo cp \"$WARP_WRAPPER_TEMPLATE\" \"$WARP_BINARY_FILE\" && sudo chmod 755 \"$WARP_BINARY_FILE\""
 else
     warp_message "* Warp binary exists at $WARP_BINARY_FILE $(warp_message_warn [skip])"
     warp_message_warn "To replace it manually with the canonical wrapper:"

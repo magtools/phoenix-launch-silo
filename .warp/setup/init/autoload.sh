@@ -158,7 +158,7 @@ esac
 
     if [ ! -z "$MAIL_BINDED_PORT_CURRENT" ]
     then
-        warp_env_file_sync_mail_binded_port "$ENVIRONMENTVARIABLESFILE" "$mailhog_binded_port" || exit 1
+        warp_env_file_set_mail_binded_port "$ENVIRONMENTVARIABLESFILE" "$mailhog_binded_port" || exit 1
     fi
 
     if [ ! -z "$rta_use_docker_sync" ]

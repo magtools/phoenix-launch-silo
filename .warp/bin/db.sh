@@ -23,6 +23,11 @@ function db_main()
             mysql_info
         ;;
 
+        health)
+            shift 1
+            mysql_health "$@"
+        ;;
+
         import)
             shift 1
             mysql_import "$@"

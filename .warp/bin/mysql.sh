@@ -392,6 +392,182 @@ mysql_print_external_connection_details() {
     warp_message ""
 }
 
+mysql_load_context() {
+    mysql_external_bootstrap_if_needed || true
+    warp_fallback_bootstrap_if_needed db >/dev/null 2>&1 || true
+    warp_service_context_load db >/dev/null 2>&1 || true
+}
+
+mysql_exec_local_query() {
+    local _sql="$1"
+    local _root_password=""
+    local _client_bin=""
+
+    _root_password=$(warp_env_read_var DATABASE_ROOT_PASSWORD)
+    _client_bin=$(warp_mysql_client_bin)
+
+    docker-compose -f "$DOCKERCOMPOSEFILE" exec -T mysql "$_client_bin" \
+        -uroot \
+        "--password=$_root_password" \
+        --batch \
+        --skip-column-names \
+        -e "$_sql"
+}
+
+mysql_exec_external_query() {
+    local _sql="$1"
+    local _client_bin=""
+
+    mysql_load_external_conn_values
+    _client_bin=$(mysql_pick_external_client_bin)
+
+    [ -n "$_client_bin" ] || {
+        warp_message_error "SQL client tools are required for external DB health checks."
+        warp_message_warn "Install mysql or mariadb client tools and retry."
+        return 1
+    }
+    [ -n "$DB_HOST" ] || {
+        warp_message_error "DATABASE_HOST is empty in .env"
+        return 1
+    }
+    [ -n "$DB_USER" ] || {
+        warp_message_error "DATABASE_USER is empty in .env"
+        return 1
+    }
+    [ -n "$DB_PASSWORD" ] || {
+        warp_message_error "DATABASE_PASSWORD is empty in .env"
+        return 1
+    }
+
+    "$_client_bin" \
+        -h"$DB_HOST" \
+        -P"$DB_PORT" \
+        -u"$DB_USER" \
+        "--password=$DB_PASSWORD" \
+        --batch \
+        --skip-column-names \
+        -e "$_sql"
+}
+
+mysql_system_schema() {
+    case "$1" in
+        information_schema|mysql|performance_schema|sys)
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+mysql_health() {
+    local _mode=""
+    local _engine=""
+    local _version=""
+    local _query=""
+    local _rows=""
+    local _rc=0
+    local _overall="ok"
+    local _app_schema_count=0
+    local _line=""
+    local _schema=""
+    local _tables=""
+    local _selected_marker=""
+    local _system_note=""
+
+    if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
+        mysql_health_help
+        return 0
+    fi
+
+    if ! warp_check_env_file; then
+        warp_message_error "file not found $(basename "$ENVIRONMENTVARIABLESFILE")"
+        return 1
+    fi
+
+    mysql_load_context
+    _mode="${WARP_CTX_MODE:-unknown}"
+    _engine="${WARP_CTX_ENGINE:-$(warp_mysql_flavor)}"
+
+    if [ "$_mode" = "local" ]; then
+        if [ "$(warp_check_is_running)" = "false" ]; then
+            warp_message_error "The containers are not running"
+            warp_message_error "please, first run warp start"
+            return 1
+        fi
+        _version=$(mysql_exec_local_query "SELECT VERSION();" 2>/dev/null | head -n1 | tr -d '\r')
+        _rc=$?
+        if [ "$_rc" -ne 0 ] || [ -z "$_version" ]; then
+            warp_message_error "DB health check failed."
+            warp_message_error "Could not query the local mysql service."
+            return 1
+        fi
+        _query='SELECT s.SCHEMA_NAME, COUNT(t.TABLE_NAME) AS table_count FROM information_schema.SCHEMATA s LEFT JOIN information_schema.TABLES t ON t.TABLE_SCHEMA = s.SCHEMA_NAME GROUP BY s.SCHEMA_NAME ORDER BY s.SCHEMA_NAME;'
+        _rows=$(mysql_exec_local_query "$_query" 2>/dev/null)
+        _rc=$?
+    else
+        _version=$(mysql_exec_external_query "SELECT VERSION();" 2>/dev/null | head -n1 | tr -d '\r')
+        _rc=$?
+        if [ "$_rc" -ne 0 ] || [ -z "$_version" ]; then
+            mysql_print_external_connection_details "SQL client could not reach the external endpoint."
+            return 1
+        fi
+        _query='SELECT s.SCHEMA_NAME, COUNT(t.TABLE_NAME) AS table_count FROM information_schema.SCHEMATA s LEFT JOIN information_schema.TABLES t ON t.TABLE_SCHEMA = s.SCHEMA_NAME GROUP BY s.SCHEMA_NAME ORDER BY s.SCHEMA_NAME;'
+        _rows=$(mysql_exec_external_query "$_query" 2>/dev/null)
+        _rc=$?
+        if [ "$_rc" -ne 0 ]; then
+            mysql_print_external_connection_details "Could not enumerate schemas on the external DB."
+            return 1
+        fi
+    fi
+
+    [ "$_rc" -ne 0 ] && return "$_rc"
+
+    while IFS=$'\t' read -r _schema _tables; do
+        [ -z "$_schema" ] && continue
+        if ! mysql_system_schema "$_schema"; then
+            _app_schema_count=$((_app_schema_count + 1))
+        fi
+    done <<EOF
+$_rows
+EOF
+
+    if [ "$_app_schema_count" -eq 0 ]; then
+        _overall="warn"
+    fi
+
+    warp_message ""
+    warp_message_info "DB health: ${_overall}"
+    warp_message "Engine:                     $(warp_message_info "$_engine")"
+    warp_message "Version:                    $(warp_message_info "$_version")"
+    warp_message "Mode:                       $(warp_message_info "${_mode}")"
+    warp_message "Endpoint:                   $(warp_message_info "${WARP_CTX_HOST:-mysql}:${WARP_CTX_PORT:-3306}")"
+    [ -n "$WARP_CTX_DBNAME" ] && warp_message "Selected database:          $(warp_message_info "$WARP_CTX_DBNAME")"
+    warp_message ""
+    warp_message_info "Databases:"
+
+    while IFS=$'\t' read -r _schema _tables; do
+        [ -z "$_schema" ] && continue
+        _selected_marker=""
+        _system_note=""
+        [ -z "$_tables" ] && _tables="0"
+        if [ -n "$WARP_CTX_DBNAME" ] && [ "$_schema" = "$WARP_CTX_DBNAME" ]; then
+            _selected_marker=" (selected)"
+        fi
+        if mysql_system_schema "$_schema"; then
+            _system_note=" system"
+            warp_message " - ${_schema}:${_selected_marker}$(warp_message_info "${_system_note}")"
+        else
+            warp_message " - ${_schema}: $(warp_message_info "${_tables} tables")${_selected_marker}"
+        fi
+    done <<EOF
+$_rows
+EOF
+
+    warp_message ""
+    return 0
+}
+
 function mysql_connect()
 {
 
@@ -927,6 +1103,11 @@ function mysql_main()
 
         info)
             mysql_info
+        ;;
+
+        health)
+            shift 1
+            mysql_health "$@"
         ;;
 
         import)

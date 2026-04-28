@@ -290,13 +290,6 @@ warp_run_loaded_command() {
 }
 
 warp_compose_bootstrap() {
-    if hash docker-compose 2>/dev/null; then
-        if docker-compose version >/dev/null 2>&1; then
-            export WARP_COMPOSE_BACKEND="legacy"
-            return 0
-        fi
-    fi
-
     if docker compose version >/dev/null 2>&1; then
         _shim_dir="$PROJECTPATH/var/warp-bin"
         _shim_file="$_shim_dir/docker-compose"
@@ -327,6 +320,13 @@ warp_compose_bootstrap() {
 
         export WARP_COMPOSE_BACKEND="plugin-v2"
         return 0
+    fi
+
+    if hash docker-compose 2>/dev/null; then
+        if docker-compose version >/dev/null 2>&1; then
+            export WARP_COMPOSE_BACKEND="legacy"
+            return 0
+        fi
     fi
 
     echo >&2 "warp framework requires \"docker-compose\" or \"docker compose\" plugin"

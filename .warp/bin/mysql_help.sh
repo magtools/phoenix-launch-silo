@@ -17,6 +17,7 @@ function mysql_help_usage()
     warp_message_info "Available commands:"
 
     warp_message_info   " info               $(warp_message 'display info available')"
+    warp_message_info   " health             $(warp_message 'show runtime db health and database/table counts')"
     warp_message_info   " dump               $(warp_message 'allows to make a database dump')"
     warp_message_info   " devdump            $(warp_message 'helper for lightweight development dumps by app profile')"
     warp_message_info   " devdump:<app>      $(warp_message 'run lightweight development dump for app profile (example: devdump:magento)')"
@@ -136,6 +137,26 @@ function mysql_connect_help()
     warp_message_info "Example:"
     warp_message " warp db connect"
     warp_message " mysql >> show databases;"
+    warp_message ""
+}
+
+function mysql_health_help()
+{
+    warp_message ""
+    warp_message_info "Usage:"
+    warp_message      " warp db health"
+    warp_message ""
+
+    warp_message ""
+    warp_message_info "Help:"
+    warp_message " Show a short runtime summary of the current database service."
+    warp_message " It checks connectivity, reads server version, lists databases and counts tables per database."
+    warp_message " in external mode it uses DATABASE_HOST / DATABASE_BINDED_PORT / DATABASE_USER / DATABASE_PASSWORD"
+    warp_message " from .env using local SQL client tools."
+    warp_message ""
+
+    warp_message_info "Example:"
+    warp_message " warp db health"
     warp_message ""
 }
 

@@ -14,6 +14,7 @@ function elasticsearch_help_usage() {
     warp_message_info "Available commands:"
 
     warp_message_info   " info               $(warp_message 'display info available')"
+    warp_message_info   " health             $(warp_message 'show runtime search health and index counts')"
     warp_message_info   " ssh                $(warp_message 'connect to search container by ssh')"
     warp_message_info   " flush              $(warp_message 'unlock and delete search indexes')"
     warp_message_info   " switch             $(warp_message 'switch between search engine versions')"
@@ -125,5 +126,20 @@ elasticsearch_info_help() {
     warp_message " in external mode it checks the SEARCH_* endpoint from .env using GET / and GET /_cluster/health."
     warp_message " if SEARCH_* is missing and no local search service exists, Warp first tries to read app/etc/env.php."
     warp_message " curl must exist on the host for external mode."
+    warp_message ""
+}
+
+elasticsearch_health_help() {
+    warp_message ""
+    warp_message_info "Usage:"
+    warp_message      " warp search health"
+    warp_message ""
+
+    warp_message ""
+    warp_message_info "Help:"
+    warp_message " show current search runtime health in a short format."
+    warp_message " it checks the root endpoint, cluster health and a limited list of indices with document counts."
+    warp_message " in external mode it uses SEARCH_SCHEME / SEARCH_HOST / SEARCH_PORT / SEARCH_USER / SEARCH_PASSWORD."
+    warp_message " curl must exist on the host."
     warp_message ""
 }

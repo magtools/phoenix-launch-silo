@@ -436,6 +436,204 @@ search_response_has_error() {
     echo "$_body" | grep -q '"error"'
 }
 
+search_parse_root_version() {
+    local _body="$1"
+
+    echo "$_body" | sed -n 's/.*"number":"\([^"]*\)".*/\1/p' | head -n1
+}
+
+search_parse_cluster_status() {
+    local _body="$1"
+
+    echo "$_body" | sed -n 's/.*"status":"\([^"]*\)".*/\1/p' | head -n1
+}
+
+search_cluster_overall_status() {
+    case "$1" in
+        green) echo "ok" ;;
+        yellow) echo "warn" ;;
+        red) echo "error" ;;
+        *) echo "warn" ;;
+    esac
+}
+
+search_external_request_plain() {
+    local _path="$1"
+    local _url=""
+
+    _url="$(search_external_base_url)${_path}"
+
+    if [ -n "$WARP_CTX_USER" ]; then
+        curl --silent -u "$WARP_CTX_USER:$WARP_CTX_PASSWORD" "$_url"
+    else
+        curl --silent "$_url"
+    fi
+}
+
+search_local_request_capture() {
+    local _method="$1"
+    local _path="$2"
+    local _port=""
+    local _resp=""
+    local _rc=0
+
+    _port=$(elasticsearch_local_port_9200)
+    if [ -z "$_port" ]; then
+        SEARCH_HTTP_BODY=""
+        SEARCH_HTTP_CODE="000"
+        return 1
+    fi
+
+    _resp=$(curl --silent -X "$_method" "http://localhost:${_port}${_path}" -w "\n%{http_code}")
+    _rc=$?
+    if [ "$_rc" -ne 0 ]; then
+        SEARCH_HTTP_BODY=""
+        SEARCH_HTTP_CODE="000"
+        return 1
+    fi
+
+    SEARCH_HTTP_CODE=$(printf '%s\n' "$_resp" | tail -n1 | tr -d '\r')
+    SEARCH_HTTP_BODY=$(printf '%s\n' "$_resp" | sed '$d')
+
+    if ! [[ "$SEARCH_HTTP_CODE" =~ ^[0-9]{3}$ ]]; then
+        SEARCH_HTTP_BODY="$_resp"
+        SEARCH_HTTP_CODE="000"
+        return 1
+    fi
+
+    return 0
+}
+
+search_local_request_plain() {
+    local _path="$1"
+    local _port=""
+
+    _port=$(elasticsearch_local_port_9200)
+    [ -n "$_port" ] || return 1
+
+    curl --silent "http://localhost:${_port}${_path}"
+}
+
+search_health_print_indices() {
+    local _indices_text="$1"
+    local _count=0
+    local _line=""
+    local _health=""
+    local _index=""
+    local _docs=""
+
+    if [ -z "$_indices_text" ]; then
+        warp_message " - $(warp_message_warn "no indices found")"
+        return 0
+    fi
+
+    while IFS= read -r _line; do
+        [ -z "$_line" ] && continue
+        _health=$(printf '%s\n' "$_line" | awk '{print $1}')
+        _index=$(printf '%s\n' "$_line" | awk '{print $2}')
+        _docs=$(printf '%s\n' "$_line" | awk '{print $3}')
+        [ -z "$_index" ] && continue
+        [ -z "$_docs" ] && _docs="0"
+        warp_message " - ${_index}: $(warp_message_info "${_docs} docs") ($(warp_message_info "${_health:-unknown}"))"
+        _count=$((_count + 1))
+        [ "$_count" -ge 10 ] && break
+    done <<EOF
+$_indices_text
+EOF
+
+    [ "$_count" -eq 0 ] && warp_message " - $(warp_message_warn "no indices found")"
+}
+
+search_health_main() {
+    local _mode=""
+    local _engine=""
+    local _version=""
+    local _cluster="unknown"
+    local _overall="error"
+    local _indices_text=""
+    local _indices_trimmed=""
+    local _endpoint=""
+
+    if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
+        elasticsearch_health_help
+        return 0
+    fi
+
+    if ! warp_check_env_file; then
+        warp_message_error "file not found $(basename "$ENVIRONMENTVARIABLESFILE")"
+        return 1
+    fi
+
+    search_load_context
+    _mode="${WARP_CTX_MODE:-unknown}"
+    _engine="${WARP_CTX_ENGINE:-elasticsearch}"
+
+    if ! command -v curl >/dev/null 2>&1; then
+        warp_message_error "curl is required for search health checks."
+        return 1
+    fi
+
+    if [ "$_mode" = "local" ]; then
+        if [ "$(warp_check_is_running)" = "false" ]; then
+            warp_message_error "The containers are not running"
+            warp_message_error "please, first run warp start"
+            return 1
+        fi
+
+        search_local_request_capture "GET" "/"
+        if ! search_http_ok "$SEARCH_HTTP_CODE"; then
+            warp_message_error "Search health check failed."
+            warp_message_error "Could not query the local search endpoint."
+            return 1
+        fi
+        _version=$(search_parse_root_version "$SEARCH_HTTP_BODY")
+
+        search_local_request_capture "GET" "/_cluster/health"
+        search_http_ok "$SEARCH_HTTP_CODE" || {
+            warp_message_error "Could not read local search cluster health."
+            return 1
+        }
+        _cluster=$(search_parse_cluster_status "$SEARCH_HTTP_BODY")
+        _indices_text=$(search_local_request_plain "/_cat/indices?h=health,index,docs.count&s=index" 2>/dev/null)
+        _endpoint="http://localhost:$(elasticsearch_local_port_9200)"
+    else
+        search_external_require_http_client || return 1
+        search_external_request_capture "GET" "/" ""
+        if ! search_http_ok "$SEARCH_HTTP_CODE"; then
+            search_print_external_connection_details "GET / returned HTTP ${SEARCH_HTTP_CODE}."
+            return 1
+        fi
+        _version=$(search_parse_root_version "$SEARCH_HTTP_BODY")
+
+        search_external_request_capture "GET" "/_cluster/health" ""
+        if ! search_http_ok "$SEARCH_HTTP_CODE"; then
+            search_print_external_connection_details "GET /_cluster/health returned HTTP ${SEARCH_HTTP_CODE}."
+            return 1
+        fi
+        _cluster=$(search_parse_cluster_status "$SEARCH_HTTP_BODY")
+        _indices_text=$(search_external_request_plain "/_cat/indices?h=health,index,docs.count&s=index" 2>/dev/null)
+        _endpoint="$(search_external_base_url)"
+    fi
+
+    [ -z "$_cluster" ] && _cluster="unknown"
+    _overall=$(search_cluster_overall_status "$_cluster")
+    _indices_trimmed=$(printf '%s\n' "$_indices_text" | sed '/^[[:space:]]*$/d')
+
+    warp_message ""
+    warp_message_info "SEARCH health: ${_overall}"
+    warp_message "Engine:                     $(warp_message_info "$_engine")"
+    [ -n "$_version" ] && warp_message "Version:                    $(warp_message_info "$_version")"
+    warp_message "Mode:                       $(warp_message_info "$_mode")"
+    warp_message "Endpoint:                   $(warp_message_info "$_endpoint")"
+    warp_message "Cluster:                    $(warp_message_info "$_cluster")"
+    warp_message ""
+    warp_message_info "Indices:"
+    search_health_print_indices "$_indices_trimmed"
+    warp_message ""
+
+    [ "$_overall" != "error" ]
+}
+
 search_flush_external() {
     if [ -z "$WARP_CTX_HOST" ]; then
         warp_message_error "SEARCH_HOST is empty in .env"
@@ -541,6 +739,11 @@ function search_main()
             else
                 elasticsearch_info
             fi
+        ;;
+
+        health)
+            shift
+            search_health_main "$@"
         ;;
 
         ssh)

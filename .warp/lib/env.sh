@@ -108,6 +108,24 @@ function warp_env_file_sync_mail_binded_port()
     fi
 }
 
+function warp_env_file_set_mail_binded_port()
+{
+    local _file="$1"
+    local _value="$2"
+    local _mail_engine=""
+
+    [ -n "$_file" ] || return 1
+    [ -f "$_file" ] || return 0
+    [ -n "$_value" ] || return 0
+
+    _mail_engine=$(warp_env_file_read_var "$_file" MAIL_ENGINE)
+
+    [ -n "$_mail_engine" ] || return 0
+
+    warp_env_file_set_var "$_file" MAIL_BINDED_PORT "$_value" || return 1
+    warp_env_file_set_var "$_file" MAILHOG_BINDED_PORT "$_value" || return 1
+}
+
 function warp_mail_is_configured_in_file()
 {
     local _file="$1"
@@ -213,6 +231,26 @@ function warp_env_random_name()
         rand+=$char
     done
     echo "$rand"
+}
+
+warp_env_is_valid_private_registry() {
+    local _value="$1"
+
+    [ -n "$_value" ] || return 1
+    printf '%s' "$_value" | grep -Eq '[[:space:]]' && return 1
+    case "$_value" in
+        http://*|https://*|docker://*|*/|/*)
+            return 1
+            ;;
+    esac
+
+    printf '%s' "$_value" | grep -Eq '^[a-z0-9]+([._-][a-z0-9]+)*(:[0-9]+)?(/[a-z0-9]+([._-][a-z0-9]+)*)*$'
+}
+
+warp_env_is_valid_image_name_component() {
+    local _value="$1"
+
+    printf '%s' "$_value" | grep -Eq '^[a-z0-9]{2,12}(-[a-z0-9]{2,12})?$'
 }
 
 function warp_env_change_version_sample_file()
