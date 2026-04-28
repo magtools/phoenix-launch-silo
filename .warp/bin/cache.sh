@@ -385,13 +385,27 @@ cache_load_context() {
 }
 
 cache_pick_external_cli_bin() {
-    if command -v redis-cli >/dev/null 2>&1; then
-        echo "redis-cli"
-        return 0
-    fi
-    if command -v valkey-cli >/dev/null 2>&1; then
-        echo "valkey-cli"
-        return 0
+    local _engine=""
+
+    _engine=$(warp_cache_engine_resolve "${CACHE_ENGINE:-$(warp_fallback_env_get CACHE_ENGINE)}")
+    if [ "$_engine" = "valkey" ]; then
+        if command -v valkey-cli >/dev/null 2>&1; then
+            echo "valkey-cli"
+            return 0
+        fi
+        if command -v redis-cli >/dev/null 2>&1; then
+            echo "redis-cli"
+            return 0
+        fi
+    else
+        if command -v redis-cli >/dev/null 2>&1; then
+            echo "redis-cli"
+            return 0
+        fi
+        if command -v valkey-cli >/dev/null 2>&1; then
+            echo "valkey-cli"
+            return 0
+        fi
     fi
     echo ""
 }

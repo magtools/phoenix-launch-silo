@@ -396,12 +396,14 @@ memory_mem_usage_to_mb() {
 }
 
 memory_redis_info_memory() {
-    _service="$1"
+    local _service="$1"
+    local _cli_bin=""
     memory_compose_available || return 1
     _cid=$(memory_compose_service_id "$_service")
     [ -n "$_cid" ] || return 1
     [ "$(memory_service_is_running "$_cid")" = "true" ] || return 1
-    docker exec -i "$_cid" redis-cli INFO memory 2>/dev/null
+    _cli_bin=$(warp_cache_engine_cli_bin)
+    docker exec -i "$_cid" "$_cli_bin" INFO memory 2>/dev/null
 }
 
 memory_redis_field() {
@@ -1128,7 +1130,7 @@ memory_guide() {
     memory_print ""
 
     memory_print_info "==============================================================================="
-    memory_print_info "REDIS (cache / fpc / session)"
+    memory_print_info "CACHE (redis / valkey)"
     memory_print_info "==============================================================================="
     memory_print "1) .env (${FCYN}$PROJECTPATH/.env${RS})"
     memory_print "  REDIS_CACHE_MAXMEMORY=<example: 512mb>"
@@ -1141,16 +1143,18 @@ memory_guide() {
     memory_print "2) docker-compose-warp.yml (${FCYN}$DOCKERCOMPOSEFILE${RS})"
     memory_print "  Services: redis-cache, redis-fpc, redis-session"
     memory_print "  command (example per service):"
-    memory_print "    redis-server /usr/local/etc/redis/redis.conf \\"
+    memory_print "    \${CACHE_SERVER_BIN} \${CACHE_CONTAINER_CONFIG_PATH} \\"
     memory_print "      --maxmemory \${REDIS_CACHE_MAXMEMORY} \\"
     memory_print "      --maxmemory-policy \${REDIS_CACHE_MAXMEMORY_POLICY}"
     memory_print "  (Repeat with FPC and SESSION variables in each service)"
-    memory_print "  volumes (if you use a custom redis.conf):"
-    memory_print "    - ./<path>/redis.conf:/usr/local/etc/redis/redis.conf"
+    memory_print "  volumes (if you use a custom config):"
+    memory_print "    - ./<path>/<redis|valkey>.conf:\${CACHE_CONTAINER_CONFIG_PATH}"
     memory_print ""
-    memory_print "3) redis.conf (base)"
+    memory_print "3) base config"
     memory_print "  ${FCYN}$PROJECTPATH/.warp/docker/config/redis/redis.conf${RS}"
     memory_print "  ${FCYN}$PROJECTPATH/.warp/setup/redis/config/redis/redis.conf${RS}"
+    memory_print "  ${FCYN}$PROJECTPATH/.warp/docker/config/redis/valkey.conf${RS}"
+    memory_print "  ${FCYN}$PROJECTPATH/.warp/setup/redis/config/redis/valkey.conf${RS}"
     memory_print "  Common parameters: maxmemory, maxmemory-policy, appendonly"
     memory_print ""
 

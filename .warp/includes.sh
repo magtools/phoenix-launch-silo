@@ -72,6 +72,7 @@ warp_source_optional_marked "$WARPFOLDER/lib/host.sh" || return 1
 warp_source_optional_marked "$WARPFOLDER/lib/fallback.sh" || return 1
 warp_source_optional_marked "$WARPFOLDER/lib/service_version.sh" || return 1
 warp_source_optional_marked "$WARPFOLDER/lib/app_context.sh" || return 1
+warp_source_optional_marked "$WARPFOLDER/lib/cache_engine.sh" || return 1
 warp_source_optional_marked "$WARPFOLDER/lib/service_context.sh" || return 1
 warp_source_optional_glob "$WARPFOLDER/lib" "*.sh" "binary.sh" || return 1
 

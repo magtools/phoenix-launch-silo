@@ -454,14 +454,19 @@ if [[ ! -z $GF_REDIS_VERSION ]] || [[ ! -z $GF_REDIS_CACHE_VERSION ]] || [[ ! -z
 then
     warp_message_info "Configuring Redis Service"
 
-    resp_version_cache=$GF_REDIS_VERSION
-    cache_config_file_cache="./.warp/docker/config/redis/redis.conf"
+    CACHE_ENGINE_SELECTED=$(warp_cache_engine_recommended_from_context)
+    CACHE_IMAGE_REPO=$(warp_service_version_image_repo cache "$CACHE_ENGINE_SELECTED")
+    CACHE_VERSION_DEFAULT=$(warp_service_version_tag_default cache "$CACHE_ENGINE_SELECTED")
+    cache_config_default=$(warp_cache_engine_default_host_config "$CACHE_ENGINE_SELECTED")
 
-    resp_version_session=$GF_REDIS_VERSION
-    cache_config_file_session="./.warp/docker/config/redis/redis.conf"
+    resp_version_cache=${GF_REDIS_CACHE_VERSION:-${GF_REDIS_VERSION:-$CACHE_VERSION_DEFAULT}}
+    cache_config_file_cache="$cache_config_default"
 
-    resp_version_fpc=$GF_REDIS_VERSION
-    cache_config_file_fpc="./.warp/docker/config/redis/redis.conf"
+    resp_version_session=${GF_REDIS_SESSION_VERSION:-${GF_REDIS_VERSION:-$CACHE_VERSION_DEFAULT}}
+    cache_config_file_session="$cache_config_default"
+
+    resp_version_fpc=${GF_REDIS_FPC_VERSION:-${GF_REDIS_VERSION:-$CACHE_VERSION_DEFAULT}}
+    cache_config_file_fpc="$cache_config_default"
 
     PATH_CONFIG_REDIS='./.warp/docker/config/redis'
 
@@ -491,7 +496,13 @@ then
     echo "REDIS_FPC_MAXMEMORY_POLICY=allkeys-lru" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "# Canonical CACHE Configuration" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "CACHE_MODE=local" >> $ENVIRONMENTVARIABLESFILESAMPLE
-    echo "CACHE_ENGINE=redis" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "CACHE_ENGINE=$CACHE_ENGINE_SELECTED" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "CACHE_VERSION=$resp_version_cache" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "CACHE_IMAGE_REPO=$CACHE_IMAGE_REPO" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "CACHE_SERVER_BIN=$(warp_cache_engine_server_bin "$CACHE_ENGINE_SELECTED")" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "CACHE_CLI_BIN=$(warp_cache_engine_cli_bin "$CACHE_ENGINE_SELECTED")" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "CACHE_CONTAINER_USER=$(warp_cache_engine_container_user "$CACHE_ENGINE_SELECTED")" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "CACHE_CONTAINER_CONFIG_PATH=$(warp_cache_engine_container_config_path "$CACHE_ENGINE_SELECTED")" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "CACHE_SCOPE=cache" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "CACHE_HOST=redis-cache" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "CACHE_PORT=6379" >> $ENVIRONMENTVARIABLESFILESAMPLE
