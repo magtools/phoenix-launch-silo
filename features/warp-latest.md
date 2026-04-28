@@ -219,6 +219,24 @@ Comandos y compatibilidad:
   - `warp elasticsearch`
   - `warp opensearch`
 
+## Compose prod endurecido (`docker-compose-warp.yml.prod`)
+
+Warp ahora puede dejar un compose final de produccion listo para uso manual en server:
+
+- `docker-compose-warp.yml.prod`
+
+Qué aporta al equipo:
+
+- MySQL, Redis y OpenSearch bindeados a `127.0.0.1`,
+- acceso por SSH/CLI desde el mismo host sin exponer esos servicios a Internet,
+- menor drift respecto del compose normal, porque `prod` se deriva desde `docker-compose-warp.yml` ya resuelto.
+
+Impacto funcional:
+
+- `docker-compose-warp.yml` sigue siendo el compose activo por defecto,
+- `docker-compose-warp.yml.prod` queda como artefacto opt-in para TL/operación,
+- ya no hace falta sostener templates `*_prod.yml` paralelos para esos servicios.
+
 Impacto funcional:
 
 - el operador puede pensar primero en la capability (`db`, `cache`, `search`) y no en el nombre histórico del contenedor,
