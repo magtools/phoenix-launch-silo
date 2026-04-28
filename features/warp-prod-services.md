@@ -1,96 +1,109 @@
-# RFC: compose de produccion para servicios internos
+# RFC: perfiles finales de compose para servicios internos
 
 ## Decision implementada
 
-Warp mantiene el contrato actual de desarrollo/legacy y agrega un artefacto final de produccion:
+Warp ahora genera tres archivos finales no trackeados:
+
+- `docker-compose-warp.yml.dev`
+- `docker-compose-warp.yml.prod`
+- `docker-compose-warp.yml`
+
+Y mantiene el sample trackeado:
 
 - `docker-compose-warp.yml.sample`
-- `docker-compose-warp.yml`
-- `docker-compose-warp.yml.prod`
 
-La decision final fue **no** sostener un arbol paralelo de templates `*_prod.yml` ni un sample `prod` separado.
+La decision final fue:
 
-En cambio:
+1. usar `docker-compose-warp.yml.sample` como base de ensamblado
+2. resolver desde ahi un compose final `dev`
+3. derivar desde `dev` un compose final `prod`
+4. dejar `docker-compose-warp.yml` como alias activo del perfil que matchea la decision de red tomada en `warp init`
 
-1. `init` genera el compose normal como hoy
-2. Warp resuelve `docker-compose-warp.yml`
-3. al final del setup deriva `docker-compose-warp.yml.prod` desde ese compose ya resuelto
-4. en esa derivacion solo cambia los bindings sensibles a `127.0.0.1`
+Con eso:
 
-Esto reduce drift y evita que `prod` herede placeholders o bloques vacios del sample.
+- si el proyecto se configura para trabajar en paralelo, `docker-compose-warp.yml` queda alineado a `docker-compose-warp.yml.dev`
+- si el proyecto se configura para trabajar de a uno, `docker-compose-warp.yml` queda alineado a `docker-compose-warp.yml.prod`
 
 ## Objetivo funcional
 
-El objetivo no es esconder DB/cache/search dentro de la red Docker.
+El objetivo es separar tres conceptos:
 
-El objetivo es:
+- sample versionado
+- compose final de desarrollo
+- compose final endurecido para host local/server
 
-- mantener acceso por CLI desde el mismo server al entrar por SSH
-- evitar exposicion en `0.0.0.0`
-- preservar la red interna Docker para la app
+Y a la vez evitar que el usuario tenga que copiar manualmente archivos despues de `init`.
 
-En otras palabras:
-
-- `dev/legacy`: comportamiento actual
-- `prod`: mismos servicios, pero publicados solo en `127.0.0.1`
-
-## Diferencia operativa
+## Semantica de cada archivo
 
 ### `docker-compose-warp.yml.sample`
 
-Sigue siendo la base legacy/dev:
+Es la base trackeada del setup.
 
-- MySQL como hoy
-- Redis/Valkey como hoy
-- OpenSearch como hoy
+No representa directamente el compose activo del proyecto.
+
+### `docker-compose-warp.yml.dev`
+
+Es el compose final de desarrollo:
+
+- mantiene el comportamiento historico
+- preserva la exposicion actual de servicios
+- es el perfil natural cuando el usuario elige trabajar en paralelo
 
 ### `docker-compose-warp.yml.prod`
 
-Es un compose final listo para server:
+Es el compose final endurecido:
 
-- MySQL accesible por `127.0.0.1`
-- Redis/Valkey accesible por `127.0.0.1`
-- OpenSearch accesible por `127.0.0.1`
-- no accesibles desde Internet salvo que otra capa los reexponga
+- MySQL publicado en `127.0.0.1`
+- Redis/Valkey publicado en `127.0.0.1`
+- OpenSearch publicado en `127.0.0.1`
 
-Eso permite, por ejemplo:
+Sigue siendo accesible desde el mismo host:
 
 - `mysql -h 127.0.0.1 -P ...`
 - `redis-cli -h 127.0.0.1 -p ...`
 - `curl http://127.0.0.1:9200`
 
-## Problema que resuelve
+Pero deja de estar publicado en interfaces externas.
 
-Los templates actuales usan `ports:` sin bind explicito a loopback.
+### `docker-compose-warp.yml`
 
-Consecuencia:
+Es el compose activo por defecto.
 
-- accesibles desde el host local
-- pero tambien desde otras interfaces del server
+No tiene semantica fija por nombre. Su semantica depende de la decision de red tomada en `warp init`:
 
-Para server productivo, eso es demasiado permisivo para:
+- modo paralelo: copia de `docker-compose-warp.yml.dev`
+- modo single-project: copia de `docker-compose-warp.yml.prod`
 
-- `mysql`
-- `redis-cache`
-- `redis-session`
-- `redis-fpc`
-- `elasticsearch`
+## Regla de seleccion automatica
+
+Warp usa la decision de red del proyecto para elegir el compose activo.
+
+Regla actual:
+
+- si `HTTP_HOST_IP != 0.0.0.0`, el perfil es `dev`
+- si `HTTP_HOST_IP = 0.0.0.0`, el perfil es `prod`
+
+Eso se apoya en el contrato historico del wizard:
+
+- paralelo implica IP dedicada de contenedor
+- single-project implica bind normal en host
 
 ## Implementacion tecnica
 
-### Derivacion desde compose final
+### Flujo final
 
-El punto clave es que `prod` se genera desde `docker-compose-warp.yml`, no desde `docker-compose-warp.yml.sample`.
+1. `init` ensambla el sample
+2. `init` resuelve el compose final base
+3. Warp guarda ese resultado como `docker-compose-warp.yml.dev`
+4. Warp deriva `docker-compose-warp.yml.prod` desde `docker-compose-warp.yml.dev`
+5. Warp activa en `docker-compose-warp.yml` el perfil que corresponde segun la decision de red
 
-Eso implica:
+### Derivacion de `prod`
 
-- cualquier bloque `## BEGIN ... ##` ya resuelto en el compose normal queda tambien resuelto en `prod`
-- no hace falta duplicar fragments de setup
-- no hace falta sostener un segundo ensamblado del stack
+`docker-compose-warp.yml.prod` no nace de fragments `*_prod.yml` ni de un sample paralelo.
 
-### Reescrituras aplicadas
-
-En la derivacion a `prod`, Warp reescribe solo estos bindings:
+Se deriva desde `docker-compose-warp.yml.dev`, reescribiendo solo los bindings sensibles:
 
 #### MySQL
 
@@ -133,24 +146,17 @@ elasticsearch:
     - "127.0.0.1:${SEARCH_TRANSPORT_BINDED_PORT:-9300}:9300"
 ```
 
-## Variables requeridas
+## Integracion con `.env`
 
-Para que el compose `prod` sea reproducible, Warp deja disponibles:
+Para que la seleccion del compose activo sea coherente, `warp init` actualiza `.env` con la decision real del wizard sin tocar `.env.sample`.
 
-- `DATABASE_BINDED_PORT`
-- `REDIS_CACHE_BINDED_PORT`
-- `REDIS_SESSION_BINDED_PORT`
-- `REDIS_FPC_BINDED_PORT`
-- `SEARCH_HTTP_BINDED_PORT`
-- `SEARCH_TRANSPORT_BINDED_PORT`
+Eso evita que un proyecto creado antes para modo paralelo arrastre en `.env` puertos o `HTTP_HOST_IP` viejos al reconfigurarse como single-project.
 
-La red interna no cambia:
+En la practica:
 
-- `mysql:3306`
-- `redis-cache:6379`
-- `redis-session:6379`
-- `redis-fpc:6379`
-- `elasticsearch:9200`
+- `.env.sample` preserva la base versionada/historica
+- `.env` refleja la decision actual del entorno
+- `docker-compose-warp.yml` se activa con el perfil correcto a partir de esa decision
 
 ## Archivos relevantes
 
@@ -158,53 +164,57 @@ La implementacion actual vive principalmente en:
 
 - [`.warp/lib/compose_sample.sh`](../.warp/lib/compose_sample.sh)
 - [`.warp/setup/init/info.sh`](../.warp/setup/init/info.sh)
-- [`.warp/setup/mysql/database.sh`](../.warp/setup/mysql/database.sh)
-- [`.warp/setup/redis/redis.sh`](../.warp/setup/redis/redis.sh)
-- [`.warp/setup/elasticsearch/elasticsearch.sh`](../.warp/setup/elasticsearch/elasticsearch.sh)
-- [`.warp/setup/init/gandalf.sh`](../.warp/setup/init/gandalf.sh)
+- [`.warp/setup/init/developer.sh`](../.warp/setup/init/developer.sh)
+- [`.warp/setup/init/autoload.sh`](../.warp/setup/init/autoload.sh)
+- [`.warp/lib/check.sh`](../.warp/lib/check.sh)
+- [`.warp/bin/reset.sh`](../.warp/bin/reset.sh)
 
-Y `docker-compose-warp.yml.prod` queda ignorado en Git igual que `docker-compose-warp.yml`.
+## Git y limpieza
+
+Estos tres archivos finales no deben trackearse:
+
+- `docker-compose-warp.yml`
+- `docker-compose-warp.yml.dev`
+- `docker-compose-warp.yml.prod`
+
+Y `reset --hard` debe limpiarlos.
 
 ## Compatibilidad legacy
 
-Este enfoque preserva mejor compatibilidad porque:
+Este enfoque preserva compatibilidad porque:
 
-- `docker-compose-warp.yml` no cambia de semantica
-- los proyectos viejos siguen funcionando igual
-- `prod` es opt-in y manual
-- no agrega ruido tipo `DB_EXPOSURE`, `CACHE_EXPOSURE`, `SEARCH_EXPOSURE`
+- el sample trackeado sigue existiendo
+- el compose activo sigue llamandose `docker-compose-warp.yml`
+- el perfil `dev` conserva la semantica historica
+- el perfil `prod` es una derivacion controlada y reversible
 
 ## Riesgos y tradeoffs
 
-1. `127.0.0.1` reduce exposicion, pero no aísla el servicio de otros procesos del mismo host.
-2. Clientes remotos que hoy entren directo a MySQL/Redis/Search desde fuera del host dejaran de poder hacerlo con `prod`.
-3. Si alguien modifica `docker-compose-warp.yml` a mano despues de `init`, tendra que volver a derivar o actualizar tambien `docker-compose-warp.yml.prod`.
+1. `prod` sigue siendo accesible desde procesos del mismo host; no equivale a aislamiento total.
+2. Clientes remotos que dependian de puertos abiertos hacia otras interfaces dejaran de funcionar con el perfil `prod`.
+3. La heuristica `HTTP_HOST_IP = 0.0.0.0 => prod` es pragmatica, pero acopla topologia de red con postura de exposicion.
 
 ## Validacion minima
 
-Ademas de la validacion base del repo, conviene verificar:
-
-1. `docker-compose-warp.yml` mantiene el comportamiento actual.
-2. `docker-compose-warp.yml.prod` queda con bindings `127.0.0.1` para MySQL.
-3. `docker-compose-warp.yml.prod` queda con bindings `127.0.0.1` para Redis.
-4. `docker-compose-warp.yml.prod` queda con bindings `127.0.0.1` para OpenSearch.
-5. desde el mismo server funcionan:
-   - `mysql -h 127.0.0.1 -P ...`
-   - `redis-cli -h 127.0.0.1 -p ...`
-   - `curl http://127.0.0.1:...`
-6. desde otra maquina no hay acceso a esos puertos.
+1. `warp init` en modo paralelo genera:
+   - `docker-compose-warp.yml.dev`
+   - `docker-compose-warp.yml.prod`
+   - `docker-compose-warp.yml` activo igual a `dev`
+2. `warp init` en modo single-project genera:
+   - `docker-compose-warp.yml.dev`
+   - `docker-compose-warp.yml.prod`
+   - `docker-compose-warp.yml` activo igual a `prod`
+3. `docker-compose-warp.yml.prod` queda con bindings `127.0.0.1` para MySQL, Redis y OpenSearch.
+4. `.env.sample` no se pisa con la reconfiguracion.
+5. `.env` refleja la decision actual del wizard.
 
 ## Resultado esperado
 
-Warp ofrece dos salidas claras:
+Warp ofrece ahora:
 
-- `docker-compose-warp.yml`
-  - compose activo por defecto
-  - legado/desarrollo
+- un sample versionado
+- un compose final `dev`
+- un compose final `prod`
+- un compose activo por defecto que sigue automaticamente la decision de red del proyecto
 
-- `docker-compose-warp.yml.prod`
-  - compose final listo para server
-  - servicios internos accesibles por el host local
-  - no accesibles desde Internet
-
-Ese balance es el buscado: mantener operabilidad por SSH sin dejar MySQL, Redis y Search abiertos al mundo.
+Eso mantiene operabilidad local y de server sin pedir pasos manuales para activar el perfil correcto.

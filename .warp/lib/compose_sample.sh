@@ -15,6 +15,14 @@ warp_compose_sample_append_dev() {
     cat "$_template" >> "$DOCKERCOMPOSEFILESAMPLE" || return 1
 }
 
+warp_compose_dev_generate_from_final() {
+    local _source="${1:-$DOCKERCOMPOSEFILE}"
+    local _target="${2:-$DOCKERCOMPOSEFILEDEV}"
+
+    [ -f "$_source" ] || return 1
+    cp "$_source" "$_target" || return 1
+}
+
 warp_compose_prod_generate_from_final() {
     local _source="${1:-$DOCKERCOMPOSEFILE}"
     local _target="${2:-$DOCKERCOMPOSEFILEPROD}"
@@ -100,4 +108,43 @@ warp_compose_prod_generate_from_final() {
         rm -f "$_tmp"
         return 1
     }
+}
+
+warp_compose_profile_from_env() {
+    local _env_file="${1:-$ENVIRONMENTVARIABLESFILE}"
+    local _http_host_ip=""
+
+    [ -f "$_env_file" ] || {
+        echo "dev"
+        return 0
+    }
+
+    _http_host_ip=$(warp_env_file_read_var "$_env_file" "HTTP_HOST_IP")
+
+    if [ -n "$_http_host_ip" ] && [ "$_http_host_ip" != "0.0.0.0" ]; then
+        echo "dev"
+        return 0
+    fi
+
+    echo "prod"
+}
+
+warp_compose_activate_profile() {
+    local _profile="$1"
+    local _active="${2:-$DOCKERCOMPOSEFILE}"
+    local _dev="${3:-$DOCKERCOMPOSEFILEDEV}"
+    local _prod="${4:-$DOCKERCOMPOSEFILEPROD}"
+    local _source=""
+
+    case "$_profile" in
+        prod)
+            _source="$_prod"
+        ;;
+        *)
+            _source="$_dev"
+        ;;
+    esac
+
+    [ -f "$_source" ] || return 1
+    cp "$_source" "$_active" || return 1
 }

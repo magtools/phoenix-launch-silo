@@ -199,6 +199,7 @@ warp_check_gitignore()
         echo "!/$(basename "$WARPFOLDER")/**"                   >> "$GITIGNOREFILE"
         echo "/$(basename "$ENVIRONMENTVARIABLESFILE")"         >> "$GITIGNOREFILE"
         echo "/$(basename "$DOCKERCOMPOSEFILE")"                >> "$GITIGNOREFILE"
+        echo "/$(basename "$DOCKERCOMPOSEFILEDEV")"             >> "$GITIGNOREFILE"
         echo "/$(basename "$DOCKERCOMPOSEFILEPROD")"            >> "$GITIGNOREFILE"
         echo "/$(basename "$DOCKERCOMPOSEFILEMAC")"             >> "$GITIGNOREFILE"
         echo "/$(basename "$DOCKERSYNCMAC")"                    >> "$GITIGNOREFILE"

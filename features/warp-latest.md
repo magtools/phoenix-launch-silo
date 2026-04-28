@@ -219,22 +219,26 @@ Comandos y compatibilidad:
   - `warp elasticsearch`
   - `warp opensearch`
 
-## Compose prod endurecido (`docker-compose-warp.yml.prod`)
+## Perfiles finales de compose (`.dev` / `.prod` / activo)
 
-Warp ahora puede dejar un compose final de produccion listo para uso manual en server:
+Warp ahora puede dejar tres artefactos finales no trackeados:
 
+- `docker-compose-warp.yml.dev`
 - `docker-compose-warp.yml.prod`
+- `docker-compose-warp.yml`
 
 Qué aporta al equipo:
 
-- MySQL, Redis y OpenSearch bindeados a `127.0.0.1`,
-- acceso por SSH/CLI desde el mismo host sin exponer esos servicios a Internet,
-- menor drift respecto del compose normal, porque `prod` se deriva desde `docker-compose-warp.yml` ya resuelto.
+- un compose final de desarrollo explícito,
+- un compose final endurecido con MySQL, Redis y OpenSearch bindeados a `127.0.0.1`,
+- un compose activo por defecto que sigue la decisión de red tomada en `warp init`,
+- menor drift entre perfiles, porque `prod` se deriva desde `dev` ya resuelto.
 
 Impacto funcional:
 
-- `docker-compose-warp.yml` sigue siendo el compose activo por defecto,
-- `docker-compose-warp.yml.prod` queda como artefacto opt-in para TL/operación,
+- si el proyecto se configura para trabajar en paralelo, `docker-compose-warp.yml` queda alineado a `docker-compose-warp.yml.dev`,
+- si el proyecto se configura para trabajar single-project, `docker-compose-warp.yml` queda alineado a `docker-compose-warp.yml.prod`,
+- los tres compose finales quedan ignorados en Git,
 - ya no hace falta sostener templates `*_prod.yml` paralelos para esos servicios.
 
 Impacto funcional:

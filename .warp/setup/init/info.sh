@@ -52,7 +52,11 @@ then
     mv $ENVIRONMENTVARIABLESFILE.tmp $ENVIRONMENTVARIABLESFILE
 fi
 
-warp_compose_prod_generate_from_final "$DOCKERCOMPOSEFILE" "$DOCKERCOMPOSEFILEPROD" || exit 1
+warp_compose_dev_generate_from_final "$DOCKERCOMPOSEFILE" "$DOCKERCOMPOSEFILEDEV" || exit 1
+warp_compose_prod_generate_from_final "$DOCKERCOMPOSEFILEDEV" "$DOCKERCOMPOSEFILEPROD" || exit 1
+
+WARP_COMPOSE_PROFILE=$(warp_compose_profile_from_env "$ENVIRONMENTVARIABLESFILE")
+warp_compose_activate_profile "$WARP_COMPOSE_PROFILE" "$DOCKERCOMPOSEFILE" "$DOCKERCOMPOSEFILEDEV" "$DOCKERCOMPOSEFILEPROD" || exit 1
 
 # creating ext-ioncube.ini
 if  [ ! -f $PROJECTPATH/.warp/docker/config/php/ext-ioncube.ini ] && [ -f $PROJECTPATH/.warp/docker/config/php/ext-ioncube.ini.sample ]
@@ -132,6 +136,9 @@ fi
 
 warp_message_warn "To start the containers: $(warp_message_bold './warp start')"
 warp_message_warn "To see detailed information for each service configured: $(warp_message_bold './warp info')"
+if [ -f "$DOCKERCOMPOSEFILEDEV" ]; then
+    warp_message_warn "Development compose available: $(warp_message_bold './$(basename "$DOCKERCOMPOSEFILEDEV")')"
+fi
 if [ -f "$DOCKERCOMPOSEFILEPROD" ]; then
     warp_message_warn "Production compose available: $(warp_message_bold './$(basename "$DOCKERCOMPOSEFILEPROD")')"
 fi
