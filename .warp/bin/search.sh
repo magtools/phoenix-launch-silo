@@ -516,14 +516,16 @@ search_local_request_plain() {
 
 search_health_print_indices() {
     local _indices_text="$1"
-    local _count=0
     local _line=""
     local _health=""
     local _index=""
     local _docs=""
 
+    printf '%-64s %-10s %s\n' "Index" "Docs" "Health"
+    printf '%-64s %-10s %s\n' "-----" "----" "------"
+
     if [ -z "$_indices_text" ]; then
-        warp_message " - $(warp_message_warn "no indices found")"
+        printf '%-64s %-10s %s\n' "[no indices found]" "-" "-"
         return 0
     fi
 
@@ -534,14 +536,10 @@ search_health_print_indices() {
         _docs=$(printf '%s\n' "$_line" | awk '{print $3}')
         [ -z "$_index" ] && continue
         [ -z "$_docs" ] && _docs="0"
-        warp_message " - ${_index}: $(warp_message_info "${_docs} docs") ($(warp_message_info "${_health:-unknown}"))"
-        _count=$((_count + 1))
-        [ "$_count" -ge 10 ] && break
+        printf '%-64s %-10s %s\n' "$_index" "$_docs" "${_health:-unknown}"
     done <<EOF
 $_indices_text
 EOF
-
-    [ "$_count" -eq 0 ] && warp_message " - $(warp_message_warn "no indices found")"
 }
 
 search_health_main() {

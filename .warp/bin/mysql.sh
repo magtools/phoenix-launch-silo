@@ -472,8 +472,8 @@ mysql_health() {
     local _line=""
     local _schema=""
     local _tables=""
-    local _selected_marker=""
-    local _system_note=""
+    local _selected="no"
+    local _type=""
 
     if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
         mysql_health_help
@@ -545,21 +545,21 @@ EOF
     [ -n "$WARP_CTX_DBNAME" ] && warp_message "Selected database:          $(warp_message_info "$WARP_CTX_DBNAME")"
     warp_message ""
     warp_message_info "Databases:"
+    printf '%-24s %-10s %-8s %s\n' "Database" "Tables" "Type" "Selected"
+    printf '%-24s %-10s %-8s %s\n' "--------" "------" "----" "--------"
 
     while IFS=$'\t' read -r _schema _tables; do
         [ -z "$_schema" ] && continue
-        _selected_marker=""
-        _system_note=""
+        _selected="no"
+        _type="app"
         [ -z "$_tables" ] && _tables="0"
         if [ -n "$WARP_CTX_DBNAME" ] && [ "$_schema" = "$WARP_CTX_DBNAME" ]; then
-            _selected_marker=" (selected)"
+            _selected="yes"
         fi
         if mysql_system_schema "$_schema"; then
-            _system_note=" system"
-            warp_message " - ${_schema}:${_selected_marker}$(warp_message_info "${_system_note}")"
-        else
-            warp_message " - ${_schema}: $(warp_message_info "${_tables} tables")${_selected_marker}"
+            _type="system"
         fi
+        printf '%-24s %-10s %-8s %s\n' "$_schema" "$_tables" "$_type" "$_selected"
     done <<EOF
 $_rows
 EOF
