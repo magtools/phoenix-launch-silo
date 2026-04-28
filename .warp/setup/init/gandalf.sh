@@ -432,6 +432,8 @@ fi
 if [[ ! -z $GF_ELASTICSEARCH_VERSION ]]
 then
     warp_message_info "Configuring ElasticSearch Service"
+    search_engine="opensearch"
+    search_image_repo=$(warp_service_version_image_repo search "$search_engine")
     elasticsearch_version=$GF_ELASTICSEARCH_VERSION
     elasticsearch_memory="512m"
 
@@ -441,12 +443,28 @@ then
     echo "# Elasticsearch" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "ES_VERSION=$elasticsearch_version" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "ES_MEMORY=$elasticsearch_memory" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "ES_PASSWORD=XmsES_MEMORY++99" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "# Canonical SEARCH Configuration" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "SEARCH_MODE=local" >> $ENVIRONMENTVARIABLESFILESAMPLE
-    echo "SEARCH_ENGINE=opensearch" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "SEARCH_ENGINE=$search_engine" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "SEARCH_VERSION=$elasticsearch_version" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "SEARCH_IMAGE=${search_image_repo}:${elasticsearch_version}" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "SEARCH_SCHEME=http" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "SEARCH_HOST=elasticsearch" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "SEARCH_PORT=9200" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "SEARCH_CONTAINER_USER=$(warp_search_engine_container_user "$search_engine")" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "SEARCH_CONTAINER_CONFIG_PATH=$(warp_search_engine_container_config_path "$search_engine")" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "SEARCH_DATA_PATH=$(warp_search_engine_data_path "$search_engine")" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "SEARCH_SERVER_BIN=$(warp_search_engine_server_bin "$search_engine")" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "SEARCH_PLUGIN_BIN=$(warp_search_engine_plugin_bin "$search_engine")" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "SEARCH_HOST_CONFIG_FILE=$(warp_search_engine_default_host_config_file "$search_engine")" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "SEARCH_INSTALL_PHONETIC_PLUGIN=$(warp_search_engine_install_phonetic_default "$search_engine")" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "" >> $ENVIRONMENTVARIABLESFILESAMPLE
+
+    warp_search_engine_ensure_runtime_config "$search_engine" || {
+        warp_message_error "Could not prepare runtime config for search engine: $search_engine"
+        exit 1
+    }
 fi
 
 ############### REDIS

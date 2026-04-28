@@ -62,15 +62,12 @@ fi
 
 if [[ ! -z $GF_ELASTICSEARCH_VERSION ]]
 then
-    case $GF_ELASTICSEARCH_VERSION in
-        '7.6.2'|'6.5.4'|'6.4.2'|'5.6.8'|'2.4.6'|'2.4.4'|'1.7.6')
-            let CHECK_GANDALF_ERRORS=$CHECK_GANDALF_ERRORS
-        ;;
-        *)
-            warp_message_info2 "Selected: $GF_ELASTICSEARCH_VERSION, the available versions are: 7.6.2, 6.5.4, 6.4.2, 5.6.8, 2.4.6, 2.4.4, 1.7.6"
-            let CHECK_GANDALF_ERRORS=$CHECK_GANDALF_ERRORS+1
-        ;;
-    esac
+    if warp_service_version_tag_known search opensearch "$GF_ELASTICSEARCH_VERSION"; then
+        let CHECK_GANDALF_ERRORS=$CHECK_GANDALF_ERRORS
+    else
+        warp_message_info2 "Selected: $GF_ELASTICSEARCH_VERSION, the available OpenSearch versions are: $(warp_service_version_tags_csv search opensearch suggested)"
+        let CHECK_GANDALF_ERRORS=$CHECK_GANDALF_ERRORS+1
+    fi
 fi
 
 if [[ ! -z $GF_REDIS_VERSION ]]

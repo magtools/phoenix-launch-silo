@@ -8,7 +8,10 @@
     environment:
       - discovery.type=single-node
       - "ES_JAVA_OPTS=-Xms${ES_MEMORY} -Xmx${ES_MEMORY}"
+      - "OPENSEARCH_JAVA_OPTS=-Xms${ES_MEMORY} -Xmx${ES_MEMORY}"
       - "OPENSEARCH_INITIAL_ADMIN_PASSWORD=${ES_PASSWORD}"
+      - "DISABLE_INSTALL_DEMO_CONFIG=true"
+      - "DISABLE_SECURITY_PLUGIN=true"
     ulimits:
       memlock:
         soft: -1
@@ -17,13 +20,15 @@
         soft: 65536
         hard: 65536
     volumes:
-      - "./.warp/docker/volumes/elasticsearch/nodes:/usr/share/opensearch/data/nodes"
-      - "./.warp/docker/config/opensearch:/usr/share/opensearch/config"
+      - "./.warp/docker/volumes/elasticsearch/data:${SEARCH_DATA_PATH:-/usr/share/opensearch/data}"
+      - "${SEARCH_HOST_CONFIG_FILE:-./.warp/docker/config/opensearch/opensearch.yml}:${SEARCH_CONTAINER_CONFIG_PATH:-/usr/share/opensearch/config/opensearch.yml}"
     command: >
       bash -c "
-      if ! /usr/share/opensearch/bin/opensearch-plugin list | grep -q 'analysis-phonetic'; then
-        /usr/share/opensearch/bin/opensearch-plugin install analysis-phonetic;
+      if [ \"${SEARCH_INSTALL_PHONETIC_PLUGIN:-1}\" = \"1\" ] && [ -n \"${SEARCH_PLUGIN_BIN}\" ]; then
+        if ! ${SEARCH_PLUGIN_BIN} list | grep -qx 'analysis-phonetic'; then
+          ${SEARCH_PLUGIN_BIN} install --batch analysis-phonetic;
+        fi;
       fi &&
-      /usr/share/opensearch/bin/opensearch"
+      exec ${SEARCH_SERVER_BIN:-/usr/share/opensearch/bin/opensearch}"
     networks:
       - back
