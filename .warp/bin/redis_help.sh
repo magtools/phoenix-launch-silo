@@ -15,10 +15,11 @@ function redis_help_usage()
 
     warp_message_info "Available commands:"
 
-    warp_message_info   " cli                $(warp_message 'run the redis-cli command inside the redis container')"
-    warp_message_info   " monitor            $(warp_message 'run the monitor command inside the redis container')"
-    warp_message_info   " ssh                $(warp_message 'connect to redis services by ssh')"
-    warp_message_info   " flush              $(warp_message 'flush redis services data')"
+    warp_message_info   " health             $(warp_message 'show runtime cache health by scope')"
+    warp_message_info   " cli                $(warp_message 'run the cache CLI command inside the redis/valkey container')"
+    warp_message_info   " monitor            $(warp_message 'run the monitor command inside the redis/valkey container')"
+    warp_message_info   " ssh                $(warp_message 'connect to cache services by shell')"
+    warp_message_info   " flush              $(warp_message 'flush cache services data')"
 
     warp_message ""
     warp_message_info "Help:"
@@ -129,6 +130,20 @@ redis_info_help() {
     warp_message ""
 }
 
+redis_health_help() {
+    warp_message ""
+    warp_message_info "Usage:"
+    warp_message      " warp cache health"
+    warp_message ""
+
+    warp_message ""
+    warp_message_info "Help:"
+    warp_message " show current cache runtime health in a short format."
+    warp_message " it checks cache, fpc and session scopes, reports db index, key count and a short usage label."
+    warp_message " in external mode it uses redis-cli/valkey-cli against CACHE_* endpoint variables from .env."
+    warp_message ""
+}
+
 redis_ssh_help() {
     warp_message ""
     warp_message_info "Usage:"
@@ -144,14 +159,14 @@ redis_ssh_help() {
 
     warp_message ""
     warp_message_info "Options:"
-    warp_message_info   " --cache            $(warp_message 'inside container redis as cache user')"
-    warp_message_info   " --redis            $(warp_message 'inside container redis as redis user (legacy alias)')"
-    warp_message_info   " --root             $(warp_message 'inside container redis as root user')"
+    warp_message_info   " --cache            $(warp_message 'inside container as the engine cache user')"
+    warp_message_info   " --redis            $(warp_message 'legacy alias of --cache')"
+    warp_message_info   " --root             $(warp_message 'inside container as root user')"
     warp_message ""
 
     warp_message ""
     warp_message_info "Help:"
-    warp_message " Connect to redis service by ssh"
+    warp_message " Connect to local cache service shell"
     warp_message " ssh is only available for local container mode; in external mode Warp blocks this command."
     warp_message ""
 

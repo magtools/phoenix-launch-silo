@@ -123,18 +123,22 @@ then
     warp_message_info2 "Selected configuration file: $mysql_config_file"
 
     if [ "$mysql_use_project_specific" = "Y" ] || [ "$mysql_use_project_specific" = "y" ]; then
-        cat $PROJECTPATH/.warp/setup/mysql/tpl/database_custom.yml >> $DOCKERCOMPOSEFILESAMPLE
+        warp_compose_sample_append_dev \
+            "$PROJECTPATH/.warp/setup/mysql/tpl/database_custom.yml" || exit 1
     else
         if [ "$db_engine" = "mariadb" ] ; then
-            cat $PROJECTPATH/.warp/setup/mysql/tpl/database.yml >> $DOCKERCOMPOSEFILESAMPLE
+            warp_compose_sample_append_dev \
+                "$PROJECTPATH/.warp/setup/mysql/tpl/database.yml" || exit 1
         elif [ $(uname -m) == 'arm64' ] ; then
-            cat $PROJECTPATH/.warp/setup/mysql/tpl/database_arm.yml >> $DOCKERCOMPOSEFILESAMPLE
+            warp_compose_sample_append_dev \
+                "$PROJECTPATH/.warp/setup/mysql/tpl/database_arm.yml" || exit 1
         else
-            cat $PROJECTPATH/.warp/setup/mysql/tpl/database_mysql.yml >> $DOCKERCOMPOSEFILESAMPLE
+            warp_compose_sample_append_dev \
+                "$PROJECTPATH/.warp/setup/mysql/tpl/database_mysql.yml" || exit 1
         fi
     fi
     
-    cat $PROJECTPATH/.warp/setup/mysql/tpl/database_enviroment_root.yml >> $DOCKERCOMPOSEFILESAMPLE
+    warp_compose_sample_append_dev "$PROJECTPATH/.warp/setup/mysql/tpl/database_enviroment_root.yml" || exit 1
 
     echo "# MySQL Configuration" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "MYSQL_VERSION=$mysql_version" >> $ENVIRONMENTVARIABLESFILESAMPLE
@@ -143,7 +147,7 @@ then
     echo "DATABASE_BINDED_PORT=$mysql_binded_port" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "DATABASE_ROOT_PASSWORD=$mysql_root_password" >> $ENVIRONMENTVARIABLESFILESAMPLE
 
-    cat $PROJECTPATH/.warp/setup/mysql/tpl/database_enviroment_default.yml >> $DOCKERCOMPOSEFILESAMPLE
+    warp_compose_sample_append_dev "$PROJECTPATH/.warp/setup/mysql/tpl/database_enviroment_default.yml" || exit 1
     echo "DATABASE_NAME=$mysql_name_database" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "DATABASE_USER=$mysql_user_database" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "DATABASE_PASSWORD=$mysql_password_database" >> $ENVIRONMENTVARIABLESFILESAMPLE
@@ -168,9 +172,9 @@ then
     echo "" >> $ENVIRONMENTVARIABLESFILESAMPLE
 
     if [ "$mysql_use_project_specific" = "Y" ] || [ "$mysql_use_project_specific" = "y" ]; then
-        cat $PROJECTPATH/.warp/setup/mysql/tpl/database_volumes_networks_custom.yml >> $DOCKERCOMPOSEFILESAMPLE
+        warp_compose_sample_append_dev "$PROJECTPATH/.warp/setup/mysql/tpl/database_volumes_networks_custom.yml" || exit 1
     else
-        cat $PROJECTPATH/.warp/setup/mysql/tpl/database_volumes_networks.yml >> $DOCKERCOMPOSEFILESAMPLE
+        warp_compose_sample_append_dev "$PROJECTPATH/.warp/setup/mysql/tpl/database_volumes_networks.yml" || exit 1
     fi
     
 

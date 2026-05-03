@@ -1,0 +1,11 @@
+cluster.name: elasticsearch
+
+network.host: 0.0.0.0
+http.port: 9200
+discovery.type: single-node
+
+# Local development defaults. Keep security disabled so Warp only needs
+# to manage the minimal config file and no demo cert tree.
+plugins.security.disabled: true
+
+node.max_local_storage_nodes: 3

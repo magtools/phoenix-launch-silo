@@ -13,6 +13,14 @@ main () {
     ORIGINAL_COMMAND="$1"
     BOOT_RUNTIME_MODE=$(warp_runtime_mode_resolve_boot "$ORIGINAL_COMMAND")
 
+    # Host-capable commands must not die in the global Docker precheck when the
+    # host has no Docker binary at all. Let the command-level fallback decide.
+    if [ "$BOOT_RUNTIME_MODE" = "docker" ] && ! hash docker 2>/dev/null; then
+        if warp_command_supports_host_runtime "$ORIGINAL_COMMAND"; then
+            BOOT_RUNTIME_MODE="host"
+        fi
+    fi
+
     # Check docker tooling only when runtime mode requires docker.
     if [ "$BOOT_RUNTIME_MODE" = "docker" ]; then
         hash docker 2>/dev/null || { echo >&2 "warp framework requires \"docker\""; exit 1; }
@@ -31,7 +39,7 @@ main () {
         include_warp_framework
     fi;
 
-    if [ -d "$PROJECTPATH/.warp/lib" ] && [ "$BOOT_RUNTIME_MODE" = "docker" ]; then
+    if [ -d "$PROJECTPATH/.warp/lib" ] && [ "$BOOT_RUNTIME_MODE" = "docker" ] && ! warp_command_supports_host_runtime "$ORIGINAL_COMMAND"; then
         # Check minimum versions
         warp_check_docker_version
     fi;
@@ -282,13 +290,6 @@ warp_run_loaded_command() {
 }
 
 warp_compose_bootstrap() {
-    if hash docker-compose 2>/dev/null; then
-        if docker-compose version >/dev/null 2>&1; then
-            export WARP_COMPOSE_BACKEND="legacy"
-            return 0
-        fi
-    fi
-
     if docker compose version >/dev/null 2>&1; then
         _shim_dir="$PROJECTPATH/var/warp-bin"
         _shim_file="$_shim_dir/docker-compose"
@@ -321,6 +322,13 @@ warp_compose_bootstrap() {
         return 0
     fi
 
+    if hash docker-compose 2>/dev/null; then
+        if docker-compose version >/dev/null 2>&1; then
+            export WARP_COMPOSE_BACKEND="legacy"
+            return 0
+        fi
+    fi
+
     echo >&2 "warp framework requires \"docker-compose\" or \"docker compose\" plugin"
     exit 1
 }
@@ -338,7 +346,7 @@ warp_runtime_mode_read_raw_from_env() {
 warp_command_supports_host_runtime() {
     local _cmd="$1"
     case "$_cmd" in
-        ""|-h|--help|help|init|db|mysql|cache|redis|valkey|search|elasticsearch|opensearch|php|phpini|opcache|xdebug|profiler|agents|magento|ece-tools|ece-patches|telemetry|info|composer|audit|scan|security)
+        ""|-h|--help|help|init|update|db|mysql|cache|redis|valkey|search|elasticsearch|opensearch|php|phpini|opcache|xdebug|profiler|agents|magento|ece-tools|ece-patches|telemetry|info|composer|audit|scan|security)
             return 0
             ;;
         *)
@@ -350,6 +358,11 @@ warp_command_supports_host_runtime() {
 warp_runtime_mode_resolve_boot() {
     local _cmd="$1"
     local _mode
+
+    if [ "$_cmd" = "update" ]; then
+        echo "host"
+        return 0
+    fi
 
     _mode=$(warp_runtime_mode_read_raw_from_env)
     case "$_mode" in
@@ -383,10 +396,95 @@ include_warp_framework() {
     . "$PROJECTPATH/.warp/includes.sh"
 }
 
+warp_init_host_detect_framework_value() {
+    local _framework_value="php"
+
+    if command -v warp_app_context_detect >/dev/null 2>&1; then
+        warp_app_context_detect
+    fi
+
+    case "${WARP_APP_FRAMEWORK:-unknown}" in
+        magento)
+            _framework_value="m2"
+            ;;
+        oro)
+            _framework_value="oro"
+            ;;
+        php)
+            _framework_value="php"
+            ;;
+    esac
+
+    printf '%s\n' "$_framework_value"
+}
+
+warp_init_host_write_sample_if_missing() {
+    local _sample_file="$ENVIRONMENTVARIABLESFILESAMPLE"
+    local _framework_value=""
+    local _warp_version_value=""
+
+    [ -f "$_sample_file" ] && return 0
+
+    _framework_value=$(warp_init_host_detect_framework_value)
+    _warp_version_value="${WARP_VERSION:-$WARP_BINARY_VERSION}"
+
+    cat > "$_sample_file" <<EOF
+# Warp host mode bootstrap
+FRAMEWORK=${_framework_value}
+WARP_VERSION=${_warp_version_value}
+WARP_RUNTIME_MODE=host
+EOF
+}
+
+warp_init_host_bootstrap() {
+    local _warp_version_value=""
+
+    [ -d "$PROJECTPATH/.warp/lib" ] || {
+        warp_message_error "warp framework is not installed"
+        return 1
+    }
+
+    include_warp_framework
+
+    _warp_version_value="${WARP_VERSION:-$WARP_BINARY_VERSION}"
+
+    warp_init_host_write_sample_if_missing || {
+        warp_message_error "could not prepare $(basename "$ENVIRONMENTVARIABLESFILESAMPLE")"
+        return 1
+    }
+
+    if [ ! -f "$ENVIRONMENTVARIABLESFILE" ]; then
+        cp "$ENVIRONMENTVARIABLESFILESAMPLE" "$ENVIRONMENTVARIABLESFILE" || {
+            warp_message_error "could not create $(basename "$ENVIRONMENTVARIABLESFILE") from $(basename "$ENVIRONMENTVARIABLESFILESAMPLE")"
+            return 1
+        }
+    fi
+
+    warp_env_file_set_var "$ENVIRONMENTVARIABLESFILESAMPLE" "WARP_VERSION" "$_warp_version_value" || return 1
+    warp_env_file_set_var "$ENVIRONMENTVARIABLESFILESAMPLE" "WARP_RUNTIME_MODE" "host" || return 1
+    warp_env_file_set_var "$ENVIRONMENTVARIABLESFILE" "WARP_VERSION" "$_warp_version_value" || return 1
+    warp_env_file_set_var "$ENVIRONMENTVARIABLESFILE" "WARP_RUNTIME_MODE" "host" || return 1
+    warp_check_gitignore
+    warp_install_system_wrapper || return 1
+
+    warp_message_info2 "host mode bootstrap completed"
+    warp_message_info "runtime mode: host"
+    warp_message_info "docker-compose setup was not generated"
+    warp_message_info "supported host workflows include telemetry, scan, security, composer and update"
+}
+
 setup_main() {
     if [ "$1" = "-h" ] || [ "$1" = "--help" ] ; then
         setup_help_usage
         exit 0;
+    elif [ "$1" = "--host" ] ; then
+        if [ ! -d "$PROJECTPATH/.warp/setup" ]; then
+            warp_setup --host
+            exit 0;
+        fi;
+
+        warp_init_host_bootstrap
+        exit $?
     elif [ "$1" = "-n" ] || [ "$1" = "--no-interaction" ] ; then
         if [ ! -d "$PROJECTPATH/.warp/setup" ]; then
             warp_setup --no-interaction
@@ -451,6 +549,7 @@ setup_help_usage() {
         echo "  2) Configure service ports"
         echo "  "
         echo "  Please run ./warp init"
+        echo "  For a host-only bootstrap without Docker setup, run ./warp init --host"
 
         exit 0;
     fi
@@ -620,6 +719,25 @@ warp_delegate_wrapper_template() {
     echo "$PROJECTPATH/.warp/setup/bin/warp-wrapper.sh"
 }
 
+warp_is_current_wrapper() {
+    local _target="$1"
+    local _template="$2"
+
+    [ -f "$_target" ] || return 1
+    [ -f "$_template" ] || return 1
+    cmp -s "$_target" "$_template"
+}
+
+warp_is_legacy_wrapper() {
+    local _target="$1"
+
+    [ -f "$_target" ] || return 1
+    grep -Eq 'bash[[:space:]]+\./warp([[:space:]]|"$@")' "$_target" 2>/dev/null || return 1
+    grep -Eq 'exec[[:space:]]+\./warp|exec[[:space:]]+bash[[:space:]]+\./warp\.sh|\./warp\.sh' "$_target" 2>/dev/null && return 1
+
+    return 0
+}
+
 warp_is_delegate_wrapper_file() {
     local _path="$1"
 
@@ -637,7 +755,7 @@ warp_wrapper_install_command() {
     local _template=""
 
     _template=$(warp_delegate_wrapper_template)
-    printf 'sudo cp "%s" "%s" && sudo chmod 755 "%s"' "$_template" "$_target" "$_target"
+    printf 'sudo sh "%s" "%s" "%s"' "$PROJECTPATH/.warp/lib/binary.sh" "$_target" "$_template"
 }
 
 warp_wrapper_overwrite_system_lines() {
@@ -659,6 +777,43 @@ warp_wrapper_overwrite_system_lines() {
     warp_message "    $_command"
     warp_message "  source wrapper: .warp/setup/bin/warp-wrapper.sh"
     warp_message "  effect: ${_target} delegates to ./warp or ./warp.sh in the current project"
+}
+
+warp_install_system_wrapper() {
+    local _target="${1:-$WARP_BINARY_FILE}"
+    local _template=""
+    local _install_cmd=""
+
+    _template=$(warp_delegate_wrapper_template)
+    [ -f "$_template" ] || return 0
+
+    if [ ! -f "$_target" ]; then
+        warp_message "* Installing warp wrapper $(warp_message_ok [ok])"
+    elif warp_is_current_wrapper "$_target" "$_template"; then
+        warp_message "* Warp wrapper $(warp_message_ok [ok])"
+        return 0
+    elif warp_is_legacy_wrapper "$_target"; then
+        warp_message "* Replacing legacy warp wrapper $(warp_message_ok [ok])"
+    else
+        warp_message "* Warp binary exists at $_target $(warp_message_warn [skip])"
+        warp_wrapper_overwrite_system_lines "$_target" "warn"
+        return 0
+    fi
+
+    if [ -w "$(dirname "$_target")" ] || { [ -e "$_target" ] && [ -w "$_target" ]; }; then
+        sh "$PROJECTPATH/.warp/lib/binary.sh" "$_target" "$_template" || return 1
+        return 0
+    fi
+
+    if command -v sudo >/dev/null 2>&1; then
+        sudo sh "$PROJECTPATH/.warp/lib/binary.sh" "$_target" "$_template" || return 1
+        return 0
+    fi
+
+    _install_cmd=$(warp_wrapper_install_command "$_target")
+    warp_message_warn "sudo not available; install the wrapper manually with:"
+    warp_message_warn "$_install_cmd"
+    return 0
 }
 
 warp_global_binary_paths() {
@@ -862,6 +1017,139 @@ warp_update_ensure_php_optional_ini_files() {
     done
 }
 
+warp_update_ensure_mail_defaults() {
+    local _env_file="$ENVIRONMENTVARIABLESFILE"
+    local _sample_file="$ENVIRONMENTVARIABLESFILESAMPLE"
+    local _file=""
+    local _mail_engine_default="${MAIL_ENGINE_DEFAULT:-mailpit}"
+    local _mail_version_default="${MAIL_VERSION_DEFAULT:-v1.29}"
+    local _mail_binded_port_default="${MAIL_BINDED_PORT_DEFAULT:-8025}"
+    local _mail_max_messages_default="${MAIL_MAX_MESSAGES_DEFAULT:-100}"
+    local _config_dir="$PROJECTPATH/.warp/docker/config/mail"
+    local _storage_dir="$PROJECTPATH/.warp/docker/volumes/mail"
+    local _setup_dir="$PROJECTPATH/.warp/setup/mailhog/config/mail"
+    local _target_auth="$_config_dir/ui-auth.txt"
+    local _target_sample="$_config_dir/ui-auth.txt.sample"
+    local _source_auth="$_setup_dir/ui-auth.txt"
+    local _source_sample="$_setup_dir/ui-auth.txt.sample"
+    local _canonical_port=""
+    local _legacy_port=""
+    local _resolved_port=""
+    local _mail_engine=""
+
+    for _file in "$_env_file" "$_sample_file"; do
+        [ -f "$_file" ] || continue
+
+        _canonical_port=""
+        _legacy_port=""
+        _resolved_port=""
+        _mail_engine=""
+
+        if command -v warp_mail_ensure_env_defaults >/dev/null 2>&1; then
+            warp_mail_ensure_env_defaults "$_file" || return 1
+        else
+            if command -v warp_env_file_read_var >/dev/null 2>&1; then
+                _mail_engine=$(warp_env_file_read_var "$_file" MAIL_ENGINE)
+                _canonical_port=$(warp_env_file_read_var "$_file" MAIL_BINDED_PORT)
+                _legacy_port=$(warp_env_file_read_var "$_file" MAILHOG_BINDED_PORT)
+            else
+                _mail_engine=$(grep "^MAIL_ENGINE=" "$_file" | cut -d '=' -f2-)
+                _canonical_port=$(grep "^MAIL_BINDED_PORT=" "$_file" | cut -d '=' -f2-)
+                _legacy_port=$(grep "^MAILHOG_BINDED_PORT=" "$_file" | cut -d '=' -f2-)
+            fi
+
+            [ -n "$_mail_engine" ] || [ -n "$_canonical_port" ] || [ -n "$_legacy_port" ] || continue
+
+            if [ -n "$_canonical_port" ]; then
+                _resolved_port="$_canonical_port"
+            elif [ -n "$_legacy_port" ]; then
+                _resolved_port="$_legacy_port"
+            else
+                _resolved_port="$_mail_binded_port_default"
+            fi
+
+            if command -v warp_env_file_set_var >/dev/null 2>&1; then
+                warp_env_file_set_var "$_file" MAIL_ENGINE "$_mail_engine_default" || return 1
+                warp_env_file_set_var "$_file" MAIL_VERSION "$_mail_version_default" || return 1
+                warp_env_file_set_var "$_file" MAIL_MAX_MESSAGES "$_mail_max_messages_default" || return 1
+                warp_env_file_set_var "$_file" MAIL_BINDED_PORT "$_resolved_port" || return 1
+                if [ -n "$_legacy_port" ]; then
+                    warp_env_file_set_var "$_file" MAILHOG_BINDED_PORT "$_resolved_port" || return 1
+                fi
+            else
+                grep -q "^MAIL_ENGINE=" "$_file" 2>/dev/null || echo "" >> "$_file"
+                grep -q "^MAIL_ENGINE=" "$_file" 2>/dev/null && \
+                    sed -e "s#^MAIL_ENGINE=.*#MAIL_ENGINE=${_mail_engine_default}#g" "$_file" > "${_file}.warp_mail_tmp" || \
+                    { cat "$_file" > "${_file}.warp_mail_tmp" && echo "MAIL_ENGINE=${_mail_engine_default}" >> "${_file}.warp_mail_tmp"; }
+                mv "${_file}.warp_mail_tmp" "$_file" || return 1
+
+                grep -q "^MAIL_VERSION=" "$_file" 2>/dev/null && \
+                    sed -e "s#^MAIL_VERSION=.*#MAIL_VERSION=${_mail_version_default}#g" "$_file" > "${_file}.warp_mail_tmp" || \
+                    { cat "$_file" > "${_file}.warp_mail_tmp" && echo "MAIL_VERSION=${_mail_version_default}" >> "${_file}.warp_mail_tmp"; }
+                mv "${_file}.warp_mail_tmp" "$_file" || return 1
+
+                grep -q "^MAIL_MAX_MESSAGES=" "$_file" 2>/dev/null && \
+                    sed -e "s#^MAIL_MAX_MESSAGES=.*#MAIL_MAX_MESSAGES=${_mail_max_messages_default}#g" "$_file" > "${_file}.warp_mail_tmp" || \
+                    { cat "$_file" > "${_file}.warp_mail_tmp" && echo "MAIL_MAX_MESSAGES=${_mail_max_messages_default}" >> "${_file}.warp_mail_tmp"; }
+                mv "${_file}.warp_mail_tmp" "$_file" || return 1
+
+                grep -q "^MAIL_BINDED_PORT=" "$_file" 2>/dev/null && \
+                    sed -e "s#^MAIL_BINDED_PORT=.*#MAIL_BINDED_PORT=${_resolved_port}#g" "$_file" > "${_file}.warp_mail_tmp" || \
+                    { cat "$_file" > "${_file}.warp_mail_tmp" && echo "MAIL_BINDED_PORT=${_resolved_port}" >> "${_file}.warp_mail_tmp"; }
+                mv "${_file}.warp_mail_tmp" "$_file" || return 1
+
+                if [ -n "$_legacy_port" ]; then
+                    sed -e "s#^MAILHOG_BINDED_PORT=.*#MAILHOG_BINDED_PORT=${_resolved_port}#g" "$_file" > "${_file}.warp_mail_tmp" || return 1
+                    mv "${_file}.warp_mail_tmp" "$_file" || return 1
+                fi
+            fi
+        fi
+    done
+
+    if command -v warp_mail_ensure_auth_files >/dev/null 2>&1; then
+        if [ -f "$_env_file" ]; then
+            warp_mail_ensure_auth_files "$_env_file" || return 1
+        fi
+        if [ -f "$_sample_file" ]; then
+            warp_mail_ensure_auth_files "$_sample_file" || return 1
+        fi
+        if command -v warp_mail_ensure_storage_dir >/dev/null 2>&1; then
+            warp_mail_ensure_storage_dir || return 1
+            return 0
+        fi
+    fi
+
+    mkdir -p "$_config_dir" || {
+        warp_message_error "unable to create mail config directory: $_config_dir"
+        return 1
+    }
+
+    [ -f "$_source_auth" ] || {
+        warp_message_error "mail auth template not found: $_source_auth"
+        return 1
+    }
+
+    [ -f "$_source_sample" ] || {
+        warp_message_error "mail auth sample template not found: $_source_sample"
+        return 1
+    }
+
+    [ -f "$_target_auth" ] || cp "$_source_auth" "$_target_auth" || {
+        warp_message_error "unable to create mail auth file: $_target_auth"
+        return 1
+    }
+
+    [ -f "$_target_sample" ] || cp "$_source_sample" "$_target_sample" || {
+        warp_message_error "unable to create mail auth sample file: $_target_sample"
+        return 1
+    }
+
+    mkdir -p "$_storage_dir" || {
+        warp_message_error "unable to create mail storage directory: $_storage_dir"
+        return 1
+    }
+}
+
 warp_fetch_latest_version() {
     warp_remote_base_url="https://raw.githubusercontent.com/magtools/phoenix-launch-silo/refs/heads/master/dist"
     _fetch_output=$(curl --silent --show-error --fail --location --connect-timeout 3 --max-time 3 "${warp_remote_base_url}/version.md" 2>&1)
@@ -936,7 +1224,7 @@ warp_check_latest_version() {
 
 warp_message_not_install_yet() {
     echo "WARP-ENGINE has not been installed yet."
-    echo "Please run ./warp init or ./warp init --help"
+    echo "Please run ./warp init, ./warp init --host or ./warp init --help"
 }
 
 warp_update() {
@@ -996,6 +1284,8 @@ warp_update() {
         WARP_BINARY_SYNC_NOTICE=""
         warp_pending_update_clear
         warp_update_ensure_php_optional_ini_files || exit 1
+        warp_update_ensure_mail_defaults || exit 1
+        warp_install_system_wrapper || exit 1
         warp_update_tmp_clean
 
         warp_message_info2 "warp self update applied successfully"
@@ -1031,6 +1321,7 @@ warp_update() {
         warp_message_info2 "warp is up to date ($WARP_VERSION)"
         warp_pending_update_clear
         warp_update_ensure_php_optional_ini_files || exit 1
+        warp_update_ensure_mail_defaults || exit 1
         warp_update_tmp_clean
         exit 0
     fi
@@ -1067,6 +1358,8 @@ warp_update() {
     WARP_BINARY_SYNC_NOTICE=""
     warp_pending_update_clear
     warp_update_ensure_php_optional_ini_files || exit 1
+    warp_update_ensure_mail_defaults || exit 1
+    warp_install_system_wrapper || exit 1
     warp_update_tmp_clean
 
     warp_message_info2 "warp updated successfully to $WARP_VERSION_LATEST"
@@ -1204,6 +1497,18 @@ function warp_setup() {
         # load banner
         warp_banner        
         exit 0;
+    fi
+
+    if [ "$OPTION" = "--host" ]
+    then
+        if [ -d "$PROJECTPATH/.warp/lib" ] && [ -d "$PROJECTPATH/.warp/bin" ] ; then
+            echo "Installing Warp host mode, wait a few moments"
+            sleep 1
+            echo "Successful installation!, preparing host bootstrap.."
+            sleep 1
+            warp_init_host_bootstrap
+            exit $?
+        fi
     fi
 
     if [ "$OPTION" = "install" ]

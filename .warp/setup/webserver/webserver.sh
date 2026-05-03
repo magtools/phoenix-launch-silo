@@ -81,7 +81,7 @@ then
     echo "" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "# NGINX Configuration" >> $ENVIRONMENTVARIABLESFILESAMPLE
 
-    cat $PROJECTPATH/.warp/setup/webserver/tpl/webserver.yml >> $DOCKERCOMPOSEFILESAMPLE
+    warp_compose_sample_append_dev "$PROJECTPATH/.warp/setup/webserver/tpl/webserver.yml" || exit 1
 
     if [ $useproxy = 0 ]; then
         echo "HTTP_BINDED_PORT=80" >> $ENVIRONMENTVARIABLESFILESAMPLE
@@ -133,4 +133,3 @@ then
 
 
 fi; 
-

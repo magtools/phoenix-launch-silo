@@ -2,6 +2,30 @@
 
 let CHECK_GANDALF_ERRORS=0
 
+if [[ ! -z $GF_NAMESPACE ]]
+then
+    if ! warp_env_is_valid_image_name_component "$GF_NAMESPACE"; then
+        warp_message_info2 "Selected namespace: $GF_NAMESPACE. Use only lowercase letters or numbers, optionally separated by one hyphen."
+        let CHECK_GANDALF_ERRORS=$CHECK_GANDALF_ERRORS+1
+    fi
+fi
+
+if [[ ! -z $GF_PROJECT ]]
+then
+    if ! warp_env_is_valid_image_name_component "$GF_PROJECT"; then
+        warp_message_info2 "Selected project: $GF_PROJECT. Use only lowercase letters or numbers, optionally separated by one hyphen."
+        let CHECK_GANDALF_ERRORS=$CHECK_GANDALF_ERRORS+1
+    fi
+fi
+
+if [[ ! -z $GF_PRIVATE_REGISTRY ]]
+then
+    if ! warp_env_is_valid_private_registry "$GF_PRIVATE_REGISTRY"; then
+        warp_message_info2 "Selected private registry: $GF_PRIVATE_REGISTRY. Use host[:port][/namespace] without http:// or https:// and without trailing slash."
+        let CHECK_GANDALF_ERRORS=$CHECK_GANDALF_ERRORS+1
+    fi
+fi
+
 if [[ -z $GF_NGINX_VHOST ]]
 then
     warp_message_info2 "--vhost is a required parameter"
@@ -62,15 +86,12 @@ fi
 
 if [[ ! -z $GF_ELASTICSEARCH_VERSION ]]
 then
-    case $GF_ELASTICSEARCH_VERSION in
-        '7.6.2'|'6.5.4'|'6.4.2'|'5.6.8'|'2.4.6'|'2.4.4'|'1.7.6')
-            let CHECK_GANDALF_ERRORS=$CHECK_GANDALF_ERRORS
-        ;;
-        *)
-            warp_message_info2 "Selected: $GF_ELASTICSEARCH_VERSION, the available versions are: 7.6.2, 6.5.4, 6.4.2, 5.6.8, 2.4.6, 2.4.4, 1.7.6"
-            let CHECK_GANDALF_ERRORS=$CHECK_GANDALF_ERRORS+1
-        ;;
-    esac
+    if warp_service_version_tag_known search opensearch "$GF_ELASTICSEARCH_VERSION"; then
+        let CHECK_GANDALF_ERRORS=$CHECK_GANDALF_ERRORS
+    else
+        warp_message_info2 "Selected: $GF_ELASTICSEARCH_VERSION, the available OpenSearch versions are: $(warp_service_version_tags_csv search opensearch suggested)"
+        let CHECK_GANDALF_ERRORS=$CHECK_GANDALF_ERRORS+1
+    fi
 fi
 
 if [[ ! -z $GF_REDIS_VERSION ]]

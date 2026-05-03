@@ -8,6 +8,7 @@
     # - ! .env
 
 [ ! -f $ENVIRONMENTVARIABLESFILE ] && cp $ENVIRONMENTVARIABLESFILESAMPLE $ENVIRONMENTVARIABLESFILE
+[ -f $DOCKERCOMPOSEFILEDEV ] && cp $DOCKERCOMPOSEFILEDEV $DOCKERCOMPOSEFILE
 [ ! -f $DOCKERCOMPOSEFILE ] && cp $DOCKERCOMPOSEFILESAMPLE $DOCKERCOMPOSEFILE
 
     # LOAD VARIABLES SAMPLE
@@ -155,14 +156,16 @@ warp_message_info "Configuring Web Server - Nginx"
         done
     fi
 
-    if [ ! -z "$MAILHOG_BINDED_PORT" ]
+    MAIL_BINDED_PORT_CURRENT=$(warp_env_read_mail_binded_port)
+
+    if [ ! -z "$MAIL_BINDED_PORT_CURRENT" ]
     then
     
         warp_message ""
-        warp_message_info "Configuring Mailhog SMTP server"
+        warp_message_info "Configuring Mail service"
 
         while : ; do
-            mailhog_binded_port=$( warp_question_ask_default "Plase select the port of your machine (host) to Web interface to view the messages: $(warp_message_info [8025]) " "8025" )
+            mailhog_binded_port=$( warp_question_ask_default "Plase select the port of your machine (host) to Web interface to view the messages: $(warp_message_info [$MAIL_BINDED_PORT_DEFAULT]) " "$MAIL_BINDED_PORT_DEFAULT" )
 
             if ! warp_net_port_in_use $mailhog_binded_port ; then
                 warp_message_info2 "the selected port is: $mailhog_binded_port, Web interface to view the messages: $(warp_message_bold 'http://127.0.0.1:'$mailhog_binded_port)"
@@ -172,15 +175,6 @@ warp_message_info "Configuring Web Server - Nginx"
             fi;
         done
     fi
-
-    HTTP_HOST_OLD="HTTP_HOST_IP=$HTTP_HOST_IP"
-    HTTP_BINDED_OLD="HTTP_BINDED_PORT=$HTTP_BINDED_PORT"
-    HTTPS_BINDED_OLD="HTTPS_BINDED_PORT=$HTTPS_BINDED_PORT"
-
-    N1="$(echo $NETWORK_SUBNET | cut -f1 -d / )" 
-    N2="$(echo $NETWORK_SUBNET | cut -f2 -d / )" 
-    NETWORK_SUBNET_OLD="NETWORK_SUBNET=$N1\/$N2"
-    NETWORK_GATEWAY_OLD="NETWORK_GATEWAY=$NETWORK_GATEWAY"
 
     if [ $useproxy = 0 ]; then
         # Change IP to multi-project mode
@@ -195,7 +189,7 @@ warp_message_info "Configuring Web Server - Nginx"
         B="$(echo $http_container_ip | cut -f2 -d . )"
         C="$(echo $http_container_ip | cut -f3 -d . )"
         
-        NETWORK_SUBNET_NEW="NETWORK_SUBNET=$A.$B.$C.0\/24"
+        NETWORK_SUBNET_NEW="NETWORK_SUBNET=$A.$B.$C.0/24"
         NETWORK_GATEWAY_NEW="NETWORK_GATEWAY=$A.$B.$C.1"
 
         # Switch YAML to multi-project mode
@@ -208,7 +202,7 @@ warp_message_info "Configuring Web Server - Nginx"
         HTTP_BINDED_NEW="HTTP_BINDED_PORT=$http_port"
         HTTPS_BINDED_NEW="HTTPS_BINDED_PORT=$https_port"
 
-        NETWORK_SUBNET_NEW="NETWORK_SUBNET=0.0.0.0\/24"
+        NETWORK_SUBNET_NEW="NETWORK_SUBNET=0.0.0.0/24"
         NETWORK_GATEWAY_NEW="NETWORK_GATEWAY=0.0.0.0"
 
         # Switch YAML to single-project mode
@@ -217,20 +211,11 @@ warp_message_info "Configuring Web Server - Nginx"
     fi;
 
     # CHANGE IP AND PORT WEB
-    cat $ENVIRONMENTVARIABLESFILE | sed -e "s/$HTTP_HOST_OLD/$HTTP_HOST_NEW/" > "$ENVIRONMENTVARIABLESFILE.warp1"
-    mv "$ENVIRONMENTVARIABLESFILE.warp1" $ENVIRONMENTVARIABLESFILE
-
-    cat $ENVIRONMENTVARIABLESFILE | sed -e "s/$HTTP_BINDED_OLD/$HTTP_BINDED_NEW/" > "$ENVIRONMENTVARIABLESFILE.warp2"
-    mv "$ENVIRONMENTVARIABLESFILE.warp2" $ENVIRONMENTVARIABLESFILE
-
-    cat $ENVIRONMENTVARIABLESFILE | sed -e "s/$HTTPS_BINDED_OLD/$HTTPS_BINDED_NEW/" > "$ENVIRONMENTVARIABLESFILE.warp3"
-    mv "$ENVIRONMENTVARIABLESFILE.warp3" $ENVIRONMENTVARIABLESFILE
-
-    cat $ENVIRONMENTVARIABLESFILE | sed -e "s/$NETWORK_SUBNET_OLD/$NETWORK_SUBNET_NEW/" > "$ENVIRONMENTVARIABLESFILE.warp4"
-    mv "$ENVIRONMENTVARIABLESFILE.warp4" $ENVIRONMENTVARIABLESFILE
-
-    cat $ENVIRONMENTVARIABLESFILE | sed -e "s/$NETWORK_GATEWAY_OLD/$NETWORK_GATEWAY_NEW/" > "$ENVIRONMENTVARIABLESFILE.warp5"
-    mv "$ENVIRONMENTVARIABLESFILE.warp5" $ENVIRONMENTVARIABLESFILE
+    warp_env_file_set_var "$ENVIRONMENTVARIABLESFILE" "HTTP_HOST_IP" "${HTTP_HOST_NEW#HTTP_HOST_IP=}" || exit 1
+    warp_env_file_set_var "$ENVIRONMENTVARIABLESFILE" "HTTP_BINDED_PORT" "${HTTP_BINDED_NEW#HTTP_BINDED_PORT=}" || exit 1
+    warp_env_file_set_var "$ENVIRONMENTVARIABLESFILE" "HTTPS_BINDED_PORT" "${HTTPS_BINDED_NEW#HTTPS_BINDED_PORT=}" || exit 1
+    warp_env_file_set_var "$ENVIRONMENTVARIABLESFILE" "NETWORK_SUBNET" "${NETWORK_SUBNET_NEW#NETWORK_SUBNET=}" || exit 1
+    warp_env_file_set_var "$ENVIRONMENTVARIABLESFILE" "NETWORK_GATEWAY" "${NETWORK_GATEWAY_NEW#NETWORK_GATEWAY=}" || exit 1
 
     if [ ! -z "$USE_VARNISH" ]
     then
@@ -267,32 +252,20 @@ warp_message_info "Configuring Web Server - Nginx"
     if [ ! -z "$DATABASE_BINDED_PORT" ]
     then
         # CHANGE PORT MYSQL
-        BINDED_PORT_OLD="DATABASE_BINDED_PORT=$DATABASE_BINDED_PORT"
-        BINDED_PORT_NEW="DATABASE_BINDED_PORT=$mysql_binded_port"
-
-        cat $ENVIRONMENTVARIABLESFILE | sed -e "s/$BINDED_PORT_OLD/$BINDED_PORT_NEW/" > "$ENVIRONMENTVARIABLESFILE.warp6"
-        mv "$ENVIRONMENTVARIABLESFILE.warp6" $ENVIRONMENTVARIABLESFILE
+        warp_env_file_set_var "$ENVIRONMENTVARIABLESFILE" "DATABASE_BINDED_PORT" "$mysql_binded_port" || exit 1
     fi
 
 
     if [ ! -z "$RABBIT_VERSION" ]
     then
         # CHANGE PORT RABBIT
-        BINDED_PORT_OLD="RABBIT_BINDED_PORT=$RABBIT_BINDED_PORT"
-        BINDED_PORT_NEW="RABBIT_BINDED_PORT=$rabbit_binded_port"
-
-        cat $ENVIRONMENTVARIABLESFILE | sed -e "s/$BINDED_PORT_OLD/$BINDED_PORT_NEW/" > "$ENVIRONMENTVARIABLESFILE.warp7"
-        mv "$ENVIRONMENTVARIABLESFILE.warp7" $ENVIRONMENTVARIABLESFILE
+        warp_env_file_set_var "$ENVIRONMENTVARIABLESFILE" "RABBIT_BINDED_PORT" "$rabbit_binded_port" || exit 1
     fi
 
-    if [ ! -z "$MAILHOG_BINDED_PORT" ]
+    if [ ! -z "$MAIL_BINDED_PORT_CURRENT" ]
     then
         # CHANGE PORT MAILHOG
-        BINDED_PORT_OLD="MAILHOG_BINDED_PORT=$MAILHOG_BINDED_PORT"
-        BINDED_PORT_NEW="MAILHOG_BINDED_PORT=$mailhog_binded_port"
-
-        cat $ENVIRONMENTVARIABLESFILE | sed -e "s/$BINDED_PORT_OLD/$BINDED_PORT_NEW/" > "$ENVIRONMENTVARIABLESFILE.warp8"
-        mv "$ENVIRONMENTVARIABLESFILE.warp8" $ENVIRONMENTVARIABLESFILE
+        warp_env_file_set_mail_binded_port "$ENVIRONMENTVARIABLESFILE" "$mailhog_binded_port" || exit 1
     fi
 
     if [ ! -z "$rta_use_docker_sync" ]
@@ -330,5 +303,9 @@ warp_message_info "Configuring Web Server - Nginx"
             mv "$ENVIRONMENTVARIABLESFILE.warp10" $ENVIRONMENTVARIABLESFILE
         fi;
     fi
+
+    warp_mail_ensure_env_defaults "$ENVIRONMENTVARIABLESFILE" || exit 1
+    warp_mail_ensure_auth_files "$ENVIRONMENTVARIABLESFILE" || exit 1
+    warp_mail_ensure_storage_dir || exit 1
 
     . "$WARPFOLDER/setup/init/info.sh"

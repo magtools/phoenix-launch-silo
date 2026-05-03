@@ -12,33 +12,35 @@ done
 
 if [ "$private_registry_mode" = "Y" ] || [ "$private_registry_mode" = "y" ] ; then
     while : ; do
-        namespace_name=$( warp_question_ask "Namespace name, it should be only letters or numbers with a maximum of 12 characters separated by hyphens, for example 'Starfleet': " )
+        namespace_name=$( warp_question_ask "Namespace name, use lowercase letters or numbers with a maximum of 12 characters and optional hyphen, for example 'starfleet': " )
 
-        if [[ $namespace_name =~ ^[a-zA-Z0-9]{2,12}(-[a-zA-Z0-9]{2,12})?$ ]] ; then
+        if warp_env_is_valid_image_name_component "$namespace_name"; then
             warp_message_info2 "The namespace name: $(warp_message_bold $namespace_name)"
             break
         else
-            warp_message_warn "incorrect value, please enter only letters and lowercase\n"
+            warp_message_warn "incorrect value, use only lowercase letters or numbers, optionally separated by one hyphen\n"
         fi;
     done
 
     while : ; do
-        project_name=$( warp_question_ask "Project Name, it should be only letters or numbers with a maximum of 12 characters separated by hyphens, for example 'WARP Engine' should be 'warp-engine': " )
+        project_name=$( warp_question_ask "Project Name, use lowercase letters or numbers with a maximum of 12 characters and optional hyphen, for example 'warp-engine': " )
 
-        if [[ $project_name =~ ^[a-zA-Z0-9]{2,12}(-[a-zA-Z0-9]{2,12})?$ ]] ; then
+        if warp_env_is_valid_image_name_component "$project_name"; then
             warp_message_info2 "The project name is: $(warp_message_bold $project_name)"
             break
         else
-            warp_message_warn "incorrect value, please enter only letters and lowercase\n"
+            warp_message_warn "incorrect value, use only lowercase letters or numbers, optionally separated by one hyphen\n"
         fi;
     done
 
     while : ; do
         docker_private_registry=$( warp_question_ask "Docker Private Registy URL: " )
 
-        if [ ! -z "$docker_private_registry" ] ; then
+        if warp_env_is_valid_private_registry "$docker_private_registry"; then
             warp_message_info2 "The docker private registry url is: $(warp_message_bold $docker_private_registry)"
             break
+        else
+            warp_message_warn "incorrect registry value, use host[:port][/namespace] without http:// or https:// and without trailing slash\n"
         fi;
     done
 

@@ -157,6 +157,12 @@ Example:
 !!! warning
     a blank line is required at the end of this file!
 
+!!! note
+    `warp start` refreshes the cron daemon inside the PHP container before leaving the project up.
+    This is important on newer Debian-based images used from hosts such as Amazon Linux 2023,
+    where the cron binary may exist outside the default `PATH` or an old daemon process may stay alive
+    without processing `/etc/cron.d/cronfile`.
+
 ----------
 
 ## Installing and configuring Grunt

@@ -7,10 +7,10 @@
     #volumes:
     #  - "./.warp/docker/volumes/redis-cache:/data"
     volumes:
-      - ${REDIS_CACHE_CONF}:/usr/local/etc/redis/redis.conf
+      - ${REDIS_CACHE_CONF}:${CACHE_CONTAINER_CONFIG_PATH:-/usr/local/etc/redis/redis.conf}
     command:
-      - redis-server
-      - /usr/local/etc/redis/redis.conf
+      - ${CACHE_SERVER_BIN:-redis-server}
+      - ${CACHE_CONTAINER_CONFIG_PATH:-/usr/local/etc/redis/redis.conf}
       - --maxmemory
       - ${REDIS_CACHE_MAXMEMORY:-512mb}
       - --maxmemory-policy

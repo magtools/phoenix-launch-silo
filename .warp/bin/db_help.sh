@@ -15,6 +15,7 @@ function db_help_usage()
 
     warp_message_info "Available commands:"
     warp_message_info   " info               $(warp_message 'display db info available')"
+    warp_message_info   " health             $(warp_message 'show runtime db health and database/table counts')"
     warp_message_info   " dump               $(warp_message 'allows to make a database dump')"
     warp_message_info   " devdump            $(warp_message 'helper for lightweight development dumps by app profile')"
     warp_message_info   " devdump:<app>      $(warp_message 'run lightweight development dump for app profile (example: devdump:magento)')"

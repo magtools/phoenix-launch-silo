@@ -56,6 +56,10 @@ function init_command() {
                 warp_message_warn "-- These files: ($(basename $DOCKERCOMPOSEFILE) and $(basename $ENVIRONMENTVARIABLESFILE)) are necessary to initialize the containers.. $(warp_message_error [error])"
                 exit
             fi
+
+            warp_mail_ensure_env_defaults "$ENVIRONMENTVARIABLESFILE" || exit 1
+            warp_mail_ensure_auth_files "$ENVIRONMENTVARIABLESFILE" || exit 1
+            warp_mail_ensure_storage_dir || exit 1
         fi
     else
         # INIT WITHOUT WIZARD MODE GANDALF

@@ -81,15 +81,15 @@ mail:
   image: axllent/mailpit:latest
   env_file: .env
   environment:
-    MP_UI_AUTH_FILE: "/run/secrets/mailpit-ui-auth"
-    MP_MAX_MESSAGES: "${MAIL_MAX_MESSAGES:-5000}"
-    MP_DATABASE: "/data/mailpit.db"
+    MP_UI_AUTH_FILE: "/mail-config/ui-auth.txt"
+    MP_MAX_MESSAGES: "${MAIL_MAX_MESSAGES:-100}"
+    MP_DATABASE: "/mail-data/mailpit.db"
   ports:
     - "1025"
-    - "${MAIL_UI_BINDED_PORT:-8025}:8025"
+    - "127.0.0.1:${MAIL_BINDED_PORT:-8025}:8025"
   volumes:
-    - "./.warp/docker/volumes/mailpit:/data"
-    - "${MAIL_UI_AUTH_FILE:-./.warp/docker/config/mailpit/auth}:/run/secrets/mailpit-ui-auth:ro"
+    - "./.warp/docker/volumes/mail:/mail-data"
+    - "./.warp/docker/config/mail:/mail-config:ro"
   networks:
     - back
 ```
@@ -99,17 +99,17 @@ Notas:
 1. `MP_UI_AUTH_FILE` protege UI/API con basic auth.
 2. Se prefiere archivo montado para evitar credenciales visibles en `docker inspect`.
 3. El SMTP puede quedar sin auth dentro de la red Docker en desarrollo, o habilitarse luego si hace falta.
-4. El servicio se llama `mail` para no atar Warp a Mailpit como marca.
+4. En Warp conviene mantener el servicio legacy `mailhog` por compatibilidad aunque el capability/documentacion sea `mail`.
 
 Variables sugeridas:
 
 ```dotenv
 MAIL_ENGINE=mailpit
-MAIL_IMAGE=axllent/mailpit:latest
-MAIL_SMTP_HOST=mail
+MAIL_VERSION=v1.29
+MAIL_SMTP_HOST=mailhog
 MAIL_SMTP_PORT=1025
-MAIL_UI_BINDED_PORT=8025
-MAIL_UI_AUTH_FILE=./.warp/docker/config/mailpit/auth
+MAIL_BINDED_PORT=8025
+MAIL_MAX_MESSAGES=100
 ```
 
 ## 5. Configuracion PHP mail PoC

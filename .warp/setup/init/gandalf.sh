@@ -147,7 +147,7 @@ then
     echo "" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "# NGINX Configuration" >> $ENVIRONMENTVARIABLESFILESAMPLE
 
-    cat $PROJECTPATH/.warp/setup/webserver/tpl/webserver.yml >> $DOCKERCOMPOSEFILESAMPLE
+    warp_compose_sample_append_dev "$PROJECTPATH/.warp/setup/webserver/tpl/webserver.yml" || exit 1
 
     echo "HTTP_BINDED_PORT=80" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "HTTPS_BINDED_PORT=443" >> $ENVIRONMENTVARIABLESFILESAMPLE
@@ -197,7 +197,7 @@ if [[ ! -z $GF_PHP_VERSION ]]
 then
     warp_message_info "Configuring PHP Service"
 
-    cat $PROJECTPATH/.warp/setup/php/tpl/php.yml >> $DOCKERCOMPOSEFILESAMPLE
+    warp_compose_sample_append_dev "$PROJECTPATH/.warp/setup/php/tpl/php.yml" || exit 1
 
     php_version=$GF_PHP_VERSION
 
@@ -347,12 +347,14 @@ then
     mysql_config_file="./.warp/docker/config/mysql/conf.d"    
 
     if [ "$mysql_use_project_specific" = "Y" ] || [ "$mysql_use_project_specific" = "y" ]; then
-        cat $PROJECTPATH/.warp/setup/mysql/tpl/database_custom.yml >> $DOCKERCOMPOSEFILESAMPLE
+        warp_compose_sample_append_dev \
+            "$PROJECTPATH/.warp/setup/mysql/tpl/database_custom.yml" || exit 1
     else
-        cat $PROJECTPATH/.warp/setup/mysql/tpl/database.yml >> $DOCKERCOMPOSEFILESAMPLE
+        warp_compose_sample_append_dev \
+            "$PROJECTPATH/.warp/setup/mysql/tpl/database.yml" || exit 1
     fi
     
-    cat $PROJECTPATH/.warp/setup/mysql/tpl/database_enviroment_root.yml >> $DOCKERCOMPOSEFILESAMPLE
+    warp_compose_sample_append_dev "$PROJECTPATH/.warp/setup/mysql/tpl/database_enviroment_root.yml" || exit 1
 
     echo "# MySQL Configuration" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "MYSQL_VERSION=$mysql_version" >> $ENVIRONMENTVARIABLESFILESAMPLE
@@ -361,7 +363,7 @@ then
     echo "DATABASE_BINDED_PORT=$mysql_binded_port" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "DATABASE_ROOT_PASSWORD=$mysql_root_password" >> $ENVIRONMENTVARIABLESFILESAMPLE
 
-    cat $PROJECTPATH/.warp/setup/mysql/tpl/database_enviroment_default.yml >> $DOCKERCOMPOSEFILESAMPLE
+    warp_compose_sample_append_dev "$PROJECTPATH/.warp/setup/mysql/tpl/database_enviroment_default.yml" || exit 1
     echo "DATABASE_NAME=$mysql_name_database" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "DATABASE_USER=$mysql_user_database" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "DATABASE_PASSWORD=$mysql_password_database" >> $ENVIRONMENTVARIABLESFILESAMPLE
@@ -382,9 +384,9 @@ then
     echo ""  >> $ENVIRONMENTVARIABLESFILESAMPLE
 
     if [ "$mysql_use_project_specific" = "Y" ] || [ "$mysql_use_project_specific" = "y" ]; then
-        cat $PROJECTPATH/.warp/setup/mysql/tpl/database_volumes_networks_custom.yml >> $DOCKERCOMPOSEFILESAMPLE
+        warp_compose_sample_append_dev "$PROJECTPATH/.warp/setup/mysql/tpl/database_volumes_networks_custom.yml" || exit 1
     else
-        cat $PROJECTPATH/.warp/setup/mysql/tpl/database_volumes_networks.yml >> $DOCKERCOMPOSEFILESAMPLE
+        warp_compose_sample_append_dev "$PROJECTPATH/.warp/setup/mysql/tpl/database_volumes_networks.yml" || exit 1
     fi    
 
     cp -R $PROJECTPATH/.warp/setup/mysql/config/ $PROJECTPATH/.warp/docker/config/mysql/
@@ -412,9 +414,9 @@ then
     fi
 
     if [ "$psql_use_project_specific" = "Y" ] || [ "$psql_use_project_specific" = "y" ]; then
-        cat $PROJECTPATH/.warp/setup/postgres/tpl/postgres_custom.yml >> $DOCKERCOMPOSEFILESAMPLE
+        warp_compose_sample_append_dev "$PROJECTPATH/.warp/setup/postgres/tpl/postgres_custom.yml" || exit 1
     else
-        cat $PROJECTPATH/.warp/setup/postgres/tpl/postgres.yml >> $DOCKERCOMPOSEFILESAMPLE
+        warp_compose_sample_append_dev "$PROJECTPATH/.warp/setup/postgres/tpl/postgres.yml" || exit 1
     fi
 
     echo ""  >> $ENVIRONMENTVARIABLESFILESAMPLE
@@ -432,21 +434,42 @@ fi
 if [[ ! -z $GF_ELASTICSEARCH_VERSION ]]
 then
     warp_message_info "Configuring ElasticSearch Service"
+    search_engine="opensearch"
+    search_image_repo=$(warp_service_version_image_repo search "$search_engine")
     elasticsearch_version=$GF_ELASTICSEARCH_VERSION
     elasticsearch_memory="512m"
 
-    cat $PROJECTPATH/.warp/setup/elasticsearch/tpl/elasticsearch.yml >> $DOCKERCOMPOSEFILESAMPLE
+    warp_compose_sample_append_dev \
+        "$PROJECTPATH/.warp/setup/elasticsearch/tpl/elasticsearch.yml" || exit 1
 
     echo ""  >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "# Elasticsearch" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "ES_VERSION=$elasticsearch_version" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "ES_MEMORY=$elasticsearch_memory" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "ES_PASSWORD=XmsES_MEMORY++99" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "SEARCH_HTTP_BINDED_PORT=9200" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "SEARCH_TRANSPORT_BINDED_PORT=9300" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "# Canonical SEARCH Configuration" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "SEARCH_MODE=local" >> $ENVIRONMENTVARIABLESFILESAMPLE
-    echo "SEARCH_ENGINE=opensearch" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "SEARCH_ENGINE=$search_engine" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "SEARCH_VERSION=$elasticsearch_version" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "SEARCH_IMAGE=${search_image_repo}:${elasticsearch_version}" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "SEARCH_SCHEME=http" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "SEARCH_HOST=elasticsearch" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "SEARCH_PORT=9200" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "SEARCH_CONTAINER_USER=$(warp_search_engine_container_user "$search_engine")" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "SEARCH_CONTAINER_CONFIG_PATH=$(warp_search_engine_container_config_path "$search_engine")" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "SEARCH_DATA_PATH=$(warp_search_engine_data_path "$search_engine")" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "SEARCH_SERVER_BIN=$(warp_search_engine_server_bin "$search_engine")" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "SEARCH_PLUGIN_BIN=$(warp_search_engine_plugin_bin "$search_engine")" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "SEARCH_HOST_CONFIG_FILE=$(warp_search_engine_default_host_config_file "$search_engine")" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "SEARCH_INSTALL_PHONETIC_PLUGIN=$(warp_search_engine_install_phonetic_default "$search_engine")" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "" >> $ENVIRONMENTVARIABLESFILESAMPLE
+
+    warp_search_engine_ensure_runtime_config "$search_engine" || {
+        warp_message_error "Could not prepare runtime config for search engine: $search_engine"
+        exit 1
+    }
 fi
 
 ############### REDIS
@@ -454,44 +477,61 @@ if [[ ! -z $GF_REDIS_VERSION ]] || [[ ! -z $GF_REDIS_CACHE_VERSION ]] || [[ ! -z
 then
     warp_message_info "Configuring Redis Service"
 
-    resp_version_cache=$GF_REDIS_VERSION
-    cache_config_file_cache="./.warp/docker/config/redis/redis.conf"
+    CACHE_ENGINE_SELECTED=$(warp_cache_engine_recommended_from_context)
+    CACHE_IMAGE_REPO=$(warp_service_version_image_repo cache "$CACHE_ENGINE_SELECTED")
+    CACHE_VERSION_DEFAULT=$(warp_service_version_tag_default cache "$CACHE_ENGINE_SELECTED")
+    cache_config_default=$(warp_cache_engine_default_host_config "$CACHE_ENGINE_SELECTED")
 
-    resp_version_session=$GF_REDIS_VERSION
-    cache_config_file_session="./.warp/docker/config/redis/redis.conf"
+    resp_version_cache=${GF_REDIS_CACHE_VERSION:-${GF_REDIS_VERSION:-$CACHE_VERSION_DEFAULT}}
+    cache_config_file_cache="$cache_config_default"
 
-    resp_version_fpc=$GF_REDIS_VERSION
-    cache_config_file_fpc="./.warp/docker/config/redis/redis.conf"
+    resp_version_session=${GF_REDIS_SESSION_VERSION:-${GF_REDIS_VERSION:-$CACHE_VERSION_DEFAULT}}
+    cache_config_file_session="$cache_config_default"
+
+    resp_version_fpc=${GF_REDIS_FPC_VERSION:-${GF_REDIS_VERSION:-$CACHE_VERSION_DEFAULT}}
+    cache_config_file_fpc="$cache_config_default"
 
     PATH_CONFIG_REDIS='./.warp/docker/config/redis'
 
     echo "#Config Redis" >> $ENVIRONMENTVARIABLESFILESAMPLE
 
-    cat $PROJECTPATH/.warp/setup/redis/tpl/redis_cache.yml >> $DOCKERCOMPOSEFILESAMPLE
+    warp_compose_sample_append_dev \
+        "$PROJECTPATH/.warp/setup/redis/tpl/redis_cache.yml" || exit 1
 
     echo "REDIS_CACHE_VERSION=$resp_version_cache" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "REDIS_CACHE_CONF=$cache_config_file_cache" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "REDIS_CACHE_MAXMEMORY=512mb" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "REDIS_CACHE_MAXMEMORY_POLICY=allkeys-lru" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "REDIS_CACHE_BINDED_PORT=6379" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "" >> $ENVIRONMENTVARIABLESFILESAMPLE
 
-    cat $PROJECTPATH/.warp/setup/redis/tpl/redis_session.yml >> $DOCKERCOMPOSEFILESAMPLE
+    warp_compose_sample_append_dev \
+        "$PROJECTPATH/.warp/setup/redis/tpl/redis_session.yml" || exit 1
 
     echo "REDIS_SESSION_VERSION=$resp_version_session" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "REDIS_SESSION_CONF=$cache_config_file_session" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "REDIS_SESSION_MAXMEMORY=256mb" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "REDIS_SESSION_MAXMEMORY_POLICY=noeviction" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "REDIS_SESSION_BINDED_PORT=6380" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "" >> $ENVIRONMENTVARIABLESFILESAMPLE
 
-    cat $PROJECTPATH/.warp/setup/redis/tpl/redis_fpc.yml >> $DOCKERCOMPOSEFILESAMPLE
+    warp_compose_sample_append_dev \
+        "$PROJECTPATH/.warp/setup/redis/tpl/redis_fpc.yml" || exit 1
 
     echo "REDIS_FPC_VERSION=$resp_version_fpc" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "REDIS_FPC_CONF=$cache_config_file_fpc" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "REDIS_FPC_MAXMEMORY=512mb" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "REDIS_FPC_MAXMEMORY_POLICY=allkeys-lru" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "REDIS_FPC_BINDED_PORT=6381" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "# Canonical CACHE Configuration" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "CACHE_MODE=local" >> $ENVIRONMENTVARIABLESFILESAMPLE
-    echo "CACHE_ENGINE=redis" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "CACHE_ENGINE=$CACHE_ENGINE_SELECTED" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "CACHE_VERSION=$resp_version_cache" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "CACHE_IMAGE_REPO=$CACHE_IMAGE_REPO" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "CACHE_SERVER_BIN=$(warp_cache_engine_server_bin "$CACHE_ENGINE_SELECTED")" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "CACHE_CLI_BIN=$(warp_cache_engine_cli_bin "$CACHE_ENGINE_SELECTED")" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "CACHE_CONTAINER_USER=$(warp_cache_engine_container_user "$CACHE_ENGINE_SELECTED")" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "CACHE_CONTAINER_CONFIG_PATH=$(warp_cache_engine_container_config_path "$CACHE_ENGINE_SELECTED")" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "CACHE_SCOPE=cache" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "CACHE_HOST=redis-cache" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "CACHE_PORT=6379" >> $ENVIRONMENTVARIABLESFILESAMPLE
@@ -509,7 +549,7 @@ fi
 if [[ ! -z $GF_RABBIT_VERSION ]]
 then
     warp_message_info "Configuring Rabbit Service"
-    cat $PROJECTPATH/.warp/setup/rabbit/tpl/rabbit.yml >> $DOCKERCOMPOSEFILESAMPLE
+    warp_compose_sample_append_dev "$PROJECTPATH/.warp/setup/rabbit/tpl/rabbit.yml" || exit 1
 
     resp_version_rabbit=$GF_RABBIT_VERSION
     rabbit_binded_port="8081"
@@ -528,15 +568,22 @@ fi
 ############### MAILHOG
 if [[ ! -z $GF_MAILHOG ]]
 then
-    warp_message_info "Configuring Mailhog SMTP server"
-    cat $PROJECTPATH/.warp/setup/mailhog/tpl/mailhog.yml >> $DOCKERCOMPOSEFILESAMPLE
+    warp_message_info "Configuring Mail service"
+    warp_compose_sample_append_dev "$PROJECTPATH/.warp/setup/mailhog/tpl/mailhog.yml" || exit 1
 
-    mailhog_binded_port="8025"
+    mailhog_binded_port="$MAIL_BINDED_PORT_DEFAULT"
 
     echo ""  >> $ENVIRONMENTVARIABLESFILESAMPLE
-    echo "#Config Mailhog" >> $ENVIRONMENTVARIABLESFILESAMPLE
-    echo "MAILHOG_BINDED_PORT=$mailhog_binded_port"  >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "# Config Mail" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "MAIL_ENGINE=$MAIL_ENGINE_DEFAULT" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "MAIL_VERSION=$MAIL_VERSION_DEFAULT" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "MAIL_MAX_MESSAGES=$MAIL_MAX_MESSAGES_DEFAULT" >> $ENVIRONMENTVARIABLESFILESAMPLE
+    echo "MAIL_BINDED_PORT=$mailhog_binded_port"  >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "" >> $ENVIRONMENTVARIABLESFILESAMPLE
+
+    warp_env_file_set_mail_binded_port "$ENVIRONMENTVARIABLESFILESAMPLE" "$mailhog_binded_port" || exit 1
+    warp_mail_ensure_auth_files "$ENVIRONMENTVARIABLESFILESAMPLE" || exit 1
+    warp_mail_ensure_storage_dir || exit 1
 fi
 
 ############### VARNISH
@@ -549,7 +596,7 @@ then
         cp -R $PROJECTPATH/.warp/setup/varnish/config/varnish $CONFIGFOLDER/varnish
     fi;
 
-    cat $PROJECTPATH/.warp/setup/varnish/tpl/varnish.yml >> $DOCKERCOMPOSEFILESAMPLE
+    warp_compose_sample_append_dev "$PROJECTPATH/.warp/setup/varnish/tpl/varnish.yml" || exit 1
 
     respuesta_varnish=Y
     varnish_version=$GF_VARNISH_VERSION

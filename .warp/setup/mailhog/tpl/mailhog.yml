@@ -1,10 +1,19 @@
 
   mailhog:
-    image: mailhog/mailhog
+    image: axllent/mailpit:${MAIL_VERSION}
     env_file: .env
     hostname: "mailhog"
+    environment:
+      MP_UI_AUTH_FILE: /mail-config/ui-auth.txt
+      MP_DATABASE: /mail-data/mailpit.db
+      MP_MAX_MESSAGES: ${MAIL_MAX_MESSAGES}
+      MP_DISABLE_VERSION_CHECK: 1
+    volumes:
+      - ./.warp/docker/config/mail:/mail-config:ro
+      - ./.warp/docker/volumes/mail:/mail-data
+    expose:
+      - "1025"
     ports:
-      - 1025
-      - "${MAILHOG_BINDED_PORT}:8025"
+      - "${MAIL_BINDED_PORT}:8025"
     networks:
       - back

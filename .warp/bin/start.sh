@@ -120,6 +120,11 @@ start_compose_up() {
   local _output_file=""
   local _status=0
 
+  if [ -t 1 ] && [ -t 2 ]; then
+    docker-compose "$@"
+    return $?
+  fi
+
   _output_file=$(mktemp "${TMPDIR:-/tmp}/warp-start.XXXXXX") || {
     docker-compose "$@"
     return $?

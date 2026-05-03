@@ -273,7 +273,7 @@ warp_runtime_mode_env_raw() {
 warp_runtime_command_supports_host() {
     _cmd="$1"
     case "$_cmd" in
-        composer|php|magento|ece-tools|ece-patches|telemetry|db|mysql|cache|redis|valkey|search|elasticsearch|opensearch|info)
+        composer|php|magento|ece-tools|ece-patches|telemetry|update|db|mysql|cache|redis|valkey|search|elasticsearch|opensearch|info)
             return 0
             ;;
         *)

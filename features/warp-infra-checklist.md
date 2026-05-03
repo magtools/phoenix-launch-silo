@@ -441,7 +441,7 @@ xdebug/opcache disable recargo PHP-FPM y dejo runtime dev
 2. No sobrescribir `.warp/docker/config/php/ext-xdebug.ini` ni `zz-warp-opcache.ini` si existen, salvo `--force`.
 3. No tocar proyectos Magento `2.4.5/2.4.7`; deben seguir en `legacy`.
 4. `magtools` queda como proveedor por defecto para nuevos proyectos; `summasolutions` se conserva como proveedor legacy explicito.
-5. `features/changes.md` puede aparecer modificado con `mailhog -> mailpit`; no fue parte central de esta tarea.
+5. `features/changes.md` puede aparecer modificado por la alineacion del capability `mail` con backend Mailpit y compat legacy `mailhog`; no fue parte central de esta tarea.
 6. El repo fuente no tiene `./warp`; validar con `bash ./warp.sh`.
 7. El hook de update puede mostrar error remoto de GitHub/raw; no esta relacionado con esta feature.
 8. `bash ./warp.sh docker ps` falla en el repo fuente porque no hay `docker-compose-warp.yml`.

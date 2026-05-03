@@ -39,7 +39,9 @@ function reset_warninig_confirm_hard()
             warp_message "* deleting $(basename $ENVIRONMENTVARIABLESFILE) $(warp_message_ok [ok])"
             warp_message "* deleting $(basename $ENVIRONMENTVARIABLESFILESAMPLE) $(warp_message_ok [ok])"
             warp_message "* deleting $(basename $DOCKERCOMPOSEFILE) $(warp_message_ok [ok])"
+            warp_message "* deleting $(basename $DOCKERCOMPOSEFILEDEV) $(warp_message_ok [ok])"
             warp_message "* deleting $(basename $DOCKERCOMPOSEFILESAMPLE) $(warp_message_ok [ok])"
+            warp_message "* deleting $(basename $DOCKERCOMPOSEFILEPROD) $(warp_message_ok [ok])"
             warp_message "* deleting $(basename $DOCKERCOMPOSEFILEMAC) $(warp_message_ok [ok])"
             warp_message "* deleting $(basename $DOCKERCOMPOSEFILEMACSAMPLE) $(warp_message_ok [ok])"
             warp_message "* deleting $(basename $DOCKERSYNCMAC) $(warp_message_ok [ok])"
@@ -72,13 +74,14 @@ function reset_warninig_confirm_hard()
 
             [ -f $ENVIRONMENTVARIABLESFILESAMPLE ] && rm $ENVIRONMENTVARIABLESFILESAMPLE 2> /dev/null
             [ -f $DOCKERCOMPOSEFILE ] && rm $DOCKERCOMPOSEFILE 2> /dev/null
+            [ -f $DOCKERCOMPOSEFILEDEV ] && rm $DOCKERCOMPOSEFILEDEV 2> /dev/null
             [ -f $DOCKERCOMPOSEFILESAMPLE ] && rm $DOCKERCOMPOSEFILESAMPLE 2> /dev/null
+            [ -f $DOCKERCOMPOSEFILEPROD ] && rm $DOCKERCOMPOSEFILEPROD 2> /dev/null
             [ -f $DOCKERCOMPOSEFILEMAC ] && rm $DOCKERCOMPOSEFILEMAC 2> /dev/null
             [ -f $DOCKERCOMPOSEFILEMACSAMPLE ] && rm $DOCKERCOMPOSEFILEMACSAMPLE 2> /dev/null
             [ -f $DOCKERSYNCMAC ] && rm $DOCKERSYNCMAC 2> /dev/null
             [ -f $DOCKERSYNCMACSAMPLE ] && rm $DOCKERSYNCMACSAMPLE 2> /dev/null
             [ -f $CHECK_UPDATE_FILE ] && rm $CHECK_UPDATE_FILE 2> /dev/null
-            [ -f $DOCKERCOMPOSEFILEDEV ] && rm $DOCKERCOMPOSEFILEDEV 2> /dev/null
             [ -f $DOCKERCOMPOSEFILEDEVSAMPLE ] && rm $DOCKERCOMPOSEFILEDEVSAMPLE 2> /dev/null
             [ -f $DOCKERCOMPOSEFILESELENIUM ] && rm $DOCKERCOMPOSEFILESELENIUM 2> /dev/null
             [ -f $DOCKERIGNOREFILE ] && rm $DOCKERIGNOREFILE 2> /dev/null                

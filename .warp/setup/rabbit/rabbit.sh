@@ -54,7 +54,7 @@ then
 #   warp_message_info2 "Selected configuration file: $rabbit_config_file"
 
 
-    cat $PROJECTPATH/.warp/setup/rabbit/tpl/rabbit.yml >> $DOCKERCOMPOSEFILESAMPLE
+    warp_compose_sample_append_dev "$PROJECTPATH/.warp/setup/rabbit/tpl/rabbit.yml" || exit 1
 
     echo "#Config Rabbit" >> $ENVIRONMENTVARIABLESFILESAMPLE
     echo "RABBIT_VERSION=$resp_version_rabbit" >> $ENVIRONMENTVARIABLESFILESAMPLE

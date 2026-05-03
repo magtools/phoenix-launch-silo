@@ -219,6 +219,28 @@ Comandos y compatibilidad:
   - `warp elasticsearch`
   - `warp opensearch`
 
+## Perfiles finales de compose (`.dev` / `.prod` / activo)
+
+Warp ahora puede dejar tres artefactos finales no trackeados:
+
+- `docker-compose-warp.yml.dev`
+- `docker-compose-warp.yml.prod`
+- `docker-compose-warp.yml`
+
+Qué aporta al equipo:
+
+- un compose final de desarrollo explícito,
+- un compose final endurecido con MySQL, Redis y OpenSearch bindeados a `127.0.0.1`,
+- un compose activo por defecto que sigue la decisión de red tomada en `warp init`,
+- menor drift entre perfiles, porque `prod` se deriva desde `dev` ya resuelto.
+
+Impacto funcional:
+
+- si el proyecto se configura para trabajar en paralelo, `docker-compose-warp.yml` queda alineado a `docker-compose-warp.yml.dev`,
+- si el proyecto se configura para trabajar single-project, `docker-compose-warp.yml` queda alineado a `docker-compose-warp.yml.prod`,
+- los tres compose finales quedan ignorados en Git,
+- ya no hace falta sostener templates `*_prod.yml` paralelos para esos servicios.
+
 Impacto funcional:
 
 - el operador puede pensar primero en la capability (`db`, `cache`, `search`) y no en el nombre histórico del contenedor,

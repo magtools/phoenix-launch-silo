@@ -199,6 +199,8 @@ warp_check_gitignore()
         echo "!/$(basename "$WARPFOLDER")/**"                   >> "$GITIGNOREFILE"
         echo "/$(basename "$ENVIRONMENTVARIABLESFILE")"         >> "$GITIGNOREFILE"
         echo "/$(basename "$DOCKERCOMPOSEFILE")"                >> "$GITIGNOREFILE"
+        echo "/$(basename "$DOCKERCOMPOSEFILEDEV")"             >> "$GITIGNOREFILE"
+        echo "/$(basename "$DOCKERCOMPOSEFILEPROD")"            >> "$GITIGNOREFILE"
         echo "/$(basename "$DOCKERCOMPOSEFILEMAC")"             >> "$GITIGNOREFILE"
         echo "/$(basename "$DOCKERSYNCMAC")"                    >> "$GITIGNOREFILE"
         echo "!/$(basename "$ENVIRONMENTVARIABLESFILESAMPLE")"  >> "$GITIGNOREFILE"
@@ -224,6 +226,8 @@ warp_check_gitignore()
     fi
 
     for _line in \
+        "/$(basename "$DOCKERCOMPOSEFILEDEV")" \
+        "/$(basename "$DOCKERCOMPOSEFILEPROD")" \
         "/.warp/docker/config/php/ext-xdebug.ini" \
         "/.warp/docker/config/php/zz-warp-opcache.ini" \
         "/.warp/docker/config/php/*-local.ini" \
