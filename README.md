@@ -76,6 +76,8 @@ Initialize and start a project:
 ./warp info
 ```
 
+Note: `warp start` also refreshes the cron daemon inside the PHP container. This avoids stale cron processes in newer images where the daemon can remain alive but stop processing `/etc/cron.d/cronfile`.
+
 Stop the environment when you are done:
 
 ```bash
@@ -92,7 +94,7 @@ Stop the environment when you are done:
 | `warp [command] --help` | Show command-specific help |
 | `warp init` | Initialize Warp for the project |
 | `warp init --host` | Bootstrap Warp for host-only workflows without Docker setup |
-| `warp start` | Start containers |
+| `warp start` | Start containers and refresh container cron state |
 | `warp stop` | Stop containers |
 | `warp ps` | Show containers with stable Warp columns |
 | `warp info` | Show current project and service information |

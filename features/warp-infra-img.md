@@ -370,6 +370,8 @@ Lectura:
 2. contiene caches de npm/PDepend/analisis, montajes de proyecto y configuracion local;
 3. la fuente de verdad para reconstruir la imagen debe ser `docker history`, `php -m`, paquetes apt y archivos bajo `images/php`;
 4. los archivos montados desde Warp deben seguir siendo montajes, no baked-in en la imagen.
+5. para cron, no asumir que `cron` o `crond` estaran en el `PATH` efectivo del contenedor; en validaciones reales el binario aparecio en `/usr/sbin/cron` y `/sbin/cron`.
+6. `warp start` debe reiniciar el daemon de cron dentro del contenedor PHP en vez de confiar solo en la existencia de un proceso `cron`, porque un proceso stale puede quedar vivo sin procesar `/etc/cron.d/cronfile`.
 
 ## 6. Appdata: inventario runtime
 
