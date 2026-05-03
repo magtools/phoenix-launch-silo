@@ -14,6 +14,10 @@ Order: newest to oldest.
 - Before 2021-04: Martin Gonzalez — contributor in the Warp project lineage.
 - Until 2021-04: Summa Solutions — stewardship of the original Warp project.
 
+Current mantainer:
+
+![Martin Gonzalez](https://github.com/magtools.png?size=150)
+
 Initial project authors:
 
 - [Matias Anoniz](https://github.com/yosoyfunes/)

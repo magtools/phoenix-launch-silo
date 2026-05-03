@@ -187,17 +187,9 @@ See [LICENSE](LICENSE) for the full license text.
 
 Phoenix Launch Silo is an independent evolution of the Warp lineage. It is no longer the original Warp tool, and it now focuses on production-ready orchestration, deployment, and built-in analysis workflows.
 
-![Martin Gonzalez](https://github.com/magtools.png?size=300)
-
 Legacy credits from the old Warp project: [CREDITS.md](CREDITS.md)
 
 ### Warp Drive initialized: Transcending development to full-scale orchestration
-
-```
-  Out there... that way.   https://github.com/magtools/phoenix-launch-silo
-```
-
-<img src="./release/landing/img/first-contact.png" alt="First Contact" width="500" style="max-width: 500px; width: 500px;" />
 
 ```
     ___ ____     ____        _____
