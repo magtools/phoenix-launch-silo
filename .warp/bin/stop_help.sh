@@ -16,6 +16,7 @@ function stop_help_usage()
     warp_message ""
     warp_message_info "Help:"
     warp_message " this command is used to stop the services"
+    warp_message " if a Warp-managed stress runtime exists, Warp also performs a best-effort stop"
     warp_message ""
 }
 

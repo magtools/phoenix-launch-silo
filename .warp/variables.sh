@@ -47,6 +47,9 @@ DOCKERCOMPOSEFILEPROD="$PROJECTPATH/docker-compose-warp.yml.prod"
 # to the docker-compose for selenium yaml file
 DOCKERCOMPOSEFILESELENIUM="$PROJECTPATH/docker-selenium-warp.yml"
 
+# DOCKERCOMPOSEFILE contains the path to the stress runtime compose file
+DOCKERCOMPOSEFILESTRESS="$PROJECTPATH/docker-compose-stress.yml"
+
 # DOCKERCOMPOSEFILE contains the path
 # to the docker-compose.yml file
 DOCKERCOMPOSEFILEMAC="$PROJECTPATH/docker-compose-warp-mac.yml"
@@ -68,6 +71,9 @@ WARPFOLDER="$PROJECTPATH/.warp"
 
 # FILE TO GIT IGNORE
 GITIGNOREFILE="$PROJECTPATH/.gitignore"
+
+# Stress local config
+STRESSCFGFILE="$PROJECTPATH/.stresscfg"
 
 # FILE TO IGNORE WARP FOLDER IN DOCKER CP
 DOCKERIGNOREFILE="$PROJECTPATH/.dockerignore"

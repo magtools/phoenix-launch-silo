@@ -1,0 +1,57 @@
+#!/bin/bash
+
+stress_help_usage() {
+    warp_message ""
+    warp_message_info "Usage:"
+    warp_message " warp stress start"
+    warp_message " warp stress stop [--hard]"
+    warp_message " warp stress status"
+    warp_message " warp stress logs [-f]"
+    warp_message " warp stress sitemap [--refresh]"
+    warp_message " warp stress datasets"
+    warp_message " warp stress profiles"
+    warp_message " warp stress validate [--profile <name>]"
+    warp_message " warp stress warmup [--profile <name>] [--yes] [--dry-run]"
+    warp_message " warp stress run [--profile <name>] [--yes] [--dry-run]"
+    warp_message " warp stress report [latest|<run-dir>]"
+    warp_message ""
+
+    warp_message_info "Options:"
+    warp_message_info " --profile <name>   $(warp_message 'profile seed file from .warp/docker/config/stress/profiles/*.env')"
+    warp_message_info " --rate <n>         $(warp_message 'override profile rate')"
+    warp_message_info " --duration <dur>   $(warp_message 'override profile duration')"
+    warp_message_info " --vus <n>          $(warp_message 'override preAllocatedVUs')"
+    warp_message_info " --max-vus <n>      $(warp_message 'override maxVUs')"
+    warp_message_info " --stage <csv>      $(warp_message 'override stages, for example 100:2m,250:3m,0:2m')"
+    warp_message_info " --yes              $(warp_message 'skip confirmation gate for productive targets')"
+    warp_message_info " --dry-run          $(warp_message 'show resolved runtime config without executing k6')"
+    warp_message_info " --refresh          $(warp_message 'force sitemap refresh')"
+    warp_message_info " -f                 $(warp_message 'follow logs')"
+    warp_message_info " -h, --help         $(warp_message 'display this help message')"
+    warp_message ""
+
+    warp_message_info "Files:"
+    warp_message " .stresscfg"
+    warp_message " docker-compose-stress.yml"
+    warp_message " .warp/docker/config/stress/"
+    warp_message " var/warp-stress/"
+    warp_message ""
+
+    warp_message_info "Examples:"
+    warp_message " warp stress start"
+    warp_message " warp stress datasets"
+    warp_message " warp stress profiles"
+    warp_message " warp stress validate --profile catalog-load"
+    warp_message " warp stress sitemap"
+    warp_message " warp stress warmup --profile catalog-warm"
+    warp_message " warp stress run --profile catalog-load"
+    warp_message " warp stress run --profile catalog-load-realistic"
+    warp_message " warp stress run --profile catalog-stress --stage 100:2m,250:3m,500:5m,0:2m"
+    warp_message " warp stress report latest"
+    warp_message " warp stress stop --hard"
+    warp_message ""
+}
+
+stress_help() {
+    warp_message_info " stress             $(warp_message 'run isolated k6-based warmup/load/stress flows')"
+}
