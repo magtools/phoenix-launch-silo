@@ -12,6 +12,7 @@ STRESS_DATASETS_DIR="$STRESS_VAR_DIR/datasets"
 STRESS_SITEMAP_DIR="$STRESS_VAR_DIR/sitemaps"
 STRESS_COMPOSE_FILE="${DOCKERCOMPOSEFILESTRESS:-$PROJECTPATH/docker-compose-stress.yml}"
 STRESS_CONFIG_FILE="${STRESSCFGFILE:-$PROJECTPATH/.stresscfg}"
+STRESS_COMPOSE_PROJECT_NAME="${STRESSCOMPOSEPROJECTNAMESTRESS:-warp-stress}"
 STRESS_SERVICE_NAME="stress"
 STRESS_ASSUME_YES=0
 STRESS_DRY_RUN=0
@@ -285,7 +286,7 @@ stress_load_env_file() {
 
 stress_compose() {
     stress_require_compose || return 1
-    docker-compose -f "$STRESS_COMPOSE_FILE" "$@"
+    docker-compose -p "$STRESS_COMPOSE_PROJECT_NAME" -f "$STRESS_COMPOSE_FILE" "$@"
 }
 
 stress_runtime_is_running() {

@@ -24,13 +24,14 @@ La decision propuesta es:
 1. crear un comando separado `warp stress`;
 2. usar la imagen oficial `grafana/k6`;
 3. correrlo en un runtime Compose independiente del `docker-compose-warp.yml` principal;
-4. mantener profiles versionados y overrides locales no trackeados;
-5. modelar trafico principalmente con escenarios de `k6`, no con un DSL nuevo de Warp;
-6. usar `arrival-rate` como modelo primario para capacidad y trafico esperado;
-7. reservar VUs explicitos como modo avanzado, no como contrato principal;
-8. separar `warmup`, `baseline`, `load`, `stress` y `spike` como tipos de corrida visibles en CLI y en profiles;
-9. persistir resultados y metadata bajo `var/warp-stress`;
-10. dejar afuera del MVP los dashboards externos y el checkout transaccional completo.
+4. asignarle un `COMPOSE_PROJECT_NAME` propio para que no herede el proyecto del stack principal ni genere orphans de ese stack;
+5. mantener profiles versionados y overrides locales no trackeados;
+6. modelar trafico principalmente con escenarios de `k6`, no con un DSL nuevo de Warp;
+7. usar `arrival-rate` como modelo primario para capacidad y trafico esperado;
+8. reservar VUs explicitos como modo avanzado, no como contrato principal;
+9. separar `warmup`, `baseline`, `load`, `stress` y `spike` como tipos de corrida visibles en CLI y en profiles;
+10. persistir resultados y metadata bajo `var/warp-stress`;
+11. dejar afuera del MVP los dashboards externos y el checkout transaccional completo.
 
 ## Por que `k6`
 
