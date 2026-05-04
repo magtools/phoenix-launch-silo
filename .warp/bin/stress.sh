@@ -50,20 +50,35 @@ stress_print_k6_stdout() {
     [ -f "$_file" ] || return 0
 
     awk '
+        BEGIN {
+            seen_content = 0
+            last_was_blank = 1
+        }
+
         {
             gsub(/\r/, "")
         }
 
-        /^running \(/ {
+        /^[[:space:]]*running \(/ {
             next
         }
 
-        /^[^[:space:]].*\[[[:space:]]+[0-9]+%[[:space:]]+\].*iters\/s/ {
+        /^[[:space:]]*[^[:space:]].*\[[[:space:]]+[0-9]+%[[:space:]]+\].*iters\/s/ {
+            next
+        }
+
+        /^[[:space:]]*$/ {
+            if (seen_content && !last_was_blank) {
+                print ""
+                last_was_blank = 1
+            }
             next
         }
 
         {
             print
+            seen_content = 1
+            last_was_blank = 0
         }
     ' "$_file"
 }
@@ -765,7 +780,7 @@ stress_report_print() {
     fi
 
     warp_message ""
-    warp_message "Resultado:"
+    warp_message_info "Result:"
     [ -n "$_profile" ] && stress_print_report_kv "profile" "$_profile"
     [ -n "$_duration" ] && stress_print_report_kv "duration" "$_duration"
     [ -n "$_rate" ] && stress_print_report_kv "rate" "$_rate"
@@ -783,7 +798,7 @@ stress_report_print() {
     esac
 
     warp_message ""
-    warp_message "Métricas principales:"
+    warp_message_info "Main metrics:"
     [ -n "$_iterations" ] && stress_print_report_kv "iterations" "$_iterations"
     [ -n "$_http_reqs_count" ] && stress_print_report_kv "dropped_iterations" "$(stress_summary_metric_value "$_summary_file" "dropped_iterations" "count")"
     [ -n "$_http_reqs_count" ] && stress_print_report_kv "http_reqs" "$_http_reqs_count"
@@ -794,7 +809,7 @@ stress_report_print() {
     stress_print_report_kv "thresholds failed" "${_failed_thresholds:-0}"
 
     warp_message ""
-    warp_message "Equivalencia GA4 de esta corrida:"
+    warp_message_info "GA4 equivalence for this run:"
     [ -n "$_ga4_users_per_minute" ] && stress_print_report_kv "ga4 users/min" "$_ga4_users_per_minute"
     [ -n "$_ga4_backend_rpm" ] && stress_print_report_kv "backend rpm est" "$_ga4_backend_rpm"
     warp_message ""
