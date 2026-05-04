@@ -44,6 +44,30 @@ stress_format_percent() {
     awk -v value="$_ratio" 'BEGIN { printf "%.2f%%", value * 100 }'
 }
 
+stress_print_k6_stdout() {
+    local _file="$1"
+
+    [ -f "$_file" ] || return 0
+
+    awk '
+        {
+            gsub(/\r/, "")
+        }
+
+        /^running \(/ {
+            next
+        }
+
+        /^[^[:space:]].*\[[[:space:]]+[0-9]+%[[:space:]]+\].*iters\/s/ {
+            next
+        }
+
+        {
+            print
+        }
+    ' "$_file"
+}
+
 stress_count_lines() {
     local _file="$1"
 
@@ -1181,7 +1205,7 @@ stress_execute_profile() {
         >"$_stdout_file" 2>&1
     _status=$?
 
-    cat "$_stdout_file"
+    stress_print_k6_stdout "$_stdout_file"
     if [ -f "$_run_host_dir/summary.json" ]; then
         stress_report_print "$_run_host_dir"
     fi
