@@ -140,8 +140,10 @@ El reporte incluye notas explícitas para facilitar interpretación:
 
 1. qué métricas se usaron (`used` como base y `peak` como guardrail),
 2. cuándo conviene tomar “seguridad mínima” en lugar de base,
-3. advertencias cuando no hay límites configurados.
-4. un resumen inicial de capacidades del host para validar rápido si Warp leyó bien la topología CPU.
+3. una sección `[APP CONFIGS]` entre sugerencias y notas al operador.
+4. `REDIS/VALKEY max_concurrency` calculado como `clamp(pm.max_children * 0.3, 5, 15)` con redondeo entero hacia arriba antes del clamp.
+5. advertencias cuando no hay límites configurados.
+6. un resumen inicial de capacidades del host para validar rápido si Warp leyó bien la topología CPU.
 
 ## 7) JSON
 
@@ -152,6 +154,7 @@ El reporte incluye notas explícitas para facilitar interpretación:
 3. alertas por servicio,
 4. configuración actual detectada,
 5. sugerencias base y de seguridad mínima.
+6. `app_redis_valkey_max_concurrency` derivado del `pm.max_children` sugerido.
 
 Campos host añadidos:
 

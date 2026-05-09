@@ -551,6 +551,25 @@ pm.max_requests=$_max_req
 EOF
 }
 
+memory_php_max_concurrency() {
+    local _max_children="$1"
+    local _raw=""
+    local _clamped=""
+
+    if ! [[ "$_max_children" =~ ^[0-9]+$ ]]; then
+        echo ""
+        return 0
+    fi
+
+    _raw=$(awk -v m="$_max_children" 'BEGIN { printf "%.4f", m*0.3 }')
+    _clamped=$(memory_ceil_number "$_raw")
+
+    [ "$_clamped" -lt 5 ] && _clamped=5
+    [ "$_clamped" -gt 15 ] && _clamped=15
+
+    echo "$_clamped"
+}
+
 memory_redis_recommend() {
     _used_mb="$1"
     _peak_mb="$2"
@@ -855,6 +874,8 @@ memory_report_print_text() {
     read -r _rs_base _rs_safe _rs_note _rs_peak_ratio <<<"$(memory_redis_recommend "$_rs_used_mb" "$_rs_peak_mb")"
     read -r _es_base _es_safe _es_note _es_peak_ratio <<<"$(memory_es_recommend "$_es_used_mb" "$_es_peak_mb")"
     _php_suggest=$(memory_php_suggest_values "$_host_mb")
+    _php_suggest_mc=$(echo "$_php_suggest" | awk -F= '$1=="pm.max_children"{print $2}')
+    _app_max_concurrency=$(memory_php_max_concurrency "$_php_suggest_mc")
     memory_progress_end 0 "calculate recommendations"
 
     memory_print_info "[SUGGESTED]"
@@ -874,6 +895,12 @@ memory_report_print_text() {
     memory_print_kv "REDIS_SESSION_MAXMEMORY_POLICY" "noeviction"
     memory_print_separator
     memory_print_php_suggest_block "$_php_suggest"
+    memory_print_separator
+    memory_print ""
+
+    memory_print_info "[APP CONFIGS]"
+    memory_print_separator
+    memory_print_kv "REDIS/VALKEY max_concurrency" "${_app_max_concurrency}  [clamp( pm.max_children * 0.3 , 5, 15)]"
     memory_print_separator
     memory_print ""
 
@@ -1000,6 +1027,7 @@ memory_report_print_json() {
     _php_suggest_min=$(echo "$_php_suggest" | awk -F= '$1=="pm.min_spare_servers"{print $2}')
     _php_suggest_max=$(echo "$_php_suggest" | awk -F= '$1=="pm.max_spare_servers"{print $2}')
     _php_suggest_req=$(echo "$_php_suggest" | awk -F= '$1=="pm.max_requests"{print $2}')
+    _app_max_concurrency=$(memory_php_max_concurrency "$_php_suggest_mc")
 
     cat <<EOF
 {
@@ -1076,7 +1104,8 @@ memory_report_print_json() {
     "php_fpm_start_servers": "$(memory_json_escape "$_php_suggest_ss")",
     "php_fpm_min_spare_servers": "$(memory_json_escape "$_php_suggest_min")",
     "php_fpm_max_spare_servers": "$(memory_json_escape "$_php_suggest_max")",
-    "php_fpm_max_requests": "$(memory_json_escape "$_php_suggest_req")"
+    "php_fpm_max_requests": "$(memory_json_escape "$_php_suggest_req")",
+    "app_redis_valkey_max_concurrency": "$(memory_json_escape "$_app_max_concurrency")"
   }
 }
 EOF

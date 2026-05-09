@@ -308,6 +308,7 @@ Qué aporta al equipo:
 - decisiones de capacity/tuning basadas en datos,
 - visibilidad rápida de desalineaciones entre uso real y configuración,
 - separación clara entre uso de contenedor y uso interno de servicio,
+- una salida derivada para app config (`REDIS/VALKEY max_concurrency`) alineada con el `pm.max_children` sugerido,
 - salida en texto y JSON para troubleshooting y documentación,
 
 ## Diagnóstico de scraping en access logs (`warp scan scraping`)
