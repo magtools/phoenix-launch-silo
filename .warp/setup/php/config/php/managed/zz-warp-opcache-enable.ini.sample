@@ -2,10 +2,16 @@
 ; Use with warp opcache enable.
 
 opcache.enable=1
-opcache.enable_cli=0
+opcache.enable_cli=1
+opcache.memory_consumption=640
+opcache.interned_strings_buffer=64
+opcache.max_accelerated_files=100000
 opcache.validate_timestamps=0
 opcache.revalidate_freq=0
-opcache.memory_consumption=256
-opcache.interned_strings_buffer=16
-opcache.max_accelerated_files=100000
 opcache.save_comments=1
+
+; JIT could made it inestable
+; opcache.jit=off/tracing
+opcache.jit=off
+; opcache.jit_buffer_size=0/100M
+opcache.jit_buffer_size=0
