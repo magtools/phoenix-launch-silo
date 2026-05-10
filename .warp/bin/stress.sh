@@ -21,6 +21,7 @@ STRESS_OVERRIDE_DURATION=""
 STRESS_OVERRIDE_VUS=""
 STRESS_OVERRIDE_MAX_VUS=""
 STRESS_OVERRIDE_STAGES=""
+STRESS_DATASET_SOURCE=""
 
 stress_print_kv() {
     printf '%-18s %s\n' "$1:" "$2"
@@ -539,6 +540,7 @@ stress_show_resolved_config() {
     warp_message " url revisit rate:   ${STRESS_URL_REVISIT_RATE:-1}"
     warp_message " search path:        ${STRESS_SEARCH_PATH:-/catalogsearch/result/?q=}"
     warp_message " dataset:            ${STRESS_DATASET_FILE:-}"
+    [ -n "${STRESS_DATASET_SOURCE:-}" ] && warp_message " dataset source:     ${STRESS_DATASET_SOURCE}"
     warp_message " section load:       ${STRESS_CUSTOMER_SECTION_LOAD_MODE:-$([ "${STRESS_CUSTOMER_SECTION_LOAD:-0}" != "0" ] && printf '%s' always || printf '%s' never)}"
     [ -n "${STRESS_CUSTOMER_SECTION_LOAD_RATIO:-}" ] && warp_message " section load ratio: ${STRESS_CUSTOMER_SECTION_LOAD_RATIO}"
     case "${STRESS_CUSTOMER_SECTION_LOAD_MODE:-}" in
@@ -1128,7 +1130,6 @@ stress_warmup_dataset_download() {
     mv "$_tmp_csv" "$_target_csv" 2>/dev/null || return 1
     [ -s "$_target_csv" ] || return 1
 
-    warp_message_ok "warmup dataset ready: var/warp-stress/datasets/warmup.csv"
     printf '%s\n' "$_target_csv"
 }
 
@@ -1138,15 +1139,19 @@ stress_run_prepare_dataset() {
     local _resolved_file="$STRESS_DATASETS_DIR/sitemap-urls.resolved.txt"
     local _warmup_dataset=""
 
+    STRESS_DATASET_SOURCE=""
     _dataset_host="${_dataset_explicit:-$STRESS_DATASETS_DIR/sitemap-urls.txt}"
     STRESS_DATASET_FILE="$_dataset_host"
+    [ -n "$_dataset_explicit" ] && STRESS_DATASET_SOURCE="explicit"
 
     if [ -z "$_dataset_explicit" ] && [ "${STRESS_TYPE:-}" = "warmup" ]; then
         _warmup_dataset=$(stress_warmup_dataset_download)
         if [ -n "$_warmup_dataset" ] && [ -f "$_warmup_dataset" ] && [ -s "$_warmup_dataset" ]; then
+            warp_message_ok "warmup dataset ready: var/warp-stress/datasets/warmup.csv"
             _dataset_host="$_warmup_dataset"
             _resolved_file="$STRESS_DATASETS_DIR/warmup.resolved.txt"
             STRESS_DATASET_FILE="$_dataset_host"
+            STRESS_DATASET_SOURCE="warmup.csv (preferred over sitemap)"
         fi
     fi
 
@@ -1154,6 +1159,7 @@ stress_run_prepare_dataset() {
         stress_sitemap_download || return 1
         _dataset_host="${STRESS_DATASET_FILE:-$STRESS_DATASETS_DIR/sitemap-urls.txt}"
         STRESS_DATASET_FILE="$_dataset_host"
+        [ -z "$STRESS_DATASET_SOURCE" ] && STRESS_DATASET_SOURCE="sitemap"
     fi
 
     cp "$_dataset_host" "$_resolved_file" || {

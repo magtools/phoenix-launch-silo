@@ -46,11 +46,13 @@ stress_help_usage() {
     warp_message " warp stress warmup --profile catalog-warm"
     warp_message " warp stress run --profile catalog-load"
     warp_message " warp stress run --profile catalog-load-realistic"
+    warp_message " warp stress run --profile catalog-search-load --duration 60s --rate 5000 --vus 80 --max-vus 320 --yes"
     warp_message " warp stress run --profile catalog-stress --stage 100:2m,250:3m,500:5m,0:2m"
     warp_message " warp stress report latest"
     warp_message " warp stress stop --hard"
     warp_message ""
-    warp_message " warmup automatically prefers /media/warmup.csv from the target when available."
+    warp_message " warmup automatically prefers /media/warmup.csv from the target server when it exists;"
+    warp_message " otherwise it falls back to the sitemap dataset."
     warp_message ""
 }
 
