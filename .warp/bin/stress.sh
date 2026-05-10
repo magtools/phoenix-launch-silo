@@ -557,7 +557,7 @@ stress_show_resolved_config() {
 }
 
 stress_parse_run_flags() {
-    STRESS_SELECTED_PROFILE="${STRESS_PROFILE:-catalog-load}"
+    STRESS_SELECTED_PROFILE="${STRESS_SELECTED_PROFILE:-${STRESS_PROFILE:-catalog-load}}"
     STRESS_OVERRIDE_RATE=""
     STRESS_OVERRIDE_DURATION=""
     STRESS_OVERRIDE_VUS=""
