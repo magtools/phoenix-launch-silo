@@ -1111,15 +1111,49 @@ stress_sitemap_download() {
     warp_message_ok "sitemap dataset ready: var/warp-stress/datasets/sitemap-urls.txt"
 }
 
+stress_warmup_dataset_url() {
+    [ -n "${STRESS_BASE_URL:-}" ] || return 1
+    printf '%s/media/warmup.csv\n' "${STRESS_BASE_URL%/}"
+}
+
+stress_warmup_dataset_download() {
+    local _target_url=""
+    local _target_csv="$STRESS_DATASETS_DIR/warmup.csv"
+    local _tmp_csv="$STRESS_DATASETS_DIR/warmup.csv.tmp"
+
+    _target_url=$(stress_warmup_dataset_url) || return 1
+    stress_fetch_url_to_file "$_target_url" "$_target_csv" 2>/dev/null || return 1
+
+    sed '/^[[:space:]]*$/d' "$_target_csv" > "$_tmp_csv" 2>/dev/null || return 1
+    mv "$_tmp_csv" "$_target_csv" 2>/dev/null || return 1
+    [ -s "$_target_csv" ] || return 1
+
+    warp_message_ok "warmup dataset ready: var/warp-stress/datasets/warmup.csv"
+    printf '%s\n' "$_target_csv"
+}
+
 stress_run_prepare_dataset() {
+    local _dataset_explicit="${STRESS_DATASET_FILE:-}"
     local _dataset_host=""
     local _resolved_file="$STRESS_DATASETS_DIR/sitemap-urls.resolved.txt"
+    local _warmup_dataset=""
 
-    _dataset_host="${STRESS_DATASET_FILE:-$STRESS_DATASETS_DIR/sitemap-urls.txt}"
+    _dataset_host="${_dataset_explicit:-$STRESS_DATASETS_DIR/sitemap-urls.txt}"
     STRESS_DATASET_FILE="$_dataset_host"
+
+    if [ -z "$_dataset_explicit" ] && [ "${STRESS_TYPE:-}" = "warmup" ]; then
+        _warmup_dataset=$(stress_warmup_dataset_download)
+        if [ -n "$_warmup_dataset" ] && [ -f "$_warmup_dataset" ] && [ -s "$_warmup_dataset" ]; then
+            _dataset_host="$_warmup_dataset"
+            _resolved_file="$STRESS_DATASETS_DIR/warmup.resolved.txt"
+            STRESS_DATASET_FILE="$_dataset_host"
+        fi
+    fi
 
     if [ ! -f "$_dataset_host" ] || [ ! -s "$_dataset_host" ]; then
         stress_sitemap_download || return 1
+        _dataset_host="${STRESS_DATASET_FILE:-$STRESS_DATASETS_DIR/sitemap-urls.txt}"
+        STRESS_DATASET_FILE="$_dataset_host"
     fi
 
     cp "$_dataset_host" "$_resolved_file" || {

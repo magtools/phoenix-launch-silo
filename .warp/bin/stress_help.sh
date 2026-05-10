@@ -50,6 +50,8 @@ stress_help_usage() {
     warp_message " warp stress report latest"
     warp_message " warp stress stop --hard"
     warp_message ""
+    warp_message " warmup automatically prefers /media/warmup.csv from the target when available."
+    warp_message ""
 }
 
 stress_help() {

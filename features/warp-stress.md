@@ -147,7 +147,8 @@ Caracteristicas:
 1. recorrido secuencial o pseudoaleatorio controlado;
 2. sin thresholds de capacidad;
 3. con output persistente igual que cualquier corrida;
-4. preferentemente sobre subset conocido de URLs calientes.
+4. preferentemente sobre subset conocido de URLs calientes;
+5. si el target expone `/media/warmup.csv`, `warp stress warmup` debe preferir ese dataset antes del sitemap.
 
 ### 2. `baseline`
 
