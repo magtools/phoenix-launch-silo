@@ -156,6 +156,29 @@ memory_host_used_mb() {
     echo ""
 }
 
+memory_host_available_mb() {
+    if [ -r /proc/meminfo ]; then
+        awk '
+            /^MemAvailable:/ { if ($2>0) printf "%d\n", $2/1024; else print "" }
+        ' /proc/meminfo
+        return 0
+    fi
+
+    if command -v vm_stat >/dev/null 2>&1 && command -v sysctl >/dev/null 2>&1; then
+        local _total_mb=""
+        local _used_mb=""
+
+        _total_mb=$(memory_host_total_mb)
+        _used_mb=$(memory_host_used_mb)
+        if [[ "$_total_mb" =~ ^[0-9]+$ ]] && [[ "$_used_mb" =~ ^[0-9]+$ ]] && [ "$_total_mb" -ge "$_used_mb" ]; then
+            echo $((_total_mb - _used_mb))
+            return 0
+        fi
+    fi
+
+    echo ""
+}
+
 memory_host_used_pct() {
     _used="$1"
     _total="$2"
@@ -342,7 +365,17 @@ memory_reserve_system_mb() {
     if memory_compose_file_exists; then
         echo "1024"
     else
-        echo "2560"
+        local _host_mb=""
+        local _ten_pct_mb=""
+
+        _host_mb=$(memory_host_total_mb)
+        if ! [[ "$_host_mb" =~ ^[0-9]+$ ]]; then
+            echo "2560"
+            return 0
+        fi
+
+        _ten_pct_mb=$(memory_ceil_number "$(awk -v mb="$_host_mb" 'BEGIN { print mb*0.10 }')")
+        echo $((2048 + _ten_pct_mb))
     fi
 }
 
@@ -398,6 +431,46 @@ memory_php_budget_mb() {
     _budget=$((_host_mb - _system_mb - _redis_cache_mb - _redis_fpc_mb - _redis_session_mb - _search_mb - _db_mb))
     [ "$_budget" -lt 1024 ] && _budget=1024
     echo "$_budget"
+}
+
+memory_php_budget_host_mode_mb() {
+    local _host_available_mb="$1"
+    local _system_mb="$2"
+    local _budget=""
+
+    if ! [[ "$_host_available_mb" =~ ^[0-9]+$ ]]; then
+        echo ""
+        return 0
+    fi
+
+    _budget=$((_host_available_mb - _system_mb))
+    [ "$_budget" -lt 1024 ] && _budget=1024
+    echo "$_budget"
+}
+
+memory_php_worker_rss_stats() {
+    if ! command -v ps >/dev/null 2>&1; then
+        echo ""
+        return 0
+    fi
+
+    ps --no-headers -o rss=,command= -C php-fpm 2>/dev/null | awk '
+        /php-fpm: pool / {
+            rss=$1
+            if (rss > 0) {
+                count++
+                sum+=rss
+                if (rss>max) max=rss
+            }
+        }
+        END {
+            if (count>0) {
+                avg=sum/count/1024
+                maxmb=max/1024
+                printf "%d %.4f %.4f\n", count, avg, maxmb
+            }
+        }
+    '
 }
 
 memory_compose_service_id() {
@@ -591,9 +664,8 @@ memory_php_max_children_from_ram() {
     fi
 }
 
-memory_php_suggest_values() {
-    _ram_mb="$1"
-    _max_children=$(memory_php_max_children_from_ram "$_ram_mb")
+memory_php_suggest_values_from_children() {
+    _max_children="$1"
     _start=$(memory_ceil_number "$(awk -v m="$_max_children" 'BEGIN {print m*0.20}')")
     _min_spare=$(memory_ceil_number "$(awk -v m="$_max_children" 'BEGIN {print m*0.20}')")
     _max_spare=$(memory_ceil_number "$(awk -v m="$_max_children" 'BEGIN {print m*0.40}')")
@@ -615,6 +687,12 @@ pm.min_spare_servers=$_min_spare
 pm.max_spare_servers=$_max_spare
 pm.max_requests=$_max_req
 EOF
+}
+
+memory_php_suggest_values() {
+    _ram_mb="$1"
+    _max_children=$(memory_php_max_children_from_ram "$_ram_mb")
+    memory_php_suggest_values_from_children "$_max_children"
 }
 
 memory_php_max_concurrency() {
@@ -727,6 +805,7 @@ memory_report_print_text() {
 
     memory_progress_begin "check host resources"
     _host_mb=$(memory_host_total_mb)
+    _host_available_mb=$(memory_host_available_mb)
     _host_used_mb=$(memory_host_used_mb)
     _host_used_pct=$(memory_host_used_pct "$_host_used_mb" "$_host_mb")
     _host_load_1m=$(memory_host_load_1m)
@@ -770,18 +849,43 @@ memory_report_print_text() {
 
     memory_progress_begin "calculate php sizing budget"
     _system_reserved_mb=$(memory_reserve_system_mb)
-    _redis_cache_reserved_mb=$(memory_service_reserved_mb "redis-cache" "REDIS_CACHE_MAXMEMORY" "512")
-    _redis_fpc_reserved_mb=$(memory_service_reserved_mb "redis-fpc" "REDIS_FPC_MAXMEMORY" "512")
-    _redis_session_reserved_mb=$(memory_service_reserved_mb "redis-session" "REDIS_SESSION_MAXMEMORY" "256")
-    _search_reserved_mb=0
-    if memory_compose_has_service "elasticsearch" || memory_compose_has_service "opensearch"; then
-        _search_reserved_mb=$(memory_env_to_mb "$(memory_env_raw "ES_MEMORY")")
-        if ! [[ "$_search_reserved_mb" =~ ^[0-9]+$ ]] || [ "$_search_reserved_mb" -le 0 ]; then
-            _search_reserved_mb=1024
+    _php_sizing_mode="compose"
+    _php_worker_count=""
+    _php_worker_avg_mb=""
+    _php_worker_high_mb=""
+    _php_suggest_range=""
+    if memory_compose_file_exists; then
+        _redis_cache_reserved_mb=$(memory_service_reserved_mb "redis-cache" "REDIS_CACHE_MAXMEMORY" "512")
+        _redis_fpc_reserved_mb=$(memory_service_reserved_mb "redis-fpc" "REDIS_FPC_MAXMEMORY" "512")
+        _redis_session_reserved_mb=$(memory_service_reserved_mb "redis-session" "REDIS_SESSION_MAXMEMORY" "256")
+        _search_reserved_mb=0
+        if memory_compose_has_service "elasticsearch" || memory_compose_has_service "opensearch"; then
+            _search_reserved_mb=$(memory_env_to_mb "$(memory_env_raw "ES_MEMORY")")
+            if ! [[ "$_search_reserved_mb" =~ ^[0-9]+$ ]] || [ "$_search_reserved_mb" -le 0 ]; then
+                _search_reserved_mb=1024
+            fi
+        fi
+        _db_reserved_mb=$(memory_db_reserved_mb)
+        _php_budget_mb=$(memory_php_budget_mb "$_host_mb" "$_system_reserved_mb" "$_redis_cache_reserved_mb" "$_redis_fpc_reserved_mb" "$_redis_session_reserved_mb" "$_search_reserved_mb" "$_db_reserved_mb")
+    else
+        _php_sizing_mode="host-runtime"
+        _redis_cache_reserved_mb=0
+        _redis_fpc_reserved_mb=0
+        _redis_session_reserved_mb=0
+        _search_reserved_mb=0
+        _db_reserved_mb=0
+        _php_budget_mb=$(memory_php_budget_host_mode_mb "$_host_available_mb" "$_system_reserved_mb")
+        read -r _php_worker_count _php_worker_avg_mb _php_worker_max_mb <<<"$(memory_php_worker_rss_stats)"
+        if [[ "$_php_worker_avg_mb" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+            _php_worker_avg_mb=$(memory_ceil_number "$_php_worker_avg_mb")
+            _php_worker_high_mb=$(memory_ceil_number "$(awk -v v="$_php_worker_avg_mb" 'BEGIN { print v*1.15 }')")
+            _php_mc_conservative=$((_php_budget_mb / _php_worker_high_mb))
+            _php_mc_aggressive=$((_php_budget_mb / _php_worker_avg_mb))
+            [ "$_php_mc_conservative" -lt 1 ] && _php_mc_conservative=1
+            [ "$_php_mc_aggressive" -lt "$_php_mc_conservative" ] && _php_mc_aggressive="$_php_mc_conservative"
+            _php_suggest_range="${_php_mc_conservative}-${_php_mc_aggressive}"
         fi
     fi
-    _db_reserved_mb=$(memory_db_reserved_mb)
-    _php_budget_mb=$(memory_php_budget_mb "$_host_mb" "$_system_reserved_mb" "$_redis_cache_reserved_mb" "$_redis_fpc_reserved_mb" "$_redis_session_reserved_mb" "$_search_reserved_mb" "$_db_reserved_mb")
     memory_progress_end 0 "calculate php sizing budget"
 
     memory_progress_begin "read php-fpm settings"
@@ -867,6 +971,7 @@ memory_report_print_text() {
     memory_print ""
     memory_print_info "WARP Memory Report"
     memory_print_kv "Host RAM total" "${_host_human}"
+    memory_print_kv "Host RAM available" "$(memory_mb_human_or_na "$_host_available_mb")"
     memory_print_kv "Host RAM used" "$(memory_mb_human_or_na "$_host_used_mb") (${_host_used_pct}%)"
     memory_print_kv "Host CPU topology" "${_host_cpu_summary}"
     memory_print_kv "Host CPU sockets" "${_host_sockets}"
@@ -934,6 +1039,12 @@ memory_report_print_text() {
     memory_print_kv "Search reserve" "$(memory_mb_human_or_na "$_search_reserved_mb")"
     memory_print_kv "DB reserve" "$(memory_mb_human_or_na "$_db_reserved_mb")"
     memory_print_kv "PHP sizing budget" "$(memory_mb_human_or_na "$_php_budget_mb")"
+    memory_print_kv "PHP sizing mode" "${_php_sizing_mode}"
+    if [ "$_php_sizing_mode" = "host-runtime" ]; then
+        memory_print_kv "PHP-FPM workers observed" "${_php_worker_count:-N/A}"
+        memory_print_kv "PHP worker RSS avg" "$(memory_mb_human_or_na "$_php_worker_avg_mb")"
+        memory_print_kv "PHP worker RSS conservative" "$(memory_mb_human_or_na "$_php_worker_high_mb")"
+    fi
     memory_print_separator
     memory_print ""
 
@@ -967,8 +1078,15 @@ memory_report_print_text() {
     read -r _rf_base _rf_safe _rf_note _rf_peak_ratio <<<"$(memory_redis_recommend "$_rf_used_mb" "$_rf_peak_mb")"
     read -r _rs_base _rs_safe _rs_note _rs_peak_ratio <<<"$(memory_redis_recommend "$_rs_used_mb" "$_rs_peak_mb")"
     read -r _es_base _es_safe _es_note _es_peak_ratio <<<"$(memory_es_recommend "$_es_used_mb" "$_es_peak_mb")"
-    _php_suggest=$(memory_php_suggest_values "$_php_budget_mb")
+    if [ "$_php_sizing_mode" = "host-runtime" ] && [ -n "${_php_suggest_range:-}" ]; then
+        _php_suggest=$(memory_php_suggest_values_from_children "$_php_mc_conservative")
+        _php_suggest_aggressive=$(memory_php_suggest_values_from_children "$_php_mc_aggressive")
+    else
+        _php_suggest=$(memory_php_suggest_values "$_php_budget_mb")
+        _php_suggest_aggressive=""
+    fi
     _php_suggest_mc=$(echo "$_php_suggest" | awk -F= '$1=="pm.max_children"{print $2}')
+    _php_suggest_req=$(echo "$_php_suggest" | awk -F= '$1=="pm.max_requests"{print $2}')
     _app_max_concurrency=$(memory_php_max_concurrency "$_php_suggest_mc")
     memory_progress_end 0 "calculate recommendations"
 
@@ -989,6 +1107,13 @@ memory_report_print_text() {
     memory_print_kv "REDIS_SESSION_MAXMEMORY_POLICY" "noeviction"
     memory_print_separator
     memory_print_php_suggest_block "$_php_suggest"
+    if [ "$_php_sizing_mode" = "host-runtime" ] && [ -n "${_php_suggest_range:-}" ]; then
+        _php_suggest_aggr_mc=$(echo "$_php_suggest_aggressive" | awk -F= '$1=="pm.max_children"{print $2}')
+        _php_suggest_aggr_req=$(echo "$_php_suggest_aggressive" | awk -F= '$1=="pm.max_requests"{print $2}')
+        memory_print_kv "PHP-FPM pm.max_children range" "${_php_suggest_range}"
+        memory_print_kv "PHP-FPM pm.max_children aggressive" "${_php_suggest_aggr_mc}"
+        memory_print_kv "PHP-FPM pm.max_requests range" "${_php_suggest_req}-${_php_suggest_aggr_req}"
+    fi
     memory_print_separator
     memory_print ""
 
@@ -1001,8 +1126,13 @@ memory_report_print_text() {
     memory_print_info "Operator note:"
     memory_print " - Redis/ES recommendations are calculated from used_memory and rounded to 64MB blocks."
     memory_print " - If peak is WARNING/CRITICAL, use the minimum safe value."
-    memory_print " - PHP-FPM sizing uses host RAM minus system and configured service reserves from docker-compose-warp.yml."
-    memory_print " - In PHP-FPM, pm.max_children uses RAM extrapolation and optimistic rounding (<20 => ceil+1, >=20 => ceil+2)."
+    if [ "$_php_sizing_mode" = "host-runtime" ]; then
+        memory_print " - Host-mode PHP-FPM sizing uses MemAvailable minus a reserve of 2GB + 10% of total RAM."
+        memory_print " - Host-mode range uses RSS average per php-fpm pool worker and a 15% conservative uplift."
+    else
+        memory_print " - PHP-FPM sizing uses host RAM minus system and configured service reserves from docker-compose-warp.yml."
+        memory_print " - In PHP-FPM, pm.max_children uses RAM extrapolation and optimistic rounding (<20 => ceil+1, >=20 => ceil+2)."
+    fi
     memory_print ""
 }
 
@@ -1013,6 +1143,7 @@ memory_json_escape() {
 memory_report_print_json() {
     _show_suggest="$1"
     _host_mb=$(memory_host_total_mb)
+    _host_available_mb=$(memory_host_available_mb)
     _host_used_mb=$(memory_host_used_mb)
     _host_used_pct=$(memory_host_used_pct "$_host_used_mb" "$_host_mb")
     _host_load_1m=$(memory_host_load_1m)
@@ -1051,18 +1182,43 @@ memory_report_print_json() {
     _cfg_rsp=$(memory_env_value "REDIS_SESSION_MAXMEMORY_POLICY")
 
     _system_reserved_mb=$(memory_reserve_system_mb)
-    _redis_cache_reserved_mb=$(memory_service_reserved_mb "redis-cache" "REDIS_CACHE_MAXMEMORY" "512")
-    _redis_fpc_reserved_mb=$(memory_service_reserved_mb "redis-fpc" "REDIS_FPC_MAXMEMORY" "512")
-    _redis_session_reserved_mb=$(memory_service_reserved_mb "redis-session" "REDIS_SESSION_MAXMEMORY" "256")
-    _search_reserved_mb=0
-    if memory_compose_has_service "elasticsearch" || memory_compose_has_service "opensearch"; then
-        _search_reserved_mb=$(memory_env_to_mb "$(memory_env_raw "ES_MEMORY")")
-        if ! [[ "$_search_reserved_mb" =~ ^[0-9]+$ ]] || [ "$_search_reserved_mb" -le 0 ]; then
-            _search_reserved_mb=1024
+    _php_sizing_mode="compose"
+    _php_worker_count=""
+    _php_worker_avg_mb=""
+    _php_worker_high_mb=""
+    _php_suggest_range=""
+    if memory_compose_file_exists; then
+        _redis_cache_reserved_mb=$(memory_service_reserved_mb "redis-cache" "REDIS_CACHE_MAXMEMORY" "512")
+        _redis_fpc_reserved_mb=$(memory_service_reserved_mb "redis-fpc" "REDIS_FPC_MAXMEMORY" "512")
+        _redis_session_reserved_mb=$(memory_service_reserved_mb "redis-session" "REDIS_SESSION_MAXMEMORY" "256")
+        _search_reserved_mb=0
+        if memory_compose_has_service "elasticsearch" || memory_compose_has_service "opensearch"; then
+            _search_reserved_mb=$(memory_env_to_mb "$(memory_env_raw "ES_MEMORY")")
+            if ! [[ "$_search_reserved_mb" =~ ^[0-9]+$ ]] || [ "$_search_reserved_mb" -le 0 ]; then
+                _search_reserved_mb=1024
+            fi
+        fi
+        _db_reserved_mb=$(memory_db_reserved_mb)
+        _php_budget_mb=$(memory_php_budget_mb "$_host_mb" "$_system_reserved_mb" "$_redis_cache_reserved_mb" "$_redis_fpc_reserved_mb" "$_redis_session_reserved_mb" "$_search_reserved_mb" "$_db_reserved_mb")
+    else
+        _php_sizing_mode="host-runtime"
+        _redis_cache_reserved_mb=0
+        _redis_fpc_reserved_mb=0
+        _redis_session_reserved_mb=0
+        _search_reserved_mb=0
+        _db_reserved_mb=0
+        _php_budget_mb=$(memory_php_budget_host_mode_mb "$_host_available_mb" "$_system_reserved_mb")
+        read -r _php_worker_count _php_worker_avg_mb _php_worker_max_mb <<<"$(memory_php_worker_rss_stats)"
+        if [[ "$_php_worker_avg_mb" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+            _php_worker_avg_mb=$(memory_ceil_number "$_php_worker_avg_mb")
+            _php_worker_high_mb=$(memory_ceil_number "$(awk -v v="$_php_worker_avg_mb" 'BEGIN { print v*1.15 }')")
+            _php_mc_conservative=$((_php_budget_mb / _php_worker_high_mb))
+            _php_mc_aggressive=$((_php_budget_mb / _php_worker_avg_mb))
+            [ "$_php_mc_conservative" -lt 1 ] && _php_mc_conservative=1
+            [ "$_php_mc_aggressive" -lt "$_php_mc_conservative" ] && _php_mc_aggressive="$_php_mc_conservative"
+            _php_suggest_range="${_php_mc_conservative}-${_php_mc_aggressive}"
         fi
     fi
-    _db_reserved_mb=$(memory_db_reserved_mb)
-    _php_budget_mb=$(memory_php_budget_mb "$_host_mb" "$_system_reserved_mb" "$_redis_cache_reserved_mb" "$_redis_fpc_reserved_mb" "$_redis_session_reserved_mb" "$_search_reserved_mb" "$_db_reserved_mb")
 
     _php_conf=$(memory_php_conf_file)
     _php_pm=$(memory_php_conf_read "$_php_conf" "pm")
@@ -1121,13 +1277,20 @@ memory_report_print_json() {
         read -r _rf_base _rf_safe _rf_note _rf_peak_ratio <<<"$(memory_redis_recommend "$_rf_used_mb" "$_rf_peak_mb")"
         read -r _rs_base _rs_safe _rs_note _rs_peak_ratio <<<"$(memory_redis_recommend "$_rs_used_mb" "$_rs_peak_mb")"
         read -r _es_base _es_safe _es_note _es_peak_ratio <<<"$(memory_es_recommend "$_es_used_mb" "$_es_peak_mb")"
-        _php_suggest=$(memory_php_suggest_values "$_php_budget_mb")
+        if [ "$_php_sizing_mode" = "host-runtime" ] && [ -n "${_php_suggest_range:-}" ]; then
+            _php_suggest=$(memory_php_suggest_values_from_children "$_php_mc_conservative")
+            _php_suggest_aggressive=$(memory_php_suggest_values_from_children "$_php_mc_aggressive")
+        else
+            _php_suggest=$(memory_php_suggest_values "$_php_budget_mb")
+            _php_suggest_aggressive=""
+        fi
     else
         _rc_base=""; _rc_safe=""; _rc_note=""; _rc_peak_ratio=""
         _rf_base=""; _rf_safe=""; _rf_note=""; _rf_peak_ratio=""
         _rs_base=""; _rs_safe=""; _rs_note=""; _rs_peak_ratio=""
         _es_base=""; _es_safe=""; _es_note=""; _es_peak_ratio=""
         _php_suggest=""
+        _php_suggest_aggressive=""
     fi
 
     _php_suggest_pm=$(echo "$_php_suggest" | awk -F= '$1=="pm"{print $2}')
@@ -1136,6 +1299,8 @@ memory_report_print_json() {
     _php_suggest_min=$(echo "$_php_suggest" | awk -F= '$1=="pm.min_spare_servers"{print $2}')
     _php_suggest_max=$(echo "$_php_suggest" | awk -F= '$1=="pm.max_spare_servers"{print $2}')
     _php_suggest_req=$(echo "$_php_suggest" | awk -F= '$1=="pm.max_requests"{print $2}')
+    _php_suggest_aggr_mc=$(echo "$_php_suggest_aggressive" | awk -F= '$1=="pm.max_children"{print $2}')
+    _php_suggest_aggr_req=$(echo "$_php_suggest_aggressive" | awk -F= '$1=="pm.max_requests"{print $2}')
     _app_max_concurrency=$(memory_php_max_concurrency "$_php_suggest_mc")
 
     cat <<EOF
@@ -1143,6 +1308,7 @@ memory_report_print_json() {
   "host": {
     "ram_total_mb": "$(memory_json_escape "$_host_mb")",
     "ram_total_human": "$(memory_json_escape "$_host_human")",
+    "ram_available_mb": "$(memory_json_escape "$_host_available_mb")",
     "ram_used_mb": "$(memory_json_escape "$_host_used_mb")",
     "ram_used_pct": "$(memory_json_escape "$_host_used_pct")",
     "load_1m": "$(memory_json_escape "$_host_load_1m")",
@@ -1200,6 +1366,10 @@ memory_report_print_json() {
     ,"php_sizing_search_reserved_mb": "$(memory_json_escape "$_search_reserved_mb")"
     ,"php_sizing_db_reserved_mb": "$(memory_json_escape "$_db_reserved_mb")"
     ,"php_sizing_budget_mb": "$(memory_json_escape "$_php_budget_mb")"
+    ,"php_sizing_mode": "$(memory_json_escape "$_php_sizing_mode")"
+    ,"php_worker_count": "$(memory_json_escape "$_php_worker_count")"
+    ,"php_worker_rss_avg_mb": "$(memory_json_escape "$_php_worker_avg_mb")"
+    ,"php_worker_rss_conservative_mb": "$(memory_json_escape "$_php_worker_high_mb")"
   },
   "suggested": {
     "enabled": "$(memory_json_escape "$_show_suggest")",
@@ -1221,6 +1391,9 @@ memory_report_print_json() {
     "php_fpm_min_spare_servers": "$(memory_json_escape "$_php_suggest_min")",
     "php_fpm_max_spare_servers": "$(memory_json_escape "$_php_suggest_max")",
     "php_fpm_max_requests": "$(memory_json_escape "$_php_suggest_req")",
+    "php_fpm_max_children_aggressive": "$(memory_json_escape "$_php_suggest_aggr_mc")",
+    "php_fpm_max_requests_aggressive": "$(memory_json_escape "$_php_suggest_aggr_req")",
+    "php_fpm_max_children_range": "$(memory_json_escape "$_php_suggest_range")",
     "app_redis_valkey_max_concurrency": "$(memory_json_escape "$_app_max_concurrency")"
   }
 }

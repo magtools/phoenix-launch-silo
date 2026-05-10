@@ -119,19 +119,31 @@ Guardrail por pico:
 
 Presupuesto PHP:
 
-1. si existe `docker-compose-warp.yml`, reservar `1GB` para sistema;
-2. si no existe `docker-compose-warp.yml`, reservar `2.5GB` para sistema;
-3. descontar solo servicios presentes en `docker-compose-warp.yml`;
-4. Redis/Valkey:
+### Con `docker-compose-warp.yml`
+
+1. reservar `1GB` para sistema;
+2. descontar solo servicios presentes en `docker-compose-warp.yml`;
+3. Redis/Valkey:
    - `redis-cache`: `REDIS_CACHE_MAXMEMORY` o fallback `512MB`
    - `redis-fpc`: `REDIS_FPC_MAXMEMORY` o fallback `512MB`
    - `redis-session`: `REDIS_SESSION_MAXMEMORY` o fallback `256MB`
-5. Search:
+4. Search:
    - `elasticsearch`/`opensearch`: `ES_MEMORY` o fallback `1024MB`
-6. DB:
+5. DB:
    - `mysql`/`mariadb`: reserva heurística fija `2GB`
-7. si un servicio no existe en `docker-compose-warp.yml`, no participa en el descuento;
-8. el presupuesto final para PHP se clampa a un mínimo de `1GB`.
+6. si un servicio no existe en `docker-compose-warp.yml`, no participa en el descuento;
+7. el presupuesto final para PHP se clampa a un mínimo de `1GB`.
+
+### Sin `docker-compose-warp.yml` (host-mode)
+
+1. usar `MemAvailable` del host como base para el presupuesto PHP;
+2. reservar `2GB + 10%` de la RAM total del host;
+3. el presupuesto final para PHP es `MemAvailable - reserve`, con clamp mínimo de `1GB`;
+4. si se detectan workers reales `php-fpm: pool ...`, el sizing calcula un rango:
+   - `aggressive`: usando RSS promedio de workers excluyendo el master
+   - `conservative`: usando ese mismo promedio con uplift de `15%`
+5. el valor simple expuesto en `suggested.php_fpm_*` corresponde al extremo conservador;
+6. si no se detectan workers, host-mode hace fallback a la extrapolación por anclas usando el presupuesto PHP calculado.
 
 Sobre ese presupuesto, `pm.max_children` usa anclas:
 
@@ -152,7 +164,12 @@ Resto de parámetros:
 4. `pm.max_spare_servers`: `ceil(max_children*0.40)` con tope `30`.
 5. `pm.max_requests`: `pm.max_children * 100`, con mínimo `1000` y máximo `5000`.
 
-La salida texto muestra un bloque `[PHP SIZING BUDGET]` con el desglose usado para el cálculo.
+La salida texto muestra un bloque `[PHP SIZING BUDGET]` con el desglose usado para el cálculo. En host-mode, si hay workers observados, el reporte suma:
+
+1. workers observados,
+2. RSS promedio por worker,
+3. RSS conservador por worker,
+4. rango `pm.max_children` conservador/agresivo.
 
 ## 6) Salida para operador
 
@@ -184,6 +201,14 @@ El reporte incluye notas explícitas para facilitar interpretación:
    - `php_sizing_search_reserved_mb`
    - `php_sizing_db_reserved_mb`
    - `php_sizing_budget_mb`
+   - `php_sizing_mode`
+   - `php_worker_count`
+   - `php_worker_rss_avg_mb`
+   - `php_worker_rss_conservative_mb`
+8. rango de host-mode en `suggested` cuando aplica:
+   - `php_fpm_max_children_aggressive`
+   - `php_fpm_max_requests_aggressive`
+   - `php_fpm_max_children_range`
 
 Campos host añadidos:
 

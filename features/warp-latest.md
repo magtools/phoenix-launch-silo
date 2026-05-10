@@ -300,8 +300,10 @@ Evolución funcional reciente:
 - Se incorporan alertas operativas por presión de memoria:
   - `>=75%` warning
   - `>=90%` crítico
-- PHP-FPM pasó a extrapolación por presupuesto disponible para PHP
-  (RAM host menos reservas de sistema/servicios configurados) con redondeo optimista para `pm.max_children`.
+- PHP-FPM pasó a extrapolación por presupuesto disponible para PHP.
+  Con Compose usa RAM host menos reservas de sistema/servicios configurados;
+  sin Compose usa `MemAvailable`, reserva `2GB + 10%` del host y, si detecta workers,
+  expone un rango conservador/agresivo basado en RSS real de `php-fpm`.
 
 Qué aporta al equipo:
 
