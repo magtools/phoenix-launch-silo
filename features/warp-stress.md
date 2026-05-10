@@ -357,6 +357,11 @@ Esto permite diferenciar entre:
 
 Con estas claves, `warp stress report` puede traducir `iterations/s` a `pageviews/min`, `usuarios GA4 por minuto` y una concurrencia estimada, sin depender de un factor fijo externo de requests por page view.
 
+Nota operativa sobre errores HTTP:
+
+1. `404` de URLs removidas del sitemap deben contarse aparte (`http_404s`) para troubleshooting de dataset.
+2. `404` no debe inflar `http_req_failed`; ese indicador debe reservarse para fallas de transporte o respuestas HTTP realmente no esperadas (`400`, `401`, `403`, `5xx`, etc.).
+
 Reglas:
 
 1. no debe trackearse;

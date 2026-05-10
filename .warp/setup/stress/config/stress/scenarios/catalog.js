@@ -1,5 +1,6 @@
 import http from 'k6/http';
 import { check } from 'k6';
+import { Counter } from 'k6/metrics';
 
 function toInt(value, fallback) {
   const parsed = Number.parseInt(value || '', 10);
@@ -74,6 +75,8 @@ const urlOrder = __ENV.STRESS_URL_ORDER || 'random';
 const urlRevisitRate = Math.max(1, toInt(__ENV.STRESS_URL_REVISIT_RATE, 1));
 let urlRevisitCurrent = null;
 let urlRevisitRemaining = 0;
+const expectedStatuses = http.expectedStatuses({ min: 200, max: 399 }, 404);
+const http404s = new Counter('http_404s');
 const customerSectionLoadLegacy = (__ENV.STRESS_CUSTOMER_SECTION_LOAD || '0') !== '0';
 const customerSectionLoadMode = (__ENV.STRESS_CUSTOMER_SECTION_LOAD_MODE || (customerSectionLoadLegacy ? 'always' : 'never')).trim().toLowerCase();
 const customerSectionLoadRatio = Number.parseFloat(__ENV.STRESS_CUSTOMER_SECTION_LOAD_RATIO || '1');
@@ -141,17 +144,23 @@ function shouldRunCustomerSectionLoad() {
 }
 
 function doRequest(url, flow, step) {
+  const tags = {
+    profile: __ENV.STRESS_PROFILE_NAME || 'default',
+    type: __ENV.STRESS_TYPE || 'run',
+    flow,
+    step,
+  };
   const response = http.get(url, {
-    tags: {
-      profile: __ENV.STRESS_PROFILE_NAME || 'default',
-      type: __ENV.STRESS_TYPE || 'run',
-      flow,
-      step,
-    },
+    tags,
+    responseCallback: expectedStatuses,
   });
 
+  if (response.status === 404) {
+    http404s.add(1, tags);
+  }
+
   check(response, {
-    'status < 400': (res) => res.status < 400,
+    'status < 400 or 404': (res) => res.status < 400 || res.status === 404,
   });
 }
 

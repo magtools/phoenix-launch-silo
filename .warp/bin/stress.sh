@@ -725,6 +725,7 @@ stress_report_print() {
     local _iterations_rate=""
     local _http_reqs_count=""
     local _http_reqs_rate=""
+    local _http_404s=""
     local _error_rate=""
     local _avg=""
     local _p90=""
@@ -764,6 +765,7 @@ stress_report_print() {
     _iterations_rate=$(stress_summary_metric_value "$_summary_file" "iterations" "rate")
     _http_reqs_count=$(stress_summary_metric_value "$_summary_file" "http_reqs" "count")
     _http_reqs_rate=$(stress_summary_metric_value "$_summary_file" "http_reqs" "rate")
+    _http_404s=$(stress_summary_metric_value "$_summary_file" "http_404s" "count")
     _error_rate=$(stress_summary_metric_value "$_summary_file" "http_req_failed" "value")
     _avg=$(stress_summary_metric_value "$_summary_file" "http_req_duration" "avg")
     _p90=$(stress_summary_metric_value "$_summary_file" "http_req_duration" "p(90)")
@@ -802,6 +804,7 @@ stress_report_print() {
     [ -n "$_iterations" ] && stress_print_report_kv "iterations" "$_iterations"
     [ -n "$_http_reqs_count" ] && stress_print_report_kv "dropped_iterations" "$(stress_summary_metric_value "$_summary_file" "dropped_iterations" "count")"
     [ -n "$_http_reqs_count" ] && stress_print_report_kv "http_reqs" "$_http_reqs_count"
+    [ -n "$_http_404s" ] && stress_print_report_kv "http_404s" "$_http_404s"
     [ -n "$_error_rate" ] && stress_print_report_kv "http_req_failed" "$(stress_format_percent "$_error_rate")"
     [ -n "$_avg" ] && stress_print_report_kv "avg" "$(stress_format_ms_seconds "$_avg")s"
     [ -n "$_p90" ] && stress_print_report_kv "p90" "$(stress_format_ms_seconds "$_p90")s"

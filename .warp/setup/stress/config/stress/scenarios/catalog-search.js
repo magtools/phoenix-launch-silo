@@ -1,5 +1,6 @@
 import http from 'k6/http';
 import { check } from 'k6';
+import { Counter } from 'k6/metrics';
 
 function toInt(value, fallback) {
   const parsed = Number.parseInt(value || '', 10);
@@ -161,6 +162,8 @@ let catalogRevisitCurrent = null;
 let catalogRevisitRemaining = 0;
 let searchRevisitCurrent = null;
 let searchRevisitRemaining = 0;
+const expectedStatuses = http.expectedStatuses({ min: 200, max: 399 }, 404);
+const http404s = new Counter('http_404s');
 const searchPath = __ENV.STRESS_SEARCH_PATH || '/catalogsearch/result/?q=';
 const searchTerms = loadSearchTerms();
 const customerSectionLoadLegacy = (__ENV.STRESS_CUSTOMER_SECTION_LOAD || '0') !== '0';
@@ -244,17 +247,23 @@ function shouldRunCustomerSectionLoad() {
 }
 
 function doRequest(url, flow, step) {
+  const tags = {
+    profile: __ENV.STRESS_PROFILE_NAME || 'default',
+    type: __ENV.STRESS_TYPE || 'run',
+    flow,
+    step,
+  };
   const response = http.get(url, {
-    tags: {
-      profile: __ENV.STRESS_PROFILE_NAME || 'default',
-      type: __ENV.STRESS_TYPE || 'run',
-      flow,
-      step,
-    },
+    tags,
+    responseCallback: expectedStatuses,
   });
 
+  if (response.status === 404) {
+    http404s.add(1, tags);
+  }
+
   check(response, {
-    'status < 400': (res) => res.status < 400,
+    'status < 400 or 404': (res) => res.status < 400 || res.status === 404,
   });
 }
 
