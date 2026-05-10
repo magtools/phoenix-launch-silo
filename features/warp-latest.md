@@ -300,8 +300,8 @@ Evolución funcional reciente:
 - Se incorporan alertas operativas por presión de memoria:
   - `>=75%` warning
   - `>=90%` crítico
-- PHP-FPM pasó a extrapolación por RAM con redondeo optimista para `pm.max_children`
-  (incluye ajuste adicional en servidores medianos/grandes).
+- PHP-FPM pasó a extrapolación por presupuesto disponible para PHP
+  (RAM host menos reservas de sistema/servicios configurados) con redondeo optimista para `pm.max_children`.
 
 Qué aporta al equipo:
 

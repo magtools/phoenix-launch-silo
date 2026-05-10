@@ -115,7 +115,25 @@ Guardrail por pico:
 
 ## 5.4 PHP-FPM
 
-`pm.max_children` se extrapola por RAM con anclas:
+`pm.max_children` se extrapola sobre un presupuesto de RAM para PHP, no sobre la RAM total bruta del host.
+
+Presupuesto PHP:
+
+1. si existe `docker-compose-warp.yml`, reservar `1GB` para sistema;
+2. si no existe `docker-compose-warp.yml`, reservar `2.5GB` para sistema;
+3. descontar solo servicios presentes en `docker-compose-warp.yml`;
+4. Redis/Valkey:
+   - `redis-cache`: `REDIS_CACHE_MAXMEMORY` o fallback `512MB`
+   - `redis-fpc`: `REDIS_FPC_MAXMEMORY` o fallback `512MB`
+   - `redis-session`: `REDIS_SESSION_MAXMEMORY` o fallback `256MB`
+5. Search:
+   - `elasticsearch`/`opensearch`: `ES_MEMORY` o fallback `1024MB`
+6. DB:
+   - `mysql`/`mariadb`: reserva heurística fija `2GB`
+7. si un servicio no existe en `docker-compose-warp.yml`, no participa en el descuento;
+8. el presupuesto final para PHP se clampa a un mínimo de `1GB`.
+
+Sobre ese presupuesto, `pm.max_children` usa anclas:
 
 1. `7.5GB -> 15`
 2. `15.5GB -> 30`
@@ -132,7 +150,9 @@ Resto de parámetros:
 2. `pm.start_servers`: `ceil(max_children*0.20)` con tope `15`.
 3. `pm.min_spare_servers`: `ceil(max_children*0.20)` con tope `15`.
 4. `pm.max_spare_servers`: `ceil(max_children*0.40)` con tope `30`.
-5. `pm.max_requests`: escalado por RAM, tope `5000`.
+5. `pm.max_requests`: `pm.max_children * 100`, con mínimo `1000` y máximo `5000`.
+
+La salida texto muestra un bloque `[PHP SIZING BUDGET]` con el desglose usado para el cálculo.
 
 ## 6) Salida para operador
 
@@ -142,8 +162,9 @@ El reporte incluye notas explícitas para facilitar interpretación:
 2. cuándo conviene tomar “seguridad mínima” en lugar de base,
 3. una sección `[APP CONFIGS]` entre sugerencias y notas al operador.
 4. `REDIS/VALKEY max_concurrency` calculado como `clamp(pm.max_children * 0.3, 5, 15)` con redondeo entero hacia arriba antes del clamp.
-5. advertencias cuando no hay límites configurados.
-6. un resumen inicial de capacidades del host para validar rápido si Warp leyó bien la topología CPU.
+5. una sección `[PHP SIZING BUDGET]` con reservas de sistema/servicios y presupuesto final para PHP.
+6. advertencias cuando no hay límites configurados.
+7. un resumen inicial de capacidades del host para validar rápido si Warp leyó bien la topología CPU.
 
 ## 7) JSON
 
@@ -155,6 +176,14 @@ El reporte incluye notas explícitas para facilitar interpretación:
 4. configuración actual detectada,
 5. sugerencias base y de seguridad mínima.
 6. `app_redis_valkey_max_concurrency` derivado del `pm.max_children` sugerido.
+7. desglose de presupuesto PHP en `config`:
+   - `php_sizing_system_reserved_mb`
+   - `php_sizing_redis_cache_reserved_mb`
+   - `php_sizing_redis_fpc_reserved_mb`
+   - `php_sizing_redis_session_reserved_mb`
+   - `php_sizing_search_reserved_mb`
+   - `php_sizing_db_reserved_mb`
+   - `php_sizing_budget_mb`
 
 Campos host añadidos:
 

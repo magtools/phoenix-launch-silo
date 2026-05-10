@@ -99,6 +99,22 @@ memory_compose_available() {
     [ -f "$DOCKERCOMPOSEFILE" ] && memory_docker_available
 }
 
+memory_compose_file_exists() {
+    [ -f "$DOCKERCOMPOSEFILE" ]
+}
+
+memory_compose_has_service() {
+    local _service="$1"
+
+    memory_compose_file_exists || return 1
+    awk -v svc="$_service" '
+        /^[[:space:]]*services:[[:space:]]*$/ { in_services=1; next }
+        in_services && /^[^[:space:]]/ { in_services=0 }
+        in_services && $0 ~ "^[[:space:]][[:space:]]" svc ":[[:space:]]*$" { found=1; exit }
+        END { exit found ? 0 : 1 }
+    ' "$DOCKERCOMPOSEFILE"
+}
+
 memory_host_total_mb() {
     if [ -r /proc/meminfo ]; then
         awk '/^MemTotal:/ {printf "%d\n", $2/1024; exit}' /proc/meminfo
@@ -322,6 +338,68 @@ memory_env_to_mb() {
     esac
 }
 
+memory_reserve_system_mb() {
+    if memory_compose_file_exists; then
+        echo "1024"
+    else
+        echo "2560"
+    fi
+}
+
+memory_service_reserved_mb() {
+    local _service="$1"
+    local _env_key="$2"
+    local _default="$3"
+    local _value=""
+
+    memory_compose_has_service "$_service" || {
+        echo "0"
+        return 0
+    }
+
+    _value=$(memory_env_to_mb "$(memory_env_raw "$_env_key")")
+    if [[ "$_value" =~ ^[0-9]+$ ]] && [ "$_value" -gt 0 ]; then
+        echo "$_value"
+        return 0
+    fi
+
+    echo "$_default"
+}
+
+memory_db_reserved_mb() {
+    if memory_compose_has_service "mysql"; then
+        echo "2048"
+        return 0
+    fi
+
+    if memory_compose_has_service "mariadb"; then
+        echo "2048"
+        return 0
+    fi
+
+    echo "0"
+}
+
+memory_php_budget_mb() {
+    local _host_mb="$1"
+    local _system_mb="$2"
+    local _redis_cache_mb="$3"
+    local _redis_fpc_mb="$4"
+    local _redis_session_mb="$5"
+    local _search_mb="$6"
+    local _db_mb="$7"
+    local _budget=""
+
+    if ! [[ "$_host_mb" =~ ^[0-9]+$ ]]; then
+        echo ""
+        return 0
+    fi
+
+    _budget=$((_host_mb - _system_mb - _redis_cache_mb - _redis_fpc_mb - _redis_session_mb - _search_mb - _db_mb))
+    [ "$_budget" -lt 1024 ] && _budget=1024
+    echo "$_budget"
+}
+
 memory_compose_service_id() {
     _service="$1"
     memory_compose_available || { echo ""; return 0; }
@@ -525,21 +603,9 @@ memory_php_suggest_values() {
     [ "$_max_spare" -gt 30 ] && _max_spare=30
     [ "$_max_spare" -lt "$_min_spare" ] && _max_spare="$_min_spare"
 
-    _ram_gb=$(awk -v mb="$_ram_mb" 'BEGIN {print mb/1024}')
-    _max_req=$(awk -v gb="$_ram_gb" 'BEGIN {
-        x1=7.5; y1=1000;
-        x2=15.5; y2=2000;
-        x3=31.5; y3=3000;
-        if (gb <= x2) {
-            m=(y2-y1)/(x2-x1); y=y1 + m*(gb-x1);
-        } else {
-            m=(y3-y2)/(x3-x2); y=y2 + m*(gb-x2);
-        }
-        if (y < 500) y=500;
-        if (y > 5000) y=5000;
-        if (y > int(y)) y=int(y)+1; else y=int(y);
-        print y;
-    }')
+    _max_req=$((_max_children * 100))
+    [ "$_max_req" -lt 1000 ] && _max_req=1000
+    [ "$_max_req" -gt 5000 ] && _max_req=5000
 
     cat <<EOF
 pm=dynamic
@@ -702,6 +768,22 @@ memory_report_print_text() {
     _cfg_rsp=$(memory_env_value "REDIS_SESSION_MAXMEMORY_POLICY")
     memory_progress_end 0 "read current environment config"
 
+    memory_progress_begin "calculate php sizing budget"
+    _system_reserved_mb=$(memory_reserve_system_mb)
+    _redis_cache_reserved_mb=$(memory_service_reserved_mb "redis-cache" "REDIS_CACHE_MAXMEMORY" "512")
+    _redis_fpc_reserved_mb=$(memory_service_reserved_mb "redis-fpc" "REDIS_FPC_MAXMEMORY" "512")
+    _redis_session_reserved_mb=$(memory_service_reserved_mb "redis-session" "REDIS_SESSION_MAXMEMORY" "256")
+    _search_reserved_mb=0
+    if memory_compose_has_service "elasticsearch" || memory_compose_has_service "opensearch"; then
+        _search_reserved_mb=$(memory_env_to_mb "$(memory_env_raw "ES_MEMORY")")
+        if ! [[ "$_search_reserved_mb" =~ ^[0-9]+$ ]] || [ "$_search_reserved_mb" -le 0 ]; then
+            _search_reserved_mb=1024
+        fi
+    fi
+    _db_reserved_mb=$(memory_db_reserved_mb)
+    _php_budget_mb=$(memory_php_budget_mb "$_host_mb" "$_system_reserved_mb" "$_redis_cache_reserved_mb" "$_redis_fpc_reserved_mb" "$_redis_session_reserved_mb" "$_search_reserved_mb" "$_db_reserved_mb")
+    memory_progress_end 0 "calculate php sizing budget"
+
     memory_progress_begin "read php-fpm settings"
     _php_conf=$(memory_php_conf_file)
     _php_pm=$(memory_php_conf_read "$_php_conf" "pm")
@@ -843,6 +925,18 @@ memory_report_print_text() {
     memory_print_separator
     memory_print ""
 
+    memory_print_info "[PHP SIZING BUDGET]"
+    memory_print_separator
+    memory_print_kv "System reserve" "$(memory_mb_human_or_na "$_system_reserved_mb")"
+    memory_print_kv "Redis cache reserve" "$(memory_mb_human_or_na "$_redis_cache_reserved_mb")"
+    memory_print_kv "Redis FPC reserve" "$(memory_mb_human_or_na "$_redis_fpc_reserved_mb")"
+    memory_print_kv "Redis session reserve" "$(memory_mb_human_or_na "$_redis_session_reserved_mb")"
+    memory_print_kv "Search reserve" "$(memory_mb_human_or_na "$_search_reserved_mb")"
+    memory_print_kv "DB reserve" "$(memory_mb_human_or_na "$_db_reserved_mb")"
+    memory_print_kv "PHP sizing budget" "$(memory_mb_human_or_na "$_php_budget_mb")"
+    memory_print_separator
+    memory_print ""
+
     memory_print_info "[ASSIGNED USAGE ALERTS]"
     memory_print_separator
     memory_print_kv "redis-cache" "${_rc_warn}"
@@ -873,7 +967,7 @@ memory_report_print_text() {
     read -r _rf_base _rf_safe _rf_note _rf_peak_ratio <<<"$(memory_redis_recommend "$_rf_used_mb" "$_rf_peak_mb")"
     read -r _rs_base _rs_safe _rs_note _rs_peak_ratio <<<"$(memory_redis_recommend "$_rs_used_mb" "$_rs_peak_mb")"
     read -r _es_base _es_safe _es_note _es_peak_ratio <<<"$(memory_es_recommend "$_es_used_mb" "$_es_peak_mb")"
-    _php_suggest=$(memory_php_suggest_values "$_host_mb")
+    _php_suggest=$(memory_php_suggest_values "$_php_budget_mb")
     _php_suggest_mc=$(echo "$_php_suggest" | awk -F= '$1=="pm.max_children"{print $2}')
     _app_max_concurrency=$(memory_php_max_concurrency "$_php_suggest_mc")
     memory_progress_end 0 "calculate recommendations"
@@ -907,6 +1001,7 @@ memory_report_print_text() {
     memory_print_info "Operator note:"
     memory_print " - Redis/ES recommendations are calculated from used_memory and rounded to 64MB blocks."
     memory_print " - If peak is WARNING/CRITICAL, use the minimum safe value."
+    memory_print " - PHP-FPM sizing uses host RAM minus system and configured service reserves from docker-compose-warp.yml."
     memory_print " - In PHP-FPM, pm.max_children uses RAM extrapolation and optimistic rounding (<20 => ceil+1, >=20 => ceil+2)."
     memory_print ""
 }
@@ -954,6 +1049,20 @@ memory_report_print_json() {
     _cfg_rfp=$(memory_env_value "REDIS_FPC_MAXMEMORY_POLICY")
     _cfg_rs=$(memory_env_value "REDIS_SESSION_MAXMEMORY")
     _cfg_rsp=$(memory_env_value "REDIS_SESSION_MAXMEMORY_POLICY")
+
+    _system_reserved_mb=$(memory_reserve_system_mb)
+    _redis_cache_reserved_mb=$(memory_service_reserved_mb "redis-cache" "REDIS_CACHE_MAXMEMORY" "512")
+    _redis_fpc_reserved_mb=$(memory_service_reserved_mb "redis-fpc" "REDIS_FPC_MAXMEMORY" "512")
+    _redis_session_reserved_mb=$(memory_service_reserved_mb "redis-session" "REDIS_SESSION_MAXMEMORY" "256")
+    _search_reserved_mb=0
+    if memory_compose_has_service "elasticsearch" || memory_compose_has_service "opensearch"; then
+        _search_reserved_mb=$(memory_env_to_mb "$(memory_env_raw "ES_MEMORY")")
+        if ! [[ "$_search_reserved_mb" =~ ^[0-9]+$ ]] || [ "$_search_reserved_mb" -le 0 ]; then
+            _search_reserved_mb=1024
+        fi
+    fi
+    _db_reserved_mb=$(memory_db_reserved_mb)
+    _php_budget_mb=$(memory_php_budget_mb "$_host_mb" "$_system_reserved_mb" "$_redis_cache_reserved_mb" "$_redis_fpc_reserved_mb" "$_redis_session_reserved_mb" "$_search_reserved_mb" "$_db_reserved_mb")
 
     _php_conf=$(memory_php_conf_file)
     _php_pm=$(memory_php_conf_read "$_php_conf" "pm")
@@ -1012,7 +1121,7 @@ memory_report_print_json() {
         read -r _rf_base _rf_safe _rf_note _rf_peak_ratio <<<"$(memory_redis_recommend "$_rf_used_mb" "$_rf_peak_mb")"
         read -r _rs_base _rs_safe _rs_note _rs_peak_ratio <<<"$(memory_redis_recommend "$_rs_used_mb" "$_rs_peak_mb")"
         read -r _es_base _es_safe _es_note _es_peak_ratio <<<"$(memory_es_recommend "$_es_used_mb" "$_es_peak_mb")"
-        _php_suggest=$(memory_php_suggest_values "$_host_mb")
+        _php_suggest=$(memory_php_suggest_values "$_php_budget_mb")
     else
         _rc_base=""; _rc_safe=""; _rc_note=""; _rc_peak_ratio=""
         _rf_base=""; _rf_safe=""; _rf_note=""; _rf_peak_ratio=""
@@ -1084,6 +1193,13 @@ memory_report_print_json() {
     "php_fpm_min_spare_servers": "$(memory_json_escape "$_php_min")",
     "php_fpm_max_spare_servers": "$(memory_json_escape "$_php_max")",
     "php_fpm_max_requests": "$(memory_json_escape "$_php_req")"
+    ,"php_sizing_system_reserved_mb": "$(memory_json_escape "$_system_reserved_mb")"
+    ,"php_sizing_redis_cache_reserved_mb": "$(memory_json_escape "$_redis_cache_reserved_mb")"
+    ,"php_sizing_redis_fpc_reserved_mb": "$(memory_json_escape "$_redis_fpc_reserved_mb")"
+    ,"php_sizing_redis_session_reserved_mb": "$(memory_json_escape "$_redis_session_reserved_mb")"
+    ,"php_sizing_search_reserved_mb": "$(memory_json_escape "$_search_reserved_mb")"
+    ,"php_sizing_db_reserved_mb": "$(memory_json_escape "$_db_reserved_mb")"
+    ,"php_sizing_budget_mb": "$(memory_json_escape "$_php_budget_mb")"
   },
   "suggested": {
     "enabled": "$(memory_json_escape "$_show_suggest")",
