@@ -15,6 +15,8 @@
 
 ##-c ####################-c #################
 function stop() {
+  local _stress_mode="$1"
+  local _stopped_main=0
 
   MODE_SANDBOX=$(warp_env_read_var MODE_SANDBOX)
   if [ ! -z "$MODE_SANDBOX" ]
@@ -53,12 +55,20 @@ function stop() {
           docker-compose -f $DOCKERCOMPOSEFILE $DOCKERACTION
         ;;
       esac
+      _stopped_main=1
     else
       warp_message_warn "the containers are not running";
-      warp_message_warn "for start, please run: warp start";
-      exit 1;
     fi
   fi;
+
+  if declare -F stress_stop_managed_quiet >/dev/null 2>&1; then
+    stress_stop_managed_quiet "$_stress_mode"
+  fi
+
+  if [ "$_stopped_main" -eq 0 ]; then
+    warp_message_warn "for start, please run: warp start";
+    exit 1;
+  fi
 
 }
 

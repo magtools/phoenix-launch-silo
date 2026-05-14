@@ -10,6 +10,7 @@ dist/*
 !dist/version.md
 !dist/sha256sum.md
 *.tar.xz
+.warp/docker/config
 .warp/lib/commit.sh
 .warp/lib/version.sh
 **/auth.json
@@ -18,3 +19,6 @@ dist/*
 /var/*
 .known-*
 /.agents-md
+/.stresscfg
+/docker-compose-stress.yml
+/var/warp-stress
