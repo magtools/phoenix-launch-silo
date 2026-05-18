@@ -434,6 +434,8 @@ memory_php_budget_mb() {
 }
 
 memory_php_worker_mem_stats() {
+    local _page_size=""
+
     if ! command -v ps >/dev/null 2>&1; then
         echo ""
         return 0
@@ -466,6 +468,46 @@ memory_php_worker_mem_stats() {
     if [ -n "$_pss_stats" ]; then
         printf '%s\n' "$_pss_stats"
         return 0
+    fi
+
+    _page_size=$(getconf PAGESIZE 2>/dev/null)
+    if [[ "$_page_size" =~ ^[0-9]+$ ]] && [ "$_page_size" -gt 0 ]; then
+        _statm_stats=$(ps --no-headers -o pid=,args= -C php-fpm 2>/dev/null | awk '
+            /php-fpm: pool / { print $1 }
+        ' | while IFS= read -r _pid; do
+            [ -n "$_pid" ] || continue
+            [ -r "/proc/$_pid/statm" ] || continue
+            awk -v pagesize="$_page_size" '
+                {
+                    resident=$2+0
+                    shared=$3+0
+                    private_pages=resident-shared
+                    if (private_pages < 1) private_pages=1
+                    private_mb=(private_pages*pagesize)/1024/1024
+                    printf "%.4f\n", private_mb
+                    exit
+                }
+            ' "/proc/$_pid/statm" 2>/dev/null
+        done | awk '
+            {
+                mb=$1+0
+                if (mb > 0) {
+                    count++
+                    sum+=mb
+                    if (mb>max) max=mb
+                }
+            }
+            END {
+                if (count>0) {
+                    avg=sum/count
+                    printf "%d %.4f %.4f %s\n", count, avg, max, "statm_private"
+                }
+            }
+        ')
+        if [ -n "$_statm_stats" ]; then
+            printf '%s\n' "$_statm_stats"
+            return 0
+        fi
     fi
 
     ps --no-headers -o rss=,command= -C php-fpm 2>/dev/null | awk '
