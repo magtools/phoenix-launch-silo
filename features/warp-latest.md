@@ -305,6 +305,7 @@ Evolución funcional reciente:
   sin Compose usa `MemTotal - reserve`, donde `reserve = 1.5GB + 10%` del host, y si detecta workers,
   expone un rango conservador/agresivo basado preferentemente en PSS real de `php-fpm`
   y una referencia adicional de `pm.max_children` por CPU observada, reservando `10%` por CPU lógico para sistema/nginx.
+  Cuando existen ambos mínimos conservadores, la sugerencia principal usa el promedio entero entre RAM min y CPU min.
 
 Qué aporta al equipo:
 

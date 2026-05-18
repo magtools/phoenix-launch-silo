@@ -553,6 +553,31 @@ memory_php_worker_cpu_stats() {
     '
 }
 
+memory_php_worker_rss_stats() {
+    if ! command -v ps >/dev/null 2>&1; then
+        echo ""
+        return 0
+    fi
+
+    ps --no-headers -o rss=,command= -C php-fpm 2>/dev/null | awk '
+        /php-fpm: pool / {
+            rss=$1
+            if (rss > 0) {
+                count++
+                sum+=rss
+                if (rss>max) max=rss
+            }
+        }
+        END {
+            if (count>0) {
+                avg=sum/count/1024
+                maxmb=max/1024
+                printf "%d %.4f %.4f\n", count, avg, maxmb
+            }
+        }
+    '
+}
+
 memory_compose_service_id() {
     _service="$1"
     memory_compose_available || { echo ""; return 0; }
@@ -820,6 +845,18 @@ memory_php_cpu_children_estimate() {
     echo "$_estimate"
 }
 
+memory_average_int() {
+    local _a="$1"
+    local _b="$2"
+
+    if ! [[ "$_a" =~ ^[0-9]+$ ]] || ! [[ "$_b" =~ ^[0-9]+$ ]]; then
+        echo ""
+        return 0
+    fi
+
+    echo $(((_a + _b) / 2))
+}
+
 memory_redis_recommend() {
     _used_mb="$1"
     _peak_mb="$2"
@@ -965,6 +1002,11 @@ memory_report_print_text() {
     _php_cpu_children=""
     _php_cpu_children_aggressive=""
     _php_cpu_children_range=""
+    _php_blended_children=""
+    _php_blended_req=""
+    _php_req_cpu_min=""
+    _php_req_ram_min=""
+    _php_req_blended_range=""
     _php_suggest_range=""
     if memory_compose_file_exists; then
         _redis_cache_reserved_mb=$(memory_service_reserved_mb "redis-cache" "REDIS_CACHE_MAXMEMORY" "512")
@@ -991,6 +1033,17 @@ memory_report_print_text() {
         if [[ "$_php_worker_avg_mb" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
             _php_worker_avg_mb=$(memory_ceil_number "$_php_worker_avg_mb")
             _php_worker_high_mb=$(memory_ceil_number "$(awk -v v="$_php_worker_avg_mb" 'BEGIN { print v*1.15 }')")
+            if [ "$_php_worker_source" = "statm_private" ]; then
+                read -r _php_worker_rss_count _php_worker_rss_avg_mb _php_worker_rss_max_mb <<<"$(memory_php_worker_rss_stats)"
+                if [[ "$_php_worker_rss_avg_mb" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+                    _php_worker_rss_floor_avg=$(memory_ceil_number "$(awk -v rss="$_php_worker_rss_avg_mb" 'BEGIN { print rss*0.25 }')")
+                    _php_worker_rss_floor_high=$(memory_ceil_number "$(awk -v rss="$_php_worker_rss_max_mb" 'BEGIN { print rss*0.35 }')")
+                    [ "$_php_worker_avg_mb" -lt "$_php_worker_rss_floor_avg" ] && _php_worker_avg_mb="$_php_worker_rss_floor_avg"
+                    [ "$_php_worker_high_mb" -lt "$_php_worker_rss_floor_high" ] && _php_worker_high_mb="$_php_worker_rss_floor_high"
+                    _php_worker_uplift_high=$(memory_ceil_number "$(awk -v v="$_php_worker_avg_mb" 'BEGIN { print v*1.15 }')")
+                    [ "$_php_worker_high_mb" -lt "$_php_worker_uplift_high" ] && _php_worker_high_mb="$_php_worker_uplift_high"
+                fi
+            fi
             _php_mc_conservative=$((_php_budget_mb / _php_worker_high_mb))
             _php_mc_aggressive=$((_php_budget_mb / _php_worker_avg_mb))
             [ "$_php_mc_conservative" -lt 1 ] && _php_mc_conservative=1
@@ -1215,14 +1268,29 @@ memory_report_print_text() {
     read -r _rs_base _rs_safe _rs_note _rs_peak_ratio <<<"$(memory_redis_recommend "$_rs_used_mb" "$_rs_peak_mb")"
     read -r _es_base _es_safe _es_note _es_peak_ratio <<<"$(memory_es_recommend "$_es_used_mb" "$_es_peak_mb")"
     if [ "$_php_sizing_mode" = "host-runtime" ] && [ -n "${_php_suggest_range:-}" ]; then
-        _php_suggest=$(memory_php_suggest_values_from_children "$_php_mc_conservative")
-        _php_suggest_aggressive=$(memory_php_suggest_values_from_children "$_php_mc_aggressive")
+        if [[ "$_php_mc_conservative" =~ ^[0-9]+$ ]] && [[ "$_php_cpu_children" =~ ^[0-9]+$ ]]; then
+            _php_blended_children=$(memory_average_int "$_php_mc_conservative" "$_php_cpu_children")
+            _php_suggest=$(memory_php_suggest_values_from_children "$_php_blended_children")
+            _php_suggest_aggressive=$(memory_php_suggest_values_from_children "$_php_mc_aggressive")
+            _php_req_ram_min=$(echo "$(memory_php_suggest_values_from_children "$_php_mc_conservative")" | awk -F= '$1=="pm.max_requests"{print $2}')
+            _php_req_cpu_min=$(echo "$(memory_php_suggest_values_from_children "$_php_cpu_children")" | awk -F= '$1=="pm.max_requests"{print $2}')
+        else
+            _php_suggest=$(memory_php_suggest_values_from_children "$_php_mc_conservative")
+            _php_suggest_aggressive=$(memory_php_suggest_values_from_children "$_php_mc_aggressive")
+        fi
     else
         _php_suggest=$(memory_php_suggest_values "$_php_budget_mb")
         _php_suggest_aggressive=""
     fi
     _php_suggest_mc=$(echo "$_php_suggest" | awk -F= '$1=="pm.max_children"{print $2}')
     _php_suggest_req=$(echo "$_php_suggest" | awk -F= '$1=="pm.max_requests"{print $2}')
+    if [[ "$_php_req_cpu_min" =~ ^[0-9]+$ ]] && [[ "$_php_req_ram_min" =~ ^[0-9]+$ ]]; then
+        if [ "$_php_req_cpu_min" -le "$_php_req_ram_min" ]; then
+            _php_req_blended_range="${_php_req_cpu_min}-${_php_req_ram_min}"
+        else
+            _php_req_blended_range="${_php_req_ram_min}-${_php_req_cpu_min}"
+        fi
+    fi
     _app_max_concurrency=$(memory_php_max_concurrency "$_php_suggest_mc")
     memory_progress_end 0 "calculate recommendations"
 
@@ -1244,15 +1312,12 @@ memory_report_print_text() {
     memory_print_separator
     memory_print_php_suggest_block "$_php_suggest"
     if [ "$_php_sizing_mode" = "host-runtime" ] && [ -n "${_php_suggest_range:-}" ]; then
-        _php_suggest_aggr_mc=$(echo "$_php_suggest_aggressive" | awk -F= '$1=="pm.max_children"{print $2}')
-        _php_suggest_aggr_req=$(echo "$_php_suggest_aggressive" | awk -F= '$1=="pm.max_requests"{print $2}')
-        memory_print_kv "PHP-FPM pm.max_children range" "${_php_suggest_range}"
-        memory_print_kv "PHP-FPM pm.max_children aggressive" "${_php_suggest_aggr_mc}"
-        memory_print_kv "PHP-FPM pm.max_requests range" "${_php_suggest_req}-${_php_suggest_aggr_req}"
+        memory_print_kv "PHP-FPM pm.max_children (RAM range)" "${_php_suggest_range}"
         if [ -n "${_php_cpu_children_range:-}" ]; then
-            memory_print_kv "PHP-FPM pm.max_children (CPU estimate)" "${_php_cpu_children}"
             memory_print_kv "PHP-FPM pm.max_children (CPU range)" "${_php_cpu_children_range}"
-            memory_print_kv "PHP-FPM CPU reserve" "10% per logical CPU for system/nginx"
+        fi
+        if [ -n "${_php_req_blended_range:-}" ]; then
+            memory_print_kv "PHP-FPM pm.max_requests range" "${_php_req_blended_range}"
         fi
     fi
     memory_print_separator
@@ -1273,6 +1338,7 @@ memory_report_print_text() {
         memory_print " - Host-mode range prefers PSS per php-fpm pool worker; if unavailable it falls back to RSS."
         memory_print " - Host-mode conservative range adds a 15% uplift over observed worker memory."
         memory_print " - Host-mode CPU estimate uses observed %CPU per php-fpm pool worker and reserves 10% of each logical CPU for system/nginx."
+        memory_print " - When both conservative RAM and CPU minima exist, the primary pm.max_children suggestion is the integer average of both."
     else
         memory_print " - PHP-FPM sizing uses MemTotal minus system and configured service reserves from docker-compose-warp.yml."
         memory_print " - In PHP-FPM, pm.max_children uses RAM extrapolation and optimistic rounding (<20 => ceil+1, >=20 => ceil+2)."
@@ -1336,6 +1402,10 @@ memory_report_print_json() {
     _php_cpu_children=""
     _php_cpu_children_aggressive=""
     _php_cpu_children_range=""
+    _php_blended_children=""
+    _php_req_cpu_min=""
+    _php_req_ram_min=""
+    _php_req_blended_range=""
     _php_suggest_range=""
     if memory_compose_file_exists; then
         _redis_cache_reserved_mb=$(memory_service_reserved_mb "redis-cache" "REDIS_CACHE_MAXMEMORY" "512")
@@ -1362,6 +1432,17 @@ memory_report_print_json() {
         if [[ "$_php_worker_avg_mb" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
             _php_worker_avg_mb=$(memory_ceil_number "$_php_worker_avg_mb")
             _php_worker_high_mb=$(memory_ceil_number "$(awk -v v="$_php_worker_avg_mb" 'BEGIN { print v*1.15 }')")
+            if [ "$_php_worker_source" = "statm_private" ]; then
+                read -r _php_worker_rss_count _php_worker_rss_avg_mb _php_worker_rss_max_mb <<<"$(memory_php_worker_rss_stats)"
+                if [[ "$_php_worker_rss_avg_mb" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+                    _php_worker_rss_floor_avg=$(memory_ceil_number "$(awk -v rss="$_php_worker_rss_avg_mb" 'BEGIN { print rss*0.25 }')")
+                    _php_worker_rss_floor_high=$(memory_ceil_number "$(awk -v rss="$_php_worker_rss_max_mb" 'BEGIN { print rss*0.35 }')")
+                    [ "$_php_worker_avg_mb" -lt "$_php_worker_rss_floor_avg" ] && _php_worker_avg_mb="$_php_worker_rss_floor_avg"
+                    [ "$_php_worker_high_mb" -lt "$_php_worker_rss_floor_high" ] && _php_worker_high_mb="$_php_worker_rss_floor_high"
+                    _php_worker_uplift_high=$(memory_ceil_number "$(awk -v v="$_php_worker_avg_mb" 'BEGIN { print v*1.15 }')")
+                    [ "$_php_worker_high_mb" -lt "$_php_worker_uplift_high" ] && _php_worker_high_mb="$_php_worker_uplift_high"
+                fi
+            fi
             _php_mc_conservative=$((_php_budget_mb / _php_worker_high_mb))
             _php_mc_aggressive=$((_php_budget_mb / _php_worker_avg_mb))
             [ "$_php_mc_conservative" -lt 1 ] && _php_mc_conservative=1
@@ -1448,8 +1529,16 @@ memory_report_print_json() {
         read -r _rs_base _rs_safe _rs_note _rs_peak_ratio <<<"$(memory_redis_recommend "$_rs_used_mb" "$_rs_peak_mb")"
         read -r _es_base _es_safe _es_note _es_peak_ratio <<<"$(memory_es_recommend "$_es_used_mb" "$_es_peak_mb")"
         if [ "$_php_sizing_mode" = "host-runtime" ] && [ -n "${_php_suggest_range:-}" ]; then
-            _php_suggest=$(memory_php_suggest_values_from_children "$_php_mc_conservative")
-            _php_suggest_aggressive=$(memory_php_suggest_values_from_children "$_php_mc_aggressive")
+            if [[ "$_php_mc_conservative" =~ ^[0-9]+$ ]] && [[ "$_php_cpu_children" =~ ^[0-9]+$ ]]; then
+                _php_blended_children=$(memory_average_int "$_php_mc_conservative" "$_php_cpu_children")
+                _php_suggest=$(memory_php_suggest_values_from_children "$_php_blended_children")
+                _php_suggest_aggressive=$(memory_php_suggest_values_from_children "$_php_mc_aggressive")
+                _php_req_ram_min=$(echo "$(memory_php_suggest_values_from_children "$_php_mc_conservative")" | awk -F= '$1=="pm.max_requests"{print $2}')
+                _php_req_cpu_min=$(echo "$(memory_php_suggest_values_from_children "$_php_cpu_children")" | awk -F= '$1=="pm.max_requests"{print $2}')
+            else
+                _php_suggest=$(memory_php_suggest_values_from_children "$_php_mc_conservative")
+                _php_suggest_aggressive=$(memory_php_suggest_values_from_children "$_php_mc_aggressive")
+            fi
         else
             _php_suggest=$(memory_php_suggest_values "$_php_budget_mb")
             _php_suggest_aggressive=""
@@ -1471,6 +1560,13 @@ memory_report_print_json() {
     _php_suggest_req=$(echo "$_php_suggest" | awk -F= '$1=="pm.max_requests"{print $2}')
     _php_suggest_aggr_mc=$(echo "$_php_suggest_aggressive" | awk -F= '$1=="pm.max_children"{print $2}')
     _php_suggest_aggr_req=$(echo "$_php_suggest_aggressive" | awk -F= '$1=="pm.max_requests"{print $2}')
+    if [[ "$_php_req_cpu_min" =~ ^[0-9]+$ ]] && [[ "$_php_req_ram_min" =~ ^[0-9]+$ ]]; then
+        if [ "$_php_req_cpu_min" -le "$_php_req_ram_min" ]; then
+            _php_req_blended_range="${_php_req_cpu_min}-${_php_req_ram_min}"
+        else
+            _php_req_blended_range="${_php_req_ram_min}-${_php_req_cpu_min}"
+        fi
+    fi
     _app_max_concurrency=$(memory_php_max_concurrency "$_php_suggest_mc")
 
     cat <<EOF
@@ -1567,9 +1663,12 @@ memory_report_print_json() {
     "php_fpm_max_children_aggressive": "$(memory_json_escape "$_php_suggest_aggr_mc")",
     "php_fpm_max_requests_aggressive": "$(memory_json_escape "$_php_suggest_aggr_req")",
     "php_fpm_max_children_range": "$(memory_json_escape "$_php_suggest_range")",
+    "php_fpm_max_children_ram_range": "$(memory_json_escape "$_php_suggest_range")",
     "php_fpm_max_children_cpu_estimate": "$(memory_json_escape "$_php_cpu_children")",
     "php_fpm_max_children_cpu_aggressive": "$(memory_json_escape "$_php_cpu_children_aggressive")",
     "php_fpm_max_children_cpu_range": "$(memory_json_escape "$_php_cpu_children_range")",
+    "php_fpm_max_children_blended": "$(memory_json_escape "$_php_blended_children")",
+    "php_fpm_max_requests_blended_range": "$(memory_json_escape "$_php_req_blended_range")",
     "app_redis_valkey_max_concurrency": "$(memory_json_escape "$_app_max_concurrency")"
   }
 }

@@ -141,7 +141,7 @@ Presupuesto PHP:
 2. reservar `1.5GB + 10%` de la RAM total del host;
 3. el presupuesto final para PHP es `MemTotal - reserve`, con clamp mínimo de `1GB`;
 4. si se detectan workers reales `php-fpm: pool ...`, el sizing calcula un rango:
-   - `aggressive`: usando PSS promedio por worker cuando está disponible; si no, una aproximación privada desde `/proc/<pid>/statm` (`rss - shared`); si eso tampoco está disponible, RSS promedio de workers excluyendo el master
+   - `aggressive`: usando PSS promedio por worker cuando está disponible; si no, una aproximación privada desde `/proc/<pid>/statm` (`rss - shared`) calibrada con un piso derivado de RSS; si eso tampoco está disponible, RSS promedio de workers excluyendo el master
    - `conservative`: usando ese mismo promedio con uplift de `15%`
 5. el valor simple expuesto en `suggested.php_fpm_*` corresponde al extremo conservador;
 6. si no se detectan workers, host-mode hace fallback a la extrapolación por anclas usando el presupuesto PHP calculado.
@@ -151,6 +151,7 @@ Presupuesto PHP:
    - `aggressive`: `floor((logical_threads * 90) / avg_worker_cpu_pct)`
    - `conservative`: `floor((logical_threads * 90) / max(avg_worker_cpu_pct * 1.15, max_worker_cpu_pct))`
    - el `10%` restante por CPU lógico queda reservado para sistema/nginx
+9. si existen mínimo conservador por RAM y mínimo conservador por CPU, el `pm.max_children` principal sugerido pasa a ser el promedio entero de ambos mínimos.
 
 Sobre ese presupuesto, `pm.max_children` usa anclas:
 
@@ -180,7 +181,8 @@ La salida texto muestra un bloque `[PHP SIZING BUDGET]` con el desglose usado pa
 5. CPU promedio por worker,
 6. CPU conservadora por worker,
 7. rango `pm.max_children` conservador/agresivo por memoria,
-8. estimación `pm.max_children` por CPU cuando aplica.
+8. rango `pm.max_children` por CPU cuando aplica,
+9. valor principal sugerido combinado cuando existen ambos mínimos.
 
 ## 6) Salida para operador
 
@@ -224,6 +226,8 @@ El reporte incluye notas explícitas para facilitar interpretación:
    - `php_fpm_max_children_cpu_estimate`
    - `php_fpm_max_children_cpu_aggressive`
    - `php_fpm_max_children_cpu_range`
+   - `php_fpm_max_children_blended`
+   - `php_fpm_max_requests_blended_range`
 9. métricas CPU observadas por worker en `config`:
    - `php_worker_cpu_avg_pct`
    - `php_worker_cpu_conservative_pct`
