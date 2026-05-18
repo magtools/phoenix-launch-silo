@@ -121,29 +121,36 @@ Presupuesto PHP:
 
 ### Con `docker-compose-warp.yml`
 
-1. reservar `1GB` para sistema;
-2. descontar solo servicios presentes en `docker-compose-warp.yml`;
-3. Redis/Valkey:
+1. usar `MemTotal` del host como base del presupuesto PHP;
+2. reservar `1GB` para sistema;
+3. descontar solo servicios presentes en `docker-compose-warp.yml`;
+4. Redis/Valkey:
    - `redis-cache`: `REDIS_CACHE_MAXMEMORY` o fallback `512MB`
    - `redis-fpc`: `REDIS_FPC_MAXMEMORY` o fallback `512MB`
    - `redis-session`: `REDIS_SESSION_MAXMEMORY` o fallback `256MB`
-4. Search:
+5. Search:
    - `elasticsearch`/`opensearch`: `ES_MEMORY` o fallback `1024MB`
-5. DB:
+6. DB:
    - `mysql`/`mariadb`: reserva heurística fija `2GB`
-6. si un servicio no existe en `docker-compose-warp.yml`, no participa en el descuento;
-7. el presupuesto final para PHP se clampa a un mínimo de `1GB`.
+7. si un servicio no existe en `docker-compose-warp.yml`, no participa en el descuento;
+8. el presupuesto final para PHP es `MemTotal - reserve_sistema - reserve_servicios`, con clamp mínimo de `1GB`.
 
 ### Sin `docker-compose-warp.yml` (host-mode)
 
-1. usar `MemAvailable` del host como base para el presupuesto PHP;
-2. reservar `2GB + 10%` de la RAM total del host;
-3. el presupuesto final para PHP es `MemAvailable - reserve`, con clamp mínimo de `1GB`;
+1. usar `MemTotal` del host como base para el presupuesto PHP;
+2. reservar `1.5GB + 10%` de la RAM total del host;
+3. el presupuesto final para PHP es `MemTotal - reserve`, con clamp mínimo de `1GB`;
 4. si se detectan workers reales `php-fpm: pool ...`, el sizing calcula un rango:
-   - `aggressive`: usando RSS promedio de workers excluyendo el master
+   - `aggressive`: usando PSS promedio por worker cuando está disponible; si no, RSS promedio de workers excluyendo el master
    - `conservative`: usando ese mismo promedio con uplift de `15%`
 5. el valor simple expuesto en `suggested.php_fpm_*` corresponde al extremo conservador;
 6. si no se detectan workers, host-mode hace fallback a la extrapolación por anclas usando el presupuesto PHP calculado.
+7. `MemAvailable` se muestra aparte como señal de headroom actual del host, pero no participa en el presupuesto base.
+8. si se detecta CPU real por worker, el reporte agrega una segunda referencia de `pm.max_children` por CPU:
+   - base: `%CPU` promedio observado sobre `php-fpm: pool ...`
+   - `aggressive`: `floor((logical_threads * 90) / avg_worker_cpu_pct)`
+   - `conservative`: `floor((logical_threads * 90) / max(avg_worker_cpu_pct * 1.15, max_worker_cpu_pct))`
+   - el `10%` restante por CPU lógico queda reservado para sistema/nginx
 
 Sobre ese presupuesto, `pm.max_children` usa anclas:
 
@@ -167,9 +174,13 @@ Resto de parámetros:
 La salida texto muestra un bloque `[PHP SIZING BUDGET]` con el desglose usado para el cálculo. En host-mode, si hay workers observados, el reporte suma:
 
 1. workers observados,
-2. RSS promedio por worker,
-3. RSS conservador por worker,
-4. rango `pm.max_children` conservador/agresivo.
+2. fuente de memoria por worker (`pss` o `rss`),
+3. memoria promedio por worker,
+4. memoria conservadora por worker,
+5. CPU promedio por worker,
+6. CPU conservadora por worker,
+7. rango `pm.max_children` conservador/agresivo por memoria,
+8. estimación `pm.max_children` por CPU cuando aplica.
 
 ## 6) Salida para operador
 
@@ -203,12 +214,19 @@ El reporte incluye notas explícitas para facilitar interpretación:
    - `php_sizing_budget_mb`
    - `php_sizing_mode`
    - `php_worker_count`
+   - `php_worker_mem_source`
    - `php_worker_rss_avg_mb`
    - `php_worker_rss_conservative_mb`
 8. rango de host-mode en `suggested` cuando aplica:
    - `php_fpm_max_children_aggressive`
    - `php_fpm_max_requests_aggressive`
    - `php_fpm_max_children_range`
+   - `php_fpm_max_children_cpu_estimate`
+   - `php_fpm_max_children_cpu_aggressive`
+   - `php_fpm_max_children_cpu_range`
+9. métricas CPU observadas por worker en `config`:
+   - `php_worker_cpu_avg_pct`
+   - `php_worker_cpu_conservative_pct`
 
 Campos host añadidos:
 

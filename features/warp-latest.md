@@ -301,9 +301,10 @@ Evolución funcional reciente:
   - `>=75%` warning
   - `>=90%` crítico
 - PHP-FPM pasó a extrapolación por presupuesto disponible para PHP.
-  Con Compose usa RAM host menos reservas de sistema/servicios configurados;
-  sin Compose usa `MemAvailable`, reserva `2GB + 10%` del host y, si detecta workers,
-  expone un rango conservador/agresivo basado en RSS real de `php-fpm`.
+  Con Compose usa `MemTotal - reserve_sistema - reserve_servicios configurados`;
+  sin Compose usa `MemTotal - reserve`, donde `reserve = 1.5GB + 10%` del host, y si detecta workers,
+  expone un rango conservador/agresivo basado preferentemente en PSS real de `php-fpm`
+  y una referencia adicional de `pm.max_children` por CPU observada, reservando `10%` por CPU lógico para sistema/nginx.
 
 Qué aporta al equipo:
 
