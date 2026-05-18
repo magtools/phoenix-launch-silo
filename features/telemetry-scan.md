@@ -141,7 +141,7 @@ Presupuesto PHP:
 2. reservar `1.5GB + 10%` de la RAM total del host;
 3. el presupuesto final para PHP es `MemTotal - reserve`, con clamp mínimo de `1GB`;
 4. si se detectan workers reales `php-fpm: pool ...`, el sizing calcula un rango:
-   - `aggressive`: usando PSS promedio por worker cuando está disponible; si no, RSS promedio de workers excluyendo el master
+   - `aggressive`: usando PSS promedio por worker cuando está disponible; si no, una aproximación privada desde `/proc/<pid>/statm` (`rss - shared`); si eso tampoco está disponible, RSS promedio de workers excluyendo el master
    - `conservative`: usando ese mismo promedio con uplift de `15%`
 5. el valor simple expuesto en `suggested.php_fpm_*` corresponde al extremo conservador;
 6. si no se detectan workers, host-mode hace fallback a la extrapolación por anclas usando el presupuesto PHP calculado.
@@ -174,7 +174,7 @@ Resto de parámetros:
 La salida texto muestra un bloque `[PHP SIZING BUDGET]` con el desglose usado para el cálculo. En host-mode, si hay workers observados, el reporte suma:
 
 1. workers observados,
-2. fuente de memoria por worker (`pss` o `rss`),
+2. fuente de memoria por worker (`pss`, `statm_private` o `rss`),
 3. memoria promedio por worker,
 4. memoria conservadora por worker,
 5. CPU promedio por worker,
