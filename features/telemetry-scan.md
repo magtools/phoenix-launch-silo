@@ -133,24 +133,38 @@ Presupuesto PHP:
 6. DB:
    - `mysql`/`mariadb`: reserva heurística fija `2GB`
 7. si un servicio no existe en `docker-compose-warp.yml`, no participa en el descuento;
-8. el presupuesto final para PHP es `MemTotal - reserve_sistema - reserve_servicios`, con clamp mínimo de `1GB`.
+8. `reserve_sistema` usa `1.5GB + 5%` de la RAM total del host;
+9. el presupuesto final para PHP es `MemTotal - reserve_sistema - reserve_servicios`, con clamp mínimo de `1GB`.
+10. si el contenedor `php` está corriendo:
+   - el presupuesto PHP se capa por el límite de memoria Docker del contenedor cuando existe
+   - se miden workers reales `php-fpm: pool ...` dentro del contenedor
+   - se calcula rango por RAM con `PSS`, `statm_private` calibrado o `RSS`
+   - en ambos modos se aplica un piso mínimo de memoria observada por worker: `90 MB` promedio y `110 MB` conservador
+   - se calcula rango por CPU usando la CPU efectiva del contenedor (`NanoCpus`, `CpuQuota/CpuPeriod` o `CpusetCpus`)
+   - la reserva CPU de Compose parte de `10%` y suma `4%` por `redis`, `4%` por `search` y `7%` por `db`, con tope `25%`
+   - antes de calcular capacidad por CPU, se aplica un piso mínimo efectivo de `12%` por worker
+   - si existen mínimo conservador por RAM y mínimo conservador por CPU, el `pm.max_children` principal sugerido pasa a usar un blend `CPU 70% / RAM 30%`
+11. si no hay métricas live del contenedor `php`, compose hace fallback a la extrapolación por anclas usando el presupuesto PHP calculado.
 
 ### Sin `docker-compose-warp.yml` (host-mode)
 
 1. usar `MemTotal` del host como base para el presupuesto PHP;
-2. reservar `1.5GB + 10%` de la RAM total del host;
+2. reservar `1.5GB + 5%` de la RAM total del host;
 3. el presupuesto final para PHP es `MemTotal - reserve`, con clamp mínimo de `1GB`;
 4. si se detectan workers reales `php-fpm: pool ...`, el sizing calcula un rango:
-   - `aggressive`: usando PSS promedio por worker cuando está disponible; si no, una aproximación privada desde `/proc/<pid>/statm` (`rss - shared`); si eso tampoco está disponible, RSS promedio de workers excluyendo el master
+   - `aggressive`: usando PSS promedio por worker cuando está disponible; si no, una aproximación privada desde `/proc/<pid>/statm` (`rss - shared`) calibrada con un piso derivado de RSS; si eso tampoco está disponible, RSS promedio de workers excluyendo el master
    - `conservative`: usando ese mismo promedio con uplift de `15%`
+   - en ambos modos se aplica un piso mínimo de memoria observada por worker: `90 MB` promedio y `110 MB` conservador
 5. el valor simple expuesto en `suggested.php_fpm_*` corresponde al extremo conservador;
 6. si no se detectan workers, host-mode hace fallback a la extrapolación por anclas usando el presupuesto PHP calculado.
 7. `MemAvailable` se muestra aparte como señal de headroom actual del host, pero no participa en el presupuesto base.
 8. si se detecta CPU real por worker, el reporte agrega una segunda referencia de `pm.max_children` por CPU:
-   - base: `%CPU` promedio observado sobre `php-fpm: pool ...`
-   - `aggressive`: `floor((logical_threads * 90) / avg_worker_cpu_pct)`
-   - `conservative`: `floor((logical_threads * 90) / max(avg_worker_cpu_pct * 1.15, max_worker_cpu_pct))`
-   - el `10%` restante por CPU lógico queda reservado para sistema/nginx
+   - base: `%CPU` promedio observado sobre workers `php-fpm: pool ...` con actividad real
+   - antes de calcular capacidad, se aplica un piso mínimo efectivo de `10%` por worker
+   - `aggressive`: `floor((logical_threads * 94) / avg_worker_cpu_pct)`
+   - `conservative`: `floor((logical_threads * 94) / max(avg_worker_cpu_pct * 1.15, max_worker_cpu_pct))`
+   - el `6%` restante por CPU lógico queda reservado para sistema/nginx
+9. si existen mínimo conservador por RAM y mínimo conservador por CPU, el `pm.max_children` principal sugerido pasa a usar un blend `CPU 70% / RAM 30%`.
 
 Sobre ese presupuesto, `pm.max_children` usa anclas:
 
@@ -180,7 +194,9 @@ La salida texto muestra un bloque `[PHP SIZING BUDGET]` con el desglose usado pa
 5. CPU promedio por worker,
 6. CPU conservadora por worker,
 7. rango `pm.max_children` conservador/agresivo por memoria,
-8. estimación `pm.max_children` por CPU cuando aplica.
+8. rango `pm.max_children` por CPU cuando aplica,
+9. valor principal sugerido combinado cuando existen ambos mínimos.
+10. en compose, límites efectivos detectados del contenedor PHP cuando existen.
 
 ## 6) Salida para operador
 
@@ -224,9 +240,14 @@ El reporte incluye notas explícitas para facilitar interpretación:
    - `php_fpm_max_children_cpu_estimate`
    - `php_fpm_max_children_cpu_aggressive`
    - `php_fpm_max_children_cpu_range`
+   - `php_fpm_max_children_blended`
+   - `php_fpm_max_requests_blended_range`
 9. métricas CPU observadas por worker en `config`:
    - `php_worker_cpu_avg_pct`
    - `php_worker_cpu_conservative_pct`
+10. límites efectivos del contenedor PHP en `config` cuando aplican:
+   - `php_container_memory_limit_mb`
+   - `php_container_cpu_limit`
 
 Campos host añadidos:
 
