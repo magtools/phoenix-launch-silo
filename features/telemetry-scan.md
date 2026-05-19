@@ -141,7 +141,7 @@ Presupuesto PHP:
    - se calcula rango por RAM con `PSS`, `statm_private` calibrado o `RSS`
    - en ambos modos se aplica un piso mínimo de memoria observada por worker: `90 MB` promedio y `110 MB` conservador
    - se calcula rango por CPU usando la CPU efectiva del contenedor (`NanoCpus`, `CpuQuota/CpuPeriod` o `CpusetCpus`)
-   - la reserva CPU de Compose parte de `6%` y suma `3%` por familia de servicio presente (`redis`, `search`, `db`), con tope `15%`
+   - la reserva CPU de Compose parte de `10%` y suma `4%` por `redis`, `4%` por `search` y `7%` por `db`, con tope `25%`
    - antes de calcular capacidad por CPU, se aplica un piso mínimo efectivo de `12%` por worker
    - si existen mínimo conservador por RAM y mínimo conservador por CPU, el `pm.max_children` principal sugerido pasa a usar un blend `CPU 70% / RAM 30%`
 11. si no hay métricas live del contenedor `php`, compose hace fallback a la extrapolación por anclas usando el presupuesto PHP calculado.

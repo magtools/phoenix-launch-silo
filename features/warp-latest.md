@@ -307,7 +307,7 @@ Evolución funcional reciente:
   sin Compose usa `MemTotal - reserve`, y si detecta workers,
   expone un rango conservador/agresivo basado preferentemente en PSS real de `php-fpm`
   y una referencia adicional de `pm.max_children` por CPU observada, reservando `6%` por CPU lógico en host
-  y `6% + 3%` por familia de servicio presente en Compose (`redis`, `search`, `db`), con tope `15%`.
+  y `10% + 4% redis + 4% search + 7% db` en Compose, con tope `25%`.
   Cuando existen ambos mínimos conservadores, la sugerencia principal usa un blend `CPU 70% / RAM 30%`.
 
 Qué aporta al equipo:

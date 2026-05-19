@@ -1103,20 +1103,21 @@ memory_php_cpu_reserve_pct() {
     local _reserve="6"
 
     if [ "$_mode" = "compose" ]; then
+        _reserve="10"
         if memory_compose_has_service "redis-cache" || memory_compose_has_service "redis-fpc" || memory_compose_has_service "redis-session" || memory_compose_has_service "valkey"; then
-            _reserve=$((_reserve + 3))
+            _reserve=$((_reserve + 4))
         fi
 
         if memory_compose_has_service "elasticsearch" || memory_compose_has_service "opensearch"; then
-            _reserve=$((_reserve + 3))
+            _reserve=$((_reserve + 4))
         fi
 
         if memory_compose_has_service "mysql" || memory_compose_has_service "mariadb"; then
-            _reserve=$((_reserve + 3))
+            _reserve=$((_reserve + 7))
         fi
     fi
 
-    [ "$_reserve" -gt 15 ] && _reserve=15
+    [ "$_reserve" -gt 25 ] && _reserve=25
     echo "$_reserve"
 }
 
@@ -1138,9 +1139,9 @@ memory_php_cpu_reserve_label() {
         _parts="${_parts%/}"
 
         if [ -n "$_parts" ]; then
-            echo "${_reserve_pct}% of effective PHP container CPU (base 6% + ${_parts}; cap 15%)"
+            echo "${_reserve_pct}% of effective PHP container CPU (base 10% + ${_parts}; cap 25%)"
         else
-            echo "${_reserve_pct}% of effective PHP container CPU (base 6%)"
+            echo "${_reserve_pct}% of effective PHP container CPU (base 10%)"
         fi
     else
         echo "${_reserve_pct}% per logical CPU for system/nginx"
@@ -1780,7 +1781,7 @@ memory_report_print_text() {
     else
         memory_print " - Compose-mode PHP-FPM sizing uses MemTotal minus system and configured service reserves from docker-compose-warp.yml."
         memory_print " - If the PHP container is running, worker memory/CPU are measured inside the container and capped by Docker memory/CPU limits when present."
-        memory_print " - Compose-mode CPU reserve starts at 6% and adds 3% per service family present (redis, search, db), capped at 15%."
+        memory_print " - Compose-mode CPU reserve starts at 10% and adds 4% for redis, 4% for search, and 7% for db, capped at 25%."
         memory_print " - CPU sizing applies a minimum effective worker cost of 12% to avoid inflated results on idle samples."
         memory_print " - When both conservative RAM and CPU minima exist, the primary pm.max_children suggestion uses a CPU 70% / RAM 30% blend."
         memory_print " - If no live PHP worker metrics are available, compose-mode falls back to RAM extrapolation and optimistic rounding (<20 => ceil+1, >=20 => ceil+2)."
