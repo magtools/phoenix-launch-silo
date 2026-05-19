@@ -160,7 +160,7 @@ Presupuesto PHP:
 7. `MemAvailable` se muestra aparte como señal de headroom actual del host, pero no participa en el presupuesto base.
 8. si se detecta CPU real por worker, el reporte agrega una segunda referencia de `pm.max_children` por CPU:
    - base: `%CPU` promedio observado sobre workers `php-fpm: pool ...` con actividad real
-   - antes de calcular capacidad, se aplica un piso mínimo efectivo de `12%` por worker
+   - antes de calcular capacidad, se aplica un piso mínimo efectivo de `10%` por worker
    - `aggressive`: `floor((logical_threads * 94) / avg_worker_cpu_pct)`
    - `conservative`: `floor((logical_threads * 94) / max(avg_worker_cpu_pct * 1.15, max_worker_cpu_pct))`
    - el `6%` restante por CPU lógico queda reservado para sistema/nginx

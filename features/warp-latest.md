@@ -303,7 +303,8 @@ Evolución funcional reciente:
 - PHP-FPM pasó a extrapolación por presupuesto disponible para PHP.
   Con Compose usa `MemTotal - reserve_sistema - reserve_servicios configurados`,
   observa workers reales dentro del contenedor `php` cuando está corriendo y respeta límites Docker de memoria/CPU si existen;
-  en ambos modos aplica `reserve = 1.5GB + 5%` como base de sistema y pisos observados de `90/110 MB` por worker y `12%` de CPU por worker;
+  en ambos modos aplica `reserve = 1.5GB + 5%` como base de sistema y pisos observados de `90/110 MB` por worker;
+  el piso CPU observado es `10%` en host y `12%` en Compose;
   sin Compose usa `MemTotal - reserve`, y si detecta workers,
   expone un rango conservador/agresivo basado preferentemente en PSS real de `php-fpm`
   y una referencia adicional de `pm.max_children` por CPU observada, reservando `6%` por CPU lógico en host
