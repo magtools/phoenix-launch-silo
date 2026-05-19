@@ -363,19 +363,25 @@ memory_env_to_mb() {
 
 memory_reserve_system_mb() {
     if memory_compose_file_exists; then
-        echo "1024"
+        _host_mb=$(memory_host_total_mb)
+        if ! [[ "$_host_mb" =~ ^[0-9]+$ ]]; then
+            echo "1536"
+            return 0
+        fi
+        _five_pct_mb=$(memory_ceil_number "$(awk -v mb="$_host_mb" 'BEGIN { print mb*0.05 }')")
+        echo $((1536 + _five_pct_mb))
     else
         local _host_mb=""
-        local _ten_pct_mb=""
+        local _five_pct_mb=""
 
         _host_mb=$(memory_host_total_mb)
         if ! [[ "$_host_mb" =~ ^[0-9]+$ ]]; then
-            echo "2560"
+            echo "1536"
             return 0
         fi
 
-        _ten_pct_mb=$(memory_ceil_number "$(awk -v mb="$_host_mb" 'BEGIN { print mb*0.10 }')")
-        echo $((1536 + _ten_pct_mb))
+        _five_pct_mb=$(memory_ceil_number "$(awk -v mb="$_host_mb" 'BEGIN { print mb*0.05 }')")
+        echo $((1536 + _five_pct_mb))
     fi
 }
 
@@ -1064,6 +1070,7 @@ memory_php_max_concurrency() {
 memory_php_cpu_children_estimate() {
     local _cpus="$1"
     local _worker_cpu_pct="$2"
+    local _reserve_pct="$3"
     local _estimate=""
 
     if ! [[ "$_cpus" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
@@ -1076,9 +1083,13 @@ memory_php_cpu_children_estimate() {
         return 0
     fi
 
-    _estimate=$(awk -v cpus="$_cpus" -v worker="$_worker_cpu_pct" 'BEGIN {
+    if ! [[ "$_reserve_pct" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+        _reserve_pct="6"
+    fi
+
+    _estimate=$(awk -v cpus="$_cpus" -v worker="$_worker_cpu_pct" -v reserve="$_reserve_pct" 'BEGIN {
         if (worker <= 0) exit 1
-        usable=cpus*90
+        usable=cpus*(100-reserve)
         value=int(usable/worker)
         if (value < 1) value=1
         print value
@@ -1087,16 +1098,69 @@ memory_php_cpu_children_estimate() {
     echo "$_estimate"
 }
 
-memory_average_int() {
-    local _a="$1"
-    local _b="$2"
+memory_php_cpu_reserve_pct() {
+    local _mode="$1"
+    local _reserve="6"
 
-    if ! [[ "$_a" =~ ^[0-9]+$ ]] || ! [[ "$_b" =~ ^[0-9]+$ ]]; then
+    if [ "$_mode" = "compose" ]; then
+        if memory_compose_has_service "redis-cache" || memory_compose_has_service "redis-fpc" || memory_compose_has_service "redis-session" || memory_compose_has_service "valkey"; then
+            _reserve=$((_reserve + 3))
+        fi
+
+        if memory_compose_has_service "elasticsearch" || memory_compose_has_service "opensearch"; then
+            _reserve=$((_reserve + 3))
+        fi
+
+        if memory_compose_has_service "mysql" || memory_compose_has_service "mariadb"; then
+            _reserve=$((_reserve + 3))
+        fi
+    fi
+
+    [ "$_reserve" -gt 15 ] && _reserve=15
+    echo "$_reserve"
+}
+
+memory_php_cpu_reserve_label() {
+    local _mode="$1"
+    local _reserve_pct="$2"
+    local _parts=""
+
+    if [ "$_mode" = "compose" ]; then
+        if memory_compose_has_service "redis-cache" || memory_compose_has_service "redis-fpc" || memory_compose_has_service "redis-session" || memory_compose_has_service "valkey"; then
+            _parts="${_parts}redis/"
+        fi
+        if memory_compose_has_service "elasticsearch" || memory_compose_has_service "opensearch"; then
+            _parts="${_parts}search/"
+        fi
+        if memory_compose_has_service "mysql" || memory_compose_has_service "mariadb"; then
+            _parts="${_parts}db/"
+        fi
+        _parts="${_parts%/}"
+
+        if [ -n "$_parts" ]; then
+            echo "${_reserve_pct}% of effective PHP container CPU (base 6% + ${_parts}; cap 15%)"
+        else
+            echo "${_reserve_pct}% of effective PHP container CPU (base 6%)"
+        fi
+    else
+        echo "${_reserve_pct}% per logical CPU for system/nginx"
+    fi
+}
+
+memory_weighted_children_int() {
+    local _ram_min="$1"
+    local _cpu_min="$2"
+
+    if ! [[ "$_ram_min" =~ ^[0-9]+$ ]] || ! [[ "$_cpu_min" =~ ^[0-9]+$ ]]; then
         echo ""
         return 0
     fi
 
-    echo $(((_a + _b) / 2))
+    awk -v ram="$_ram_min" -v cpu="$_cpu_min" 'BEGIN {
+        value=int((cpu*0.70) + (ram*0.30))
+        if (value < 1) value=1
+        print value
+    }'
 }
 
 memory_php_cpu_effective_pct() {
@@ -1108,7 +1172,7 @@ memory_php_cpu_effective_pct() {
     fi
 
     awk -v v="$_value" 'BEGIN {
-        if (v < 6.0) printf "%.4f\n", 6.0
+        if (v < 12.0) printf "%.4f\n", 12.0
         else printf "%.4f\n", v
     }'
 }
@@ -1117,9 +1181,9 @@ memory_php_worker_mem_floor_mb() {
     local _kind="$1"
 
     if [ "$_kind" = "high" ]; then
-        echo "90"
+        echo "110"
     else
-        echo "70"
+        echo "90"
     fi
 }
 
@@ -1273,12 +1337,14 @@ memory_report_print_text() {
     _php_container_cpu_limit=""
     _php_blended_children=""
     _php_blended_req=""
+    _php_cpu_reserve_pct=""
     _php_req_cpu_min=""
     _php_req_ram_min=""
     _php_req_blended_range=""
     _php_cpu_floor_applied=""
     _php_suggest_range=""
     if memory_compose_file_exists; then
+        _php_cpu_reserve_pct=$(memory_php_cpu_reserve_pct "compose")
         _redis_cache_reserved_mb=$(memory_service_reserved_mb "redis-cache" "REDIS_CACHE_MAXMEMORY" "512")
         _redis_fpc_reserved_mb=$(memory_service_reserved_mb "redis-fpc" "REDIS_FPC_MAXMEMORY" "512")
         _redis_session_reserved_mb=$(memory_service_reserved_mb "redis-session" "REDIS_SESSION_MAXMEMORY" "256")
@@ -1334,18 +1400,18 @@ memory_report_print_text() {
                 _php_worker_cpu_high_raw="$_php_worker_cpu_high"
                 _php_worker_cpu_avg=$(memory_php_cpu_effective_pct "$_php_worker_cpu_avg")
                 _php_worker_cpu_high=$(memory_php_cpu_effective_pct "$_php_worker_cpu_high")
-                if awk -v a="$_php_worker_cpu_avg_raw" -v h="$_php_worker_cpu_high_raw" 'BEGIN { exit !((a < 6.0) || (h < 6.0)) }'; then
-                    _php_cpu_floor_applied="6% per worker"
+                if awk -v a="$_php_worker_cpu_avg_raw" -v h="$_php_worker_cpu_high_raw" 'BEGIN { exit !((a < 12.0) || (h < 12.0)) }'; then
+                    _php_cpu_floor_applied="12% per worker"
                 fi
                 _php_cpu_base="$_php_container_cpu_limit"
                 [ -n "$_php_cpu_base" ] || _php_cpu_base="$_host_threads"
-                _php_cpu_children=$(memory_php_cpu_children_estimate "$_php_cpu_base" "$_php_worker_cpu_high")
-                _php_cpu_children_aggressive=$(memory_php_cpu_children_estimate "$_php_cpu_base" "$_php_worker_cpu_avg")
+                _php_cpu_children=$(memory_php_cpu_children_estimate "$_php_cpu_base" "$_php_worker_cpu_high" "$_php_cpu_reserve_pct")
+                _php_cpu_children_aggressive=$(memory_php_cpu_children_estimate "$_php_cpu_base" "$_php_worker_cpu_avg" "$_php_cpu_reserve_pct")
                 if [ -z "$_php_cpu_children" ]; then
-                    _php_cpu_children=$(memory_php_cpu_children_estimate "$_host_cores" "$_php_worker_cpu_high")
+                    _php_cpu_children=$(memory_php_cpu_children_estimate "$_host_cores" "$_php_worker_cpu_high" "$_php_cpu_reserve_pct")
                 fi
                 if [ -z "$_php_cpu_children_aggressive" ]; then
-                    _php_cpu_children_aggressive=$(memory_php_cpu_children_estimate "$_host_cores" "$_php_worker_cpu_avg")
+                    _php_cpu_children_aggressive=$(memory_php_cpu_children_estimate "$_host_cores" "$_php_worker_cpu_avg" "$_php_cpu_reserve_pct")
                 fi
                 if [[ "$_php_cpu_children" =~ ^[0-9]+$ ]] && [[ "$_php_cpu_children_aggressive" =~ ^[0-9]+$ ]]; then
                     [ "$_php_cpu_children_aggressive" -lt "$_php_cpu_children" ] && _php_cpu_children_aggressive="$_php_cpu_children"
@@ -1367,6 +1433,7 @@ memory_report_print_text() {
         fi
     else
         _php_sizing_mode="host-runtime"
+        _php_cpu_reserve_pct=$(memory_php_cpu_reserve_pct "host")
         _redis_cache_reserved_mb=0
         _redis_fpc_reserved_mb=0
         _redis_session_reserved_mb=0
@@ -1409,16 +1476,16 @@ memory_report_print_text() {
             _php_worker_cpu_high_raw="$_php_worker_cpu_high"
             _php_worker_cpu_avg=$(memory_php_cpu_effective_pct "$_php_worker_cpu_avg")
             _php_worker_cpu_high=$(memory_php_cpu_effective_pct "$_php_worker_cpu_high")
-            if awk -v a="$_php_worker_cpu_avg_raw" -v h="$_php_worker_cpu_high_raw" 'BEGIN { exit !((a < 6.0) || (h < 6.0)) }'; then
-                _php_cpu_floor_applied="6% per worker"
+            if awk -v a="$_php_worker_cpu_avg_raw" -v h="$_php_worker_cpu_high_raw" 'BEGIN { exit !((a < 12.0) || (h < 12.0)) }'; then
+                _php_cpu_floor_applied="12% per worker"
             fi
-            _php_cpu_children=$(memory_php_cpu_children_estimate "$_host_threads" "$_php_worker_cpu_high")
-            _php_cpu_children_aggressive=$(memory_php_cpu_children_estimate "$_host_threads" "$_php_worker_cpu_avg")
+            _php_cpu_children=$(memory_php_cpu_children_estimate "$_host_threads" "$_php_worker_cpu_high" "$_php_cpu_reserve_pct")
+            _php_cpu_children_aggressive=$(memory_php_cpu_children_estimate "$_host_threads" "$_php_worker_cpu_avg" "$_php_cpu_reserve_pct")
             if [ -z "$_php_cpu_children" ]; then
-                _php_cpu_children=$(memory_php_cpu_children_estimate "$_host_cores" "$_php_worker_cpu_high")
+                _php_cpu_children=$(memory_php_cpu_children_estimate "$_host_cores" "$_php_worker_cpu_high" "$_php_cpu_reserve_pct")
             fi
             if [ -z "$_php_cpu_children_aggressive" ]; then
-                _php_cpu_children_aggressive=$(memory_php_cpu_children_estimate "$_host_cores" "$_php_worker_cpu_avg")
+                _php_cpu_children_aggressive=$(memory_php_cpu_children_estimate "$_host_cores" "$_php_worker_cpu_avg" "$_php_cpu_reserve_pct")
             fi
             if [[ "$_php_cpu_children" =~ ^[0-9]+$ ]] && [[ "$_php_cpu_children_aggressive" =~ ^[0-9]+$ ]]; then
                 [ "$_php_cpu_children_aggressive" -lt "$_php_cpu_children" ] && _php_cpu_children_aggressive="$_php_cpu_children"
@@ -1635,7 +1702,7 @@ memory_report_print_text() {
     read -r _es_base _es_safe _es_note _es_peak_ratio <<<"$(memory_es_recommend "$_es_used_mb" "$_es_peak_mb")"
     if [ -n "${_php_suggest_range:-}" ]; then
         if [[ "$_php_mc_conservative" =~ ^[0-9]+$ ]] && [[ "$_php_cpu_children" =~ ^[0-9]+$ ]]; then
-            _php_blended_children=$(memory_average_int "$_php_mc_conservative" "$_php_cpu_children")
+            _php_blended_children=$(memory_weighted_children_int "$_php_mc_conservative" "$_php_cpu_children")
             _php_suggest=$(memory_php_suggest_values_from_children "$_php_blended_children")
             _php_suggest_aggressive=$(memory_php_suggest_values_from_children "$_php_mc_aggressive")
             _php_req_ram_min=$(echo "$(memory_php_suggest_values_from_children "$_php_mc_conservative")" | awk -F= '$1=="pm.max_requests"{print $2}')
@@ -1684,11 +1751,7 @@ memory_report_print_text() {
             if [ -n "${_php_cpu_floor_applied:-}" ]; then
                 memory_print_kv "PHP-FPM CPU floor" "${_php_cpu_floor_applied}"
             fi
-            if [ "$_php_sizing_mode" = "compose" ]; then
-                memory_print_kv "PHP-FPM CPU reserve" "10% of effective PHP container CPU for master/overhead"
-            else
-                memory_print_kv "PHP-FPM CPU reserve" "10% per logical CPU for system/nginx"
-            fi
+            memory_print_kv "PHP-FPM CPU reserve" "$(memory_php_cpu_reserve_label "$_php_sizing_mode" "$_php_cpu_reserve_pct")"
         fi
         if [ -n "${_php_req_blended_range:-}" ]; then
             memory_print_kv "PHP-FPM pm.max_requests range" "${_php_req_blended_range}"
@@ -1707,18 +1770,19 @@ memory_report_print_text() {
     memory_print " - Redis/ES recommendations are calculated from used_memory and rounded to 64MB blocks."
     memory_print " - If peak is WARNING/CRITICAL, use the minimum safe value."
     if [ "$_php_sizing_mode" = "host-runtime" ]; then
-        memory_print " - Host-mode PHP-FPM sizing uses MemTotal minus a reserve of 1.5GB + 10% of total RAM."
+        memory_print " - Host-mode PHP-FPM sizing uses MemTotal minus a reserve of 1.5GB + 5% of total RAM."
         memory_print " - MemAvailable is shown as current host headroom, not as the sizing base."
         memory_print " - Host-mode range prefers PSS per php-fpm pool worker; if unavailable it falls back to RSS."
         memory_print " - Host-mode conservative range adds a 15% uplift over observed worker memory."
-        memory_print " - Host-mode CPU estimate uses observed %CPU per php-fpm pool worker and reserves 10% of each logical CPU for system/nginx."
-        memory_print " - CPU sizing applies a minimum effective worker cost of 6% to avoid inflated results on idle samples."
-        memory_print " - When both conservative RAM and CPU minima exist, the primary pm.max_children suggestion is the integer average of both."
+        memory_print " - Host-mode CPU estimate uses observed %CPU per php-fpm pool worker and reserves 6% of each logical CPU for system/nginx."
+        memory_print " - CPU sizing applies a minimum effective worker cost of 12% to avoid inflated results on idle samples."
+        memory_print " - When both conservative RAM and CPU minima exist, the primary pm.max_children suggestion uses a CPU 70% / RAM 30% blend."
     else
         memory_print " - Compose-mode PHP-FPM sizing uses MemTotal minus system and configured service reserves from docker-compose-warp.yml."
         memory_print " - If the PHP container is running, worker memory/CPU are measured inside the container and capped by Docker memory/CPU limits when present."
-        memory_print " - CPU sizing applies a minimum effective worker cost of 6% to avoid inflated results on idle samples."
-        memory_print " - When both conservative RAM and CPU minima exist, the primary pm.max_children suggestion is the integer average of both."
+        memory_print " - Compose-mode CPU reserve starts at 6% and adds 3% per service family present (redis, search, db), capped at 15%."
+        memory_print " - CPU sizing applies a minimum effective worker cost of 12% to avoid inflated results on idle samples."
+        memory_print " - When both conservative RAM and CPU minima exist, the primary pm.max_children suggestion uses a CPU 70% / RAM 30% blend."
         memory_print " - If no live PHP worker metrics are available, compose-mode falls back to RAM extrapolation and optimistic rounding (<20 => ceil+1, >=20 => ceil+2)."
     fi
     memory_print ""
@@ -1789,7 +1853,9 @@ memory_report_print_json() {
     _php_req_blended_range=""
     _php_cpu_floor_applied=""
     _php_suggest_range=""
+    _php_cpu_reserve_pct=""
     if memory_compose_file_exists; then
+        _php_cpu_reserve_pct=$(memory_php_cpu_reserve_pct "compose")
         _redis_cache_reserved_mb=$(memory_service_reserved_mb "redis-cache" "REDIS_CACHE_MAXMEMORY" "512")
         _redis_fpc_reserved_mb=$(memory_service_reserved_mb "redis-fpc" "REDIS_FPC_MAXMEMORY" "512")
         _redis_session_reserved_mb=$(memory_service_reserved_mb "redis-session" "REDIS_SESSION_MAXMEMORY" "256")
@@ -1845,18 +1911,18 @@ memory_report_print_json() {
                 _php_worker_cpu_high_raw="$_php_worker_cpu_high"
                 _php_worker_cpu_avg=$(memory_php_cpu_effective_pct "$_php_worker_cpu_avg")
                 _php_worker_cpu_high=$(memory_php_cpu_effective_pct "$_php_worker_cpu_high")
-                if awk -v a="$_php_worker_cpu_avg_raw" -v h="$_php_worker_cpu_high_raw" 'BEGIN { exit !((a < 6.0) || (h < 6.0)) }'; then
-                    _php_cpu_floor_applied="6% per worker"
+                if awk -v a="$_php_worker_cpu_avg_raw" -v h="$_php_worker_cpu_high_raw" 'BEGIN { exit !((a < 12.0) || (h < 12.0)) }'; then
+                    _php_cpu_floor_applied="12% per worker"
                 fi
                 _php_cpu_base="$_php_container_cpu_limit"
                 [ -n "$_php_cpu_base" ] || _php_cpu_base="$_host_threads"
-                _php_cpu_children=$(memory_php_cpu_children_estimate "$_php_cpu_base" "$_php_worker_cpu_high")
-                _php_cpu_children_aggressive=$(memory_php_cpu_children_estimate "$_php_cpu_base" "$_php_worker_cpu_avg")
+                _php_cpu_children=$(memory_php_cpu_children_estimate "$_php_cpu_base" "$_php_worker_cpu_high" "$_php_cpu_reserve_pct")
+                _php_cpu_children_aggressive=$(memory_php_cpu_children_estimate "$_php_cpu_base" "$_php_worker_cpu_avg" "$_php_cpu_reserve_pct")
                 if [ -z "$_php_cpu_children" ]; then
-                    _php_cpu_children=$(memory_php_cpu_children_estimate "$_host_cores" "$_php_worker_cpu_high")
+                    _php_cpu_children=$(memory_php_cpu_children_estimate "$_host_cores" "$_php_worker_cpu_high" "$_php_cpu_reserve_pct")
                 fi
                 if [ -z "$_php_cpu_children_aggressive" ]; then
-                    _php_cpu_children_aggressive=$(memory_php_cpu_children_estimate "$_host_cores" "$_php_worker_cpu_avg")
+                    _php_cpu_children_aggressive=$(memory_php_cpu_children_estimate "$_host_cores" "$_php_worker_cpu_avg" "$_php_cpu_reserve_pct")
                 fi
                 if [[ "$_php_cpu_children" =~ ^[0-9]+$ ]] && [[ "$_php_cpu_children_aggressive" =~ ^[0-9]+$ ]]; then
                     [ "$_php_cpu_children_aggressive" -lt "$_php_cpu_children" ] && _php_cpu_children_aggressive="$_php_cpu_children"
@@ -1878,6 +1944,7 @@ memory_report_print_json() {
         fi
     else
         _php_sizing_mode="host-runtime"
+        _php_cpu_reserve_pct=$(memory_php_cpu_reserve_pct "host")
         _redis_cache_reserved_mb=0
         _redis_fpc_reserved_mb=0
         _redis_session_reserved_mb=0
@@ -1920,16 +1987,16 @@ memory_report_print_json() {
             _php_worker_cpu_high_raw="$_php_worker_cpu_high"
             _php_worker_cpu_avg=$(memory_php_cpu_effective_pct "$_php_worker_cpu_avg")
             _php_worker_cpu_high=$(memory_php_cpu_effective_pct "$_php_worker_cpu_high")
-            if awk -v a="$_php_worker_cpu_avg_raw" -v h="$_php_worker_cpu_high_raw" 'BEGIN { exit !((a < 6.0) || (h < 6.0)) }'; then
-                _php_cpu_floor_applied="6% per worker"
+            if awk -v a="$_php_worker_cpu_avg_raw" -v h="$_php_worker_cpu_high_raw" 'BEGIN { exit !((a < 12.0) || (h < 12.0)) }'; then
+                _php_cpu_floor_applied="12% per worker"
             fi
-            _php_cpu_children=$(memory_php_cpu_children_estimate "$_host_threads" "$_php_worker_cpu_high")
-            _php_cpu_children_aggressive=$(memory_php_cpu_children_estimate "$_host_threads" "$_php_worker_cpu_avg")
+            _php_cpu_children=$(memory_php_cpu_children_estimate "$_host_threads" "$_php_worker_cpu_high" "$_php_cpu_reserve_pct")
+            _php_cpu_children_aggressive=$(memory_php_cpu_children_estimate "$_host_threads" "$_php_worker_cpu_avg" "$_php_cpu_reserve_pct")
             if [ -z "$_php_cpu_children" ]; then
-                _php_cpu_children=$(memory_php_cpu_children_estimate "$_host_cores" "$_php_worker_cpu_high")
+                _php_cpu_children=$(memory_php_cpu_children_estimate "$_host_cores" "$_php_worker_cpu_high" "$_php_cpu_reserve_pct")
             fi
             if [ -z "$_php_cpu_children_aggressive" ]; then
-                _php_cpu_children_aggressive=$(memory_php_cpu_children_estimate "$_host_cores" "$_php_worker_cpu_avg")
+                _php_cpu_children_aggressive=$(memory_php_cpu_children_estimate "$_host_cores" "$_php_worker_cpu_avg" "$_php_cpu_reserve_pct")
             fi
             if [[ "$_php_cpu_children" =~ ^[0-9]+$ ]] && [[ "$_php_cpu_children_aggressive" =~ ^[0-9]+$ ]]; then
                 [ "$_php_cpu_children_aggressive" -lt "$_php_cpu_children" ] && _php_cpu_children_aggressive="$_php_cpu_children"
@@ -2003,7 +2070,7 @@ memory_report_print_json() {
         read -r _es_base _es_safe _es_note _es_peak_ratio <<<"$(memory_es_recommend "$_es_used_mb" "$_es_peak_mb")"
         if [ -n "${_php_suggest_range:-}" ]; then
             if [[ "$_php_mc_conservative" =~ ^[0-9]+$ ]] && [[ "$_php_cpu_children" =~ ^[0-9]+$ ]]; then
-                _php_blended_children=$(memory_average_int "$_php_mc_conservative" "$_php_cpu_children")
+                _php_blended_children=$(memory_weighted_children_int "$_php_mc_conservative" "$_php_cpu_children")
                 _php_suggest=$(memory_php_suggest_values_from_children "$_php_blended_children")
                 _php_suggest_aggressive=$(memory_php_suggest_values_from_children "$_php_mc_aggressive")
                 _php_req_ram_min=$(echo "$(memory_php_suggest_values_from_children "$_php_mc_conservative")" | awk -F= '$1=="pm.max_requests"{print $2}')
