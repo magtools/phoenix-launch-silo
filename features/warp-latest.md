@@ -301,7 +301,8 @@ Evolución funcional reciente:
   - `>=75%` warning
   - `>=90%` crítico
 - PHP-FPM pasó a extrapolación por presupuesto disponible para PHP.
-  Con Compose usa `MemTotal - reserve_sistema - reserve_servicios configurados`;
+  Con Compose usa `MemTotal - reserve_sistema - reserve_servicios configurados`,
+  observa workers reales dentro del contenedor `php` cuando está corriendo y respeta límites Docker de memoria/CPU si existen;
   sin Compose usa `MemTotal - reserve`, donde `reserve = 1.5GB + 10%` del host, y si detecta workers,
   expone un rango conservador/agresivo basado preferentemente en PSS real de `php-fpm`
   y una referencia adicional de `pm.max_children` por CPU observada, reservando `10%` por CPU lógico para sistema/nginx.
