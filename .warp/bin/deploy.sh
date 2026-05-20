@@ -427,6 +427,10 @@ deploy_run_main() {
         _run_reindex=$(deploy_bool "${RUN_REINDEX:-0}")
         _run_cache_flush=$(deploy_bool "${RUN_CACHE_FLUSH:-1}")
         _run_search_flush=$(deploy_bool "${RUN_SEARCH_FLUSH:-0}")
+        _effective_search_flush=0
+        if [ "$_run_reindex" = "1" ] && [ "$_run_search_flush" = "1" ]; then
+            _effective_search_flush=1
+        fi
         _run_grunt=$(deploy_bool "${RUN_GRUNT:-0}")
         _run_hyva=$(deploy_bool "${RUN_HYVA:-0}")
         _hyva_prepare=$(deploy_bool "${HYVA_PREPARE:-1}")
@@ -466,7 +470,7 @@ deploy_run_main() {
             [ "$_run_static_front" = "1" ] && deploy_cmd_run "static content deploy (frontend)" ":"
         fi
 
-        [ "$_run_search_flush" = "1" ] && deploy_cmd_run "search flush" ":"
+        [ "$_effective_search_flush" = "1" ] && deploy_cmd_run "search flush" ":"
         [ "$_run_reindex" = "1" ] && deploy_cmd_run "indexer:reindex" ":"
         [ "$_run_cache_flush" = "1" ] && deploy_cmd_run "cache:flush" ":"
         [ "$_env" = "local" ] && deploy_cmd_run "disable OPcache if active" ":"
@@ -495,8 +499,13 @@ deploy_run_main() {
     _run_reindex=$(deploy_bool "${RUN_REINDEX:-0}")
     _run_cache_flush=$(deploy_bool "${RUN_CACHE_FLUSH:-1}")
     _run_search_flush=$(deploy_bool "${RUN_SEARCH_FLUSH:-0}")
+    _effective_search_flush=0
     _confirm_prod=$(deploy_bool "${CONFIRM_PROD:-1}")
     _maintenance_enabled=0
+
+    if [ "$_run_reindex" = "1" ] && [ "$_run_search_flush" = "1" ]; then
+        _effective_search_flush=1
+    fi
 
     if [ "$_env" = "prod" ] && [ "$_confirm_prod" = "1" ] && [ "$DEPLOY_ASSUME_YES" != "1" ]; then
         _resp=$(warp_question_ask_default "Confirm deploy PROD? $(warp_message_info [y/N]) " "N")
@@ -532,7 +541,7 @@ deploy_run_main() {
         deploy_run_frontend_prod
     fi
 
-    if [ "$_run_search_flush" = "1" ]; then
+    if [ "$_effective_search_flush" = "1" ]; then
         _search_cmd="${SEARCH_FLUSH_CMD:-$_warp_exec search flush}"
         deploy_cmd_run "search flush" "$_search_cmd"
     fi

@@ -105,7 +105,7 @@ Secuencia:
 11. frontend:
    - local: grunt/hyva según flags y existencia de archivos,
    - prod: `hyva build` (si aplica) y static deploy admin/frontend,
-12. `search flush` (si `RUN_SEARCH_FLUSH=1`),
+12. `search flush` (si `RUN_SEARCH_FLUSH=1` y `RUN_REINDEX=1`),
 13. `indexer:reindex` (si `RUN_REINDEX=1`),
 14. `cache:flush` (si `RUN_CACHE_FLUSH=1`),
 15. en `local`: si OPcache managed está activo, lo desactiva y recarga PHP-FPM; si ya está inactivo, no hace nada,
@@ -142,8 +142,10 @@ Comunes:
 - `RUN_SETUP_UPGRADE`
 - `RUN_DI_COMPILE`
 - `RUN_REINDEX`
+- si vale `0`, `deploy run` omite tambien `search flush` aunque `RUN_SEARCH_FLUSH=1`, para no dejar el search sin indices reconstruidos.
 - `RUN_CACHE_FLUSH`
 - `RUN_SEARCH_FLUSH`
+- solo tiene efecto si `RUN_REINDEX=1`.
 - `SEARCH_FLUSH_CMD`
 - `CONFIRM_PROD`
 
