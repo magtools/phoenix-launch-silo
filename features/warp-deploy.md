@@ -32,7 +32,7 @@ Comportamiento:
 3. `warp deploy static` ejecuta solo frontend/estáticos según `ENV`.
 4. Si falta `.deploy`, `run`/`static` ejecutan `set` antes de continuar.
 5. `--dry-run` imprime pasos sin ejecutar comandos.
-6. `--yes` omite confirmación interactiva de `prod`.
+6. `--yes` omite confirmación interactiva de `prod` en `run` y `static`.
 7. `--dry-run` y `--yes` funcionan antes o después de `run`.
 8. `--dry-run` imprime la receta de pasos y termina sin ejecutar `doctor` ni comandos de deploy.
 
@@ -126,6 +126,7 @@ Ejecuta solo pasos de frontend/estáticos:
    - `grunt exec` + `grunt less` si `RUN_GRUNT=1`,
    - `hyva prepare/build` según flags (`RUN_HYVA`, `HYVA_PREPARE`, `HYVA_BUILD`).
 2. `ENV=prod`:
+   - confirma `prod` si `CONFIRM_PROD=1` (salvo `--yes`),
    - `hyva build` si aplica,
    - `setup:static-content:deploy` admin/frontend según flags (`RUN_STATIC_ADMIN`, `RUN_STATIC_FRONT`).
    - si `FRONT_STATIC_THEMES` está definido, el deploy de `frontend` agrega `--theme <code>` por cada theme configurado.

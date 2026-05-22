@@ -10,7 +10,7 @@ deploy_help_usage() {
     warp_message_info "Options:"
     warp_message_info " -h, --help         $(warp_message 'display this help message')"
     warp_message_info " --dry-run          $(warp_message 'show steps without executing commands')"
-    warp_message_info " --yes              $(warp_message 'skip production confirmation prompt')"
+    warp_message_info " --yes              $(warp_message 'skip production confirmation prompt for run/static')"
     warp_message ""
 
     warp_message_info "Available commands:"

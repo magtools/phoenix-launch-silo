@@ -591,6 +591,7 @@ deploy_static_main() {
     _hyva_build=$(deploy_bool "${HYVA_BUILD:-1}")
     _run_static_admin=$(deploy_bool "${RUN_STATIC_ADMIN:-1}")
     _run_static_front=$(deploy_bool "${RUN_STATIC_FRONT:-1}")
+    _confirm_prod=$(deploy_bool "${CONFIRM_PROD:-1}")
 
     if [ "$DEPLOY_DRY_RUN" = "1" ]; then
         warp_message ""
@@ -619,6 +620,14 @@ deploy_static_main() {
 
     if ! deploy_doctor; then
         exit 1
+    fi
+
+    if [ "$_env" = "prod" ] && [ "$_confirm_prod" = "1" ] && [ "$DEPLOY_ASSUME_YES" != "1" ]; then
+        _resp=$(warp_question_ask_default "Confirm deploy PROD? $(warp_message_info [y/N]) " "N")
+        if [ "$(deploy_bool "$_resp")" != "1" ]; then
+            warp_message_warn "deploy canceled"
+            exit 1
+        fi
     fi
 
     if [ "$_env" = "local" ]; then
