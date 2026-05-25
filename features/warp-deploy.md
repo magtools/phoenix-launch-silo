@@ -124,12 +124,16 @@ Ejecuta solo pasos de frontend/estáticos:
 
 1. `ENV=local`:
    - `grunt exec` + `grunt less` si `RUN_GRUNT=1`,
-   - `hyva prepare/build` según flags (`RUN_HYVA`, `HYVA_PREPARE`, `HYVA_BUILD`).
+   - `hyva prepare/build` según flags (`RUN_HYVA`, `HYVA_PREPARE`, `HYVA_BUILD`),
+   - `cache:flush` al final.
 2. `ENV=prod`:
    - confirma `prod` si `CONFIRM_PROD=1` (salvo `--yes`),
+   - si `USE_MAINTENANCE=1`: `maintenance:enable` antes de los pasos estáticos,
    - `hyva build` si aplica,
    - `setup:static-content:deploy` admin/frontend según flags (`RUN_STATIC_ADMIN`, `RUN_STATIC_FRONT`).
-   - si `FRONT_STATIC_THEMES` está definido, el deploy de `frontend` agrega `--theme <code>` por cada theme configurado.
+   - si `FRONT_STATIC_THEMES` está definido, el deploy de `frontend` agrega `--theme <code>` por cada theme configurado,
+   - `cache:flush` al final,
+   - si activó maintenance: `maintenance:disable` después de `cache:flush`.
 
 ## 6) Variables principales soportadas
 
