@@ -10,7 +10,7 @@ deploy_help_usage() {
     warp_message_info "Options:"
     warp_message_info " -h, --help         $(warp_message 'display this help message')"
     warp_message_info " --dry-run          $(warp_message 'show steps without executing commands')"
-    warp_message_info " --yes              $(warp_message 'skip production confirmation prompt')"
+    warp_message_info " --yes              $(warp_message 'skip production confirmation prompt for run/static')"
     warp_message ""
 
     warp_message_info "Available commands:"
@@ -29,6 +29,8 @@ deploy_help_usage() {
     warp_message " empty deploys all frontend themes; set space-separated theme codes for a subset."
     warp_message " if you deploy a child theme, Magento resolves parent fallback automatically;"
     warp_message " add parent themes only when they are also used directly by a website/store."
+    warp_message " static deploy flushes Magento cache at the end in every ENV;"
+    warp_message " in prod, if USE_MAINTENANCE=1, maintenance is enabled before static steps and disabled after cache flush."
     warp_message " THREADS is derived from logical host threads minus WARP_HOST_THREADS_RESERVE from .env"
     warp_message " (default reserve: 1, minimum final THREADS: 1)."
     warp_message ""

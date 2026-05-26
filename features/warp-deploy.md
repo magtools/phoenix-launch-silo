@@ -32,7 +32,7 @@ Comportamiento:
 3. `warp deploy static` ejecuta solo frontend/estáticos según `ENV`.
 4. Si falta `.deploy`, `run`/`static` ejecutan `set` antes de continuar.
 5. `--dry-run` imprime pasos sin ejecutar comandos.
-6. `--yes` omite confirmación interactiva de `prod`.
+6. `--yes` omite confirmación interactiva de `prod` en `run` y `static`.
 7. `--dry-run` y `--yes` funcionan antes o después de `run`.
 8. `--dry-run` imprime la receta de pasos y termina sin ejecutar `doctor` ni comandos de deploy.
 
@@ -105,7 +105,7 @@ Secuencia:
 11. frontend:
    - local: grunt/hyva según flags y existencia de archivos,
    - prod: `hyva build` (si aplica) y static deploy admin/frontend,
-12. `search flush` (si `RUN_SEARCH_FLUSH=1`),
+12. `search flush` (si `RUN_SEARCH_FLUSH=1` y `RUN_REINDEX=1`),
 13. `indexer:reindex` (si `RUN_REINDEX=1`),
 14. `cache:flush` (si `RUN_CACHE_FLUSH=1`),
 15. en `local`: si OPcache managed está activo, lo desactiva y recarga PHP-FPM; si ya está inactivo, no hace nada,
@@ -124,11 +124,16 @@ Ejecuta solo pasos de frontend/estáticos:
 
 1. `ENV=local`:
    - `grunt exec` + `grunt less` si `RUN_GRUNT=1`,
-   - `hyva prepare/build` según flags (`RUN_HYVA`, `HYVA_PREPARE`, `HYVA_BUILD`).
+   - `hyva prepare/build` según flags (`RUN_HYVA`, `HYVA_PREPARE`, `HYVA_BUILD`),
+   - `cache:flush` al final.
 2. `ENV=prod`:
+   - confirma `prod` si `CONFIRM_PROD=1` (salvo `--yes`),
+   - si `USE_MAINTENANCE=1`: `maintenance:enable` antes de los pasos estáticos,
    - `hyva build` si aplica,
    - `setup:static-content:deploy` admin/frontend según flags (`RUN_STATIC_ADMIN`, `RUN_STATIC_FRONT`).
-   - si `FRONT_STATIC_THEMES` está definido, el deploy de `frontend` agrega `--theme <code>` por cada theme configurado.
+   - si `FRONT_STATIC_THEMES` está definido, el deploy de `frontend` agrega `--theme <code>` por cada theme configurado,
+   - `cache:flush` al final,
+   - si activó maintenance: `maintenance:disable` después de `cache:flush`.
 
 ## 6) Variables principales soportadas
 
@@ -142,8 +147,10 @@ Comunes:
 - `RUN_SETUP_UPGRADE`
 - `RUN_DI_COMPILE`
 - `RUN_REINDEX`
+- si vale `0`, `deploy run` omite tambien `search flush` aunque `RUN_SEARCH_FLUSH=1`, para no dejar el search sin indices reconstruidos.
 - `RUN_CACHE_FLUSH`
 - `RUN_SEARCH_FLUSH`
+- solo tiene efecto si `RUN_REINDEX=1`.
 - `SEARCH_FLUSH_CMD`
 - `CONFIRM_PROD`
 

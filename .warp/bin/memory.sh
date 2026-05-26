@@ -1019,13 +1019,16 @@ memory_php_max_children_from_ram() {
 
 memory_php_suggest_values_from_children() {
     _max_children="$1"
-    _start=$(memory_ceil_number "$(awk -v m="$_max_children" 'BEGIN {print m*0.20}')")
+    _start=$(memory_ceil_number "$(awk -v m="$_max_children" 'BEGIN {print m*0.30}')")
     _min_spare=$(memory_ceil_number "$(awk -v m="$_max_children" 'BEGIN {print m*0.20}')")
     _max_spare=$(memory_ceil_number "$(awk -v m="$_max_children" 'BEGIN {print m*0.40}')")
 
-    [ "$_start" -gt 15 ] && _start=15
-    [ "$_min_spare" -gt 15 ] && _min_spare=15
-    [ "$_max_spare" -gt 30 ] && _max_spare=30
+    [ "$_start" -lt 5 ] && _start=5
+    [ "$_min_spare" -lt 5 ] && _min_spare=5
+    [ "$_max_spare" -lt 10 ] && _max_spare=10
+    [ "$_start" -gt "$_max_children" ] && _start="$_max_children"
+    [ "$_min_spare" -gt "$_max_children" ] && _min_spare="$_max_children"
+    [ "$_max_spare" -gt "$_max_children" ] && _max_spare="$_max_children"
     [ "$_max_spare" -lt "$_min_spare" ] && _max_spare="$_min_spare"
 
     _max_req=$((_max_children * 100))

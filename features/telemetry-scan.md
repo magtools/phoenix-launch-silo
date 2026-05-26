@@ -180,9 +180,9 @@ Regla de redondeo para `pm.max_children`:
 Resto de parámetros:
 
 1. `pm=dynamic`
-2. `pm.start_servers`: `ceil(max_children*0.20)` con tope `15`.
-3. `pm.min_spare_servers`: `ceil(max_children*0.20)` con tope `15`.
-4. `pm.max_spare_servers`: `ceil(max_children*0.40)` con tope `30`.
+2. `pm.start_servers`: `ceil(max_children*0.30)` con mínimo `5` y tope `pm.max_children`.
+3. `pm.min_spare_servers`: `ceil(max_children*0.20)` con mínimo `5` y tope `pm.max_children`.
+4. `pm.max_spare_servers`: `ceil(max_children*0.40)` con mínimo `10` y tope `pm.max_children`.
 5. `pm.max_requests`: `pm.max_children * 100`, con mínimo `1000` y máximo `5000`.
 
 La salida texto muestra un bloque `[PHP SIZING BUDGET]` con el desglose usado para el cálculo. En host-mode, si hay workers observados, el reporte suma:
