@@ -66,6 +66,7 @@ Resolución en ejecución:
 2. `vendor/phpmd/phpmd/src/bin/phpmd` (Magento <=2.4.7),
 
 además de fallback de subcomando para versiones que cambian la sintaxis (`phpmd` / `analyze` / `check`).
+Si una versión vieja rechaza `--no-progress`, `warp audit` reintenta sin esa opción para no degradar el reporte.
 
 ## Base de extensión para otros frameworks
 

@@ -81,6 +81,9 @@ Motor preferido según `.env`:
 3. `warp mysql import <db>`:
    - no ejecuta import sobre externo,
    - imprime comando sugerido con redirección estándar (`< file.sql`) y password aparte.
+4. `warp mysql import <db>` local con `app/etc/env.php` en `production`:
+   - exige confirmación explícita escribiendo `y`,
+   - Enter usa `N` por defecto y cancela el import.
 
 ## 3.1 MySQLTuner en local y `rds`
 
