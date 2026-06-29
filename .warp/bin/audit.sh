@@ -16,6 +16,10 @@ AUDIT_PHPCBF_BIN="vendor/squizlabs/php_codesniffer/bin/phpcbf"
 AUDIT_PHPMD_BIN=""
 AUDIT_PHPSTAN_BIN="vendor/bin/phpstan"
 
+audit_normalize_captured_output() {
+    sed '/^[[:space:]]*time="[^"]*" level=warning msg=".*docker-compose-warp\.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"$/d'
+}
+
 audit_spinner_wait() {
     local _pid="$1"
     local _message="$2"
@@ -71,7 +75,7 @@ audit_run_capture_with_spinner() {
     wait "$_pid"
     _status=$?
 
-    AUDIT_LAST_CAPTURED_OUTPUT="$(cat "$_tmp_file" 2>/dev/null)"
+    AUDIT_LAST_CAPTURED_OUTPUT="$(cat "$_tmp_file" 2>/dev/null | audit_normalize_captured_output)"
     rm -f "$_tmp_file"
 
     return $_status
@@ -429,6 +433,7 @@ audit_run_phpmd_compat() {
     local _status
     local _output
     local _ruleset_label
+    local _supports_no_progress="1"
 
     _ruleset_label="$(basename "$_ruleset" .xml)"
 
@@ -436,10 +441,34 @@ audit_run_phpmd_compat() {
     _status=$?
     _output="$AUDIT_LAST_CAPTURED_OUTPUT"
 
-    if [ $_status -ne 0 ] && echo "$_output" | grep -Eq 'Command ".+" is not defined\.'; then
-        audit_run_capture_with_spinner "running phpmd check [${_ruleset_label}] on ${_target}" audit_run_php_bin "$AUDIT_PHPMD_BIN" check "$_target" "$_ruleset" --format "$_mode" --no-progress "${_args[@]}"
+    if [ $_status -ne 0 ] && echo "$_output" | grep -Fq 'Unknown option --no-progress.'; then
+        _supports_no_progress="0"
+        audit_run_capture_with_spinner "running phpmd analyze [${_ruleset_label}] on ${_target}" audit_run_php_bin "$AUDIT_PHPMD_BIN" analyze "$_target" --format "$_mode" --ruleset "$_ruleset" "${_args[@]}"
         _status=$?
         _output="$AUDIT_LAST_CAPTURED_OUTPUT"
+    fi
+
+    if [ $_status -ne 0 ] && echo "$_output" | grep -Eq 'Unknown option --(format|ruleset)\.'; then
+        audit_run_capture_with_spinner "running phpmd legacy [${_ruleset_label}] on ${_target}" audit_run_php_bin "$AUDIT_PHPMD_BIN" "$_target" "$_mode" "$_ruleset" "${_args[@]}"
+        _status=$?
+        _output="$AUDIT_LAST_CAPTURED_OUTPUT"
+    fi
+
+    if [ $_status -ne 0 ] && echo "$_output" | grep -Eq 'Command ".+" is not defined\.'; then
+        if [ "$_supports_no_progress" = "1" ]; then
+            audit_run_capture_with_spinner "running phpmd check [${_ruleset_label}] on ${_target}" audit_run_php_bin "$AUDIT_PHPMD_BIN" check "$_target" "$_ruleset" --format "$_mode" --no-progress "${_args[@]}"
+        else
+            audit_run_capture_with_spinner "running phpmd check [${_ruleset_label}] on ${_target}" audit_run_php_bin "$AUDIT_PHPMD_BIN" check "$_target" "$_ruleset" --format "$_mode" "${_args[@]}"
+        fi
+        _status=$?
+        _output="$AUDIT_LAST_CAPTURED_OUTPUT"
+
+        if [ $_status -ne 0 ] && [ "$_supports_no_progress" = "1" ] && echo "$_output" | grep -Fq 'Unknown option --no-progress.'; then
+            _supports_no_progress="0"
+            audit_run_capture_with_spinner "running phpmd check [${_ruleset_label}] on ${_target}" audit_run_php_bin "$AUDIT_PHPMD_BIN" check "$_target" "$_ruleset" --format "$_mode" "${_args[@]}"
+            _status=$?
+            _output="$AUDIT_LAST_CAPTURED_OUTPUT"
+        fi
 
         if [ $_status -ne 0 ] && echo "$_output" | grep -Eq 'Command ".+" is not defined\.'; then
             audit_run_capture_with_spinner "running phpmd legacy [${_ruleset_label}] on ${_target}" audit_run_php_bin "$AUDIT_PHPMD_BIN" "$_target" "$_mode" "$_ruleset" "${_args[@]}"
