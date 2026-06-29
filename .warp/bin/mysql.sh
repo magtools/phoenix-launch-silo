@@ -833,7 +833,10 @@ function mysql_import()
         exit 1
     fi;
 
-    db=$1
+    local db="$1"
+    local DATABASE_ROOT_PASSWORD=""
+    local MYSQL_CLIENT_BIN=""
+    local _confirm_import=""
 
     [ -z "$db" ] && warp_message_error "Database name is required" && exit 1
 
@@ -866,11 +869,27 @@ function mysql_import()
         exit 1;
     fi
 
+    if mysql_is_production_mode; then
+        warp_message_warn "Production mode detected in app/etc/env.php."
+        _confirm_import=$(warp_question_ask_default "Type y to import into the local production database $(warp_message_info [y/N]) " "N")
+        if [ "$_confirm_import" != "y" ] && [ "$_confirm_import" != "Y" ]; then
+            warp_message_warn "Import cancelled."
+            exit 1
+        fi
+    fi
+
     DATABASE_ROOT_PASSWORD=$(warp_env_read_var DATABASE_ROOT_PASSWORD)
 
     MYSQL_CLIENT_BIN=$(warp_mysql_client_bin)
     docker-compose -f $DOCKERCOMPOSEFILE exec -T mysql bash -c "CMD=\"$MYSQL_CLIENT_BIN\"; command -v \"\$CMD\" >/dev/null 2>&1 || CMD=\"mysql\"; \"\$CMD\" -uroot -p$DATABASE_ROOT_PASSWORD $db 2> /dev/null"
 
+}
+
+mysql_is_production_mode() {
+    local _env_file="$PROJECTPATH/app/etc/env.php"
+
+    [ -f "$_env_file" ] || return 1
+    grep -Eq "['\"]MAGE_MODE['\"][[:space:]]*=>[[:space:]]*['\"]production['\"]" "$_env_file"
 }
 
 mysql_tuner_url() {
