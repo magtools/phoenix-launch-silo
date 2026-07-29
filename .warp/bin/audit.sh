@@ -539,6 +539,74 @@ audit_resolve_phpmd_targets() {
     printf '%s\n' "$_target"
 }
 
+audit_phpmd_extract_reported_files() {
+    local _output="$1"
+
+    printf '%s\n' "$_output" \
+        | awk -F: '/^\/.*\.(php|php3|php4|php5|phtml|inc):[0-9]+[[:space:]]/ {print $1}' \
+        | awk '!seen[$0]++'
+}
+
+audit_phpmd_revalidate_reported_files() {
+    local _target="$1"
+    local _mode="$2"
+    local _ruleset="$3"
+    local _original_output="$4"
+    shift 4
+    local _args=("$@")
+    local _reported_files=()
+    local _reported_file
+    local _relative_file
+    local _file_status
+    local _validated_files=()
+
+    mapfile -t _reported_files < <(audit_phpmd_extract_reported_files "$_original_output")
+    if [ ${#_reported_files[@]} -eq 0 ]; then
+        AUDIT_LAST_CAPTURED_OUTPUT="$_original_output"
+        return 1
+    fi
+
+    for _reported_file in "${_reported_files[@]}"; do
+        case "$_reported_file" in
+            /var/www/html/*)
+                _relative_file="${_reported_file#/var/www/html/}"
+                ;;
+            *)
+                continue
+                ;;
+        esac
+
+        if [ ! -f "$PROJECTPATH/$_relative_file" ]; then
+            AUDIT_LAST_CAPTURED_OUTPUT="$_original_output"
+            return 1
+        fi
+
+        audit_run_phpmd_compat "$_relative_file" "$_mode" "$_ruleset" "${_args[@]}"
+        _file_status=$?
+        if [ $_file_status -ne 0 ]; then
+            AUDIT_LAST_CAPTURED_OUTPUT="$_original_output"
+            return 1
+        fi
+
+        _validated_files+=("$_relative_file")
+    done
+
+    if [ ${#_validated_files[@]} -eq 0 ]; then
+        AUDIT_LAST_CAPTURED_OUTPUT="$_original_output"
+        return 1
+    fi
+
+    AUDIT_LAST_CAPTURED_OUTPUT=$(
+        {
+            echo "TARGET: ${_target}"
+            echo "PHPMD note: module-level directory scan produced findings that were not reproducible on file-level revalidation."
+            echo "Revalidated files:"
+            printf '%s\n' "${_validated_files[@]}"
+        }
+    )
+    return 0
+}
+
 audit_run_phpmd_compat_targets() {
     local _target="$1"
     local _mode="$2"
@@ -550,6 +618,7 @@ audit_run_phpmd_compat_targets() {
     local _combined_output=""
     local _resolved_target
     local _target_status
+    local _target_output
 
     mapfile -t _targets < <(audit_resolve_phpmd_targets "$_target")
 
@@ -560,6 +629,13 @@ audit_run_phpmd_compat_targets() {
     for _resolved_target in "${_targets[@]}"; do
         audit_run_phpmd_compat "$_resolved_target" "$_mode" "$_ruleset" "${_args[@]}"
         _target_status=$?
+        _target_output="$AUDIT_LAST_CAPTURED_OUTPUT"
+
+        if [ $_target_status -ne 0 ] && [ -d "$PROJECTPATH/$_resolved_target" ]; then
+            audit_phpmd_revalidate_reported_files "$_resolved_target" "$_mode" "$_ruleset" "$_target_output" "${_args[@]}"
+            _target_status=$?
+        fi
+
         if [ -n "$AUDIT_LAST_CAPTURED_OUTPUT" ]; then
             if [ ${#_targets[@]} -gt 1 ]; then
                 _combined_output="${_combined_output}TARGET: ${_resolved_target}"$'\n'
