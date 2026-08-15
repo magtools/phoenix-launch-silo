@@ -871,7 +871,15 @@ function mysql_import()
 
     if mysql_is_production_mode; then
         warp_message_warn "Production mode detected in app/etc/env.php."
-        _confirm_import=$(warp_question_ask_default "Type y to import into the local production database $(warp_message_info [y/N]) " "N")
+        if [ ! -r /dev/tty ]; then
+            warp_message_error "production import confirmation requires an interactive terminal"
+            warp_message_error "re-run the command from a tty so Warp can ask for explicit y confirmation"
+            exit 1
+        fi
+        _confirm_import=$(warp_question_ask_default_tty "Type y to import into the local production database $(warp_message_info [y/N]) " "N") || {
+            warp_message_error "could not read production import confirmation from /dev/tty"
+            exit 1
+        }
         if [ "$_confirm_import" != "y" ] && [ "$_confirm_import" != "Y" ]; then
             warp_message_warn "Import cancelled."
             exit 1

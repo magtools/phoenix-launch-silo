@@ -509,7 +509,7 @@ Comandos afectados:
 - `warp mysql connect`: en `rds` conecta a host externo.
 - `warp mysql dump <db>`: en `rds` dumpea contra host externo.
 - `warp mysql dump -s <db>` / `warp mysql dump --strip-definers <db>`: remueve cláusulas `DEFINER` del dump streameado antes de escribirlo.
-- `warp mysql import <db>`: en `rds` no importa; imprime comando sugerido y password. En local con `MAGE_MODE=production`, exige `y` explícita y Enter cancela.
+- `warp mysql import <db>`: en `rds` no importa; imprime comando sugerido y password. En local con `MAGE_MODE=production`, exige `y` explícita, Enter cancela y la confirmación se lee desde `/dev/tty` para no consumir stdin.
 
 ## Setup de Grunt más guiado (`warp grunt setup`)
 
