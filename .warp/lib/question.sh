@@ -19,6 +19,18 @@ function warp_question_ask() {
     echo "$response"
 }
 
+function warp_question_ask_tty() {
+    local _prompt="$1"
+    local response=""
+
+    if [ ! -r /dev/tty ]; then
+        return 1
+    fi
+
+    read -r -p "$_prompt" response < /dev/tty
+    echo "$response"
+}
+
 
 function warp_question_ask_default() {
 
@@ -34,4 +46,27 @@ function warp_question_ask_default() {
     else
         echo "$response"
     fi;
+}
+
+function warp_question_ask_default_tty() {
+    local _prompt="$1"
+    local _default="$2"
+    local response=""
+
+    if [ "$_default" = "" ]; then
+        echo "Error Default value is missing"
+        exit
+    fi
+
+    if [ ! -r /dev/tty ]; then
+        return 1
+    fi
+
+    read -r -p "$_prompt" response < /dev/tty
+
+    if [ "$response" = "" ]; then
+        echo "$_default"
+    else
+        echo "$response"
+    fi
 }

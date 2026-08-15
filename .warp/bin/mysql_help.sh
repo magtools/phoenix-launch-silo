@@ -76,6 +76,7 @@ function mysql_import_help()
     warp_message " Allow to recover a database inside the container, indicating a path of your local machine"
     warp_message " if app/etc/env.php is in production mode, local import requires an explicit y confirmation;"
     warp_message " pressing Enter keeps the default N and cancels the import."
+    warp_message " the confirmation is read from the operator terminal (/dev/tty), not from the SQL stream."
     warp_message " in external mode (MYSQL_VERSION=rds) Warp does not execute import against the remote server;"
     warp_message " it prints the suggested mysql command so you can run it manually with the target credentials."
     warp_message ""

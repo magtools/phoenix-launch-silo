@@ -83,7 +83,8 @@ Motor preferido según `.env`:
    - imprime comando sugerido con redirección estándar (`< file.sql`) y password aparte.
 4. `warp mysql import <db>` local con `app/etc/env.php` en `production`:
    - exige confirmación explícita escribiendo `y`,
-   - Enter usa `N` por defecto y cancela el import.
+   - Enter usa `N` por defecto y cancela el import,
+   - la confirmación se lee desde `/dev/tty` para no consumir el stream del dump por stdin.
 
 ## 3.1 MySQLTuner en local y `rds`
 
