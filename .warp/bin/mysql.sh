@@ -887,9 +887,16 @@ function mysql_import()
     fi
 
     DATABASE_ROOT_PASSWORD=$(warp_env_read_var DATABASE_ROOT_PASSWORD)
-
     MYSQL_CLIENT_BIN=$(warp_mysql_client_bin)
-    docker-compose -f $DOCKERCOMPOSEFILE exec -T mysql bash -c "CMD=\"$MYSQL_CLIENT_BIN\"; command -v \"\$CMD\" >/dev/null 2>&1 || CMD=\"mysql\"; \"\$CMD\" -uroot -p$DATABASE_ROOT_PASSWORD $db 2> /dev/null"
+
+    # Force TCP loopback inside the DB container so import does not depend on
+    # local socket defaults, which can behave differently across mysql/mariadb images.
+    docker-compose -f "$DOCKERCOMPOSEFILE" exec -T mysql "$MYSQL_CLIENT_BIN" \
+        -h127.0.0.1 \
+        --protocol=tcp \
+        -uroot \
+        "--password=$DATABASE_ROOT_PASSWORD" \
+        "$db"
 
 }
 
