@@ -46,6 +46,7 @@ Reglas:
 2. se agrega a `.gitignore` automáticamente (`/.deploy`),
 3. se versiona con `DEPLOY_SCHEMA_VERSION=1`,
 4. al cargar un `.deploy` viejo, Warp agrega defaults opcionales faltantes como `FRONT_STATIC_THEMES=`.
+5. si `ENV=prod` y falta `STATIC_CLEAN`, `deploy doctor`/`run`/`static` agregan `STATIC_CLEAN=1`; si ya existe, Warp respeta su valor.
 
 Override opcional para estáticos frontend en `prod`:
 
@@ -129,6 +130,7 @@ Ejecuta solo pasos de frontend/estáticos:
 2. `ENV=prod`:
    - confirma `prod` si `CONFIRM_PROD=1` (salvo `--yes`),
    - si `USE_MAINTENANCE=1`: `maintenance:enable` antes de los pasos estáticos,
+   - si `STATIC_CLEAN=1`: limpia el contenido de `var/view_preprocessed` y `pub/static`, preservando `pub/static/.htaccess`,
    - `hyva build` si aplica,
    - `setup:static-content:deploy` admin/frontend según flags (`RUN_STATIC_ADMIN`, `RUN_STATIC_FRONT`).
    - si `FRONT_STATIC_THEMES` está definido, el deploy de `frontend` agrega `--theme <code>` por cada theme configurado,
@@ -165,6 +167,7 @@ Prod:
 
 - `RUN_STATIC_ADMIN`
 - `RUN_STATIC_FRONT`
+- `STATIC_CLEAN` (default efectivo: `1` en `prod` cuando falta; `0` en `local`, donde no activa limpieza; con `1` en `prod` limpia solo `var/view_preprocessed` y `pub/static` antes del deploy estático, preservando `.htaccess`)
 - `ADMIN_I18N`
 - `FRONT_I18N`
 - `FRONT_STATIC_THEMES` (opcional; vacío = todos los themes frontend)

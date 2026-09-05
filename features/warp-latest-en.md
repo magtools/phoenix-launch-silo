@@ -21,7 +21,7 @@ What it brings to the team:
 - visible configuration with `warp deploy show`,
 - guided `.deploy` generation with `warp deploy set`,
 - recipe simulation without execution (`--dry-run`),
-- frontend/static-only execution with `warp deploy static`.
+- frontend/static-only execution with `warp deploy static`; in `prod`, `STATIC_CLEAN=1` clears `var/view_preprocessed` and `pub/static` (preserving `.htaccess`) before regenerating assets.
 
 Commands:
 
@@ -30,7 +30,7 @@ Commands:
 - `warp deploy static`: runs only static/frontend steps.
 - `warp deploy set`: creates or updates `.deploy`.
 - `warp deploy show`: shows the active configuration.
-- `warp deploy doctor`: validates prerequisites.
+- `warp deploy doctor`: validates prerequisites and adds `STATIC_CLEAN=1` when it is missing from a `prod` `.deploy`, without overwriting an existing setting.
 
 Functional impact:
 

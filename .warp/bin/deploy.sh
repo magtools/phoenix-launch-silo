@@ -121,6 +121,20 @@ deploy_ensure_optional_defaults() {
     fi
 }
 
+deploy_ensure_prod_static_clean_default() {
+    [ "${ENV:-}" = "prod" ] || return 0
+
+    grep -Eq '^STATIC_CLEAN=' "$DEPLOY_FILE" 2>/dev/null
+    if [ $? -ne 0 ]; then
+        {
+            echo ""
+            echo 'STATIC_CLEAN=1'
+        } >> "$DEPLOY_FILE"
+        STATIC_CLEAN=1
+        warp_message_info "added STATIC_CLEAN=1 to .deploy for production static deploys"
+    fi
+}
+
 deploy_set_write_file() {
     _env="$1"
     _threads=$(deploy_threads_detect)
@@ -170,6 +184,7 @@ RUN_REINDEX=1
 RUN_CACHE_FLUSH=1
 RUN_STATIC_ADMIN=1
 RUN_STATIC_FRONT=1
+STATIC_CLEAN=1
 ADMIN_I18N="$_admin_i18n"
 FRONT_I18N="$_front_i18n"
 FRONT_STATIC_THEMES=
@@ -218,6 +233,8 @@ deploy_load_config() {
 
     # shellcheck disable=SC1090
     . "$DEPLOY_FILE"
+
+    deploy_ensure_prod_static_clean_default
 }
 
 deploy_cmd_run() {
@@ -306,6 +323,11 @@ deploy_doctor() {
         else
             warp_message "* FRONT_STATIC_THEMES: $(warp_message_info [all])"
         fi
+        if [ "$(deploy_bool "${STATIC_CLEAN:-1}")" = "1" ]; then
+            warp_message "* STATIC_CLEAN: $(warp_message_ok [enabled])"
+        else
+            warp_message "* STATIC_CLEAN: $(warp_message_warn [disabled])"
+        fi
     fi
 
     if [ $_ok -eq 1 ]; then
@@ -375,6 +397,21 @@ deploy_run_frontend_prod() {
     if [ "$_run_static_front" = "1" ]; then
         deploy_cmd_run "static content deploy (frontend)" "$_warp_exec magento setup:static-content:deploy ${FRONT_I18N:-en_US} -a frontend -j ${THREADS:-4} ${STATIC_EXTRA_FLAGS:--f}${_front_static_theme_args}"
     fi
+}
+
+deploy_clean_static_artifacts() {
+    docker-compose -f "$DOCKERCOMPOSEFILE" exec -T php sh -lc '
+        set -eu
+        cd /var/www/html
+
+        if [ -d var/view_preprocessed ]; then
+            find var/view_preprocessed -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+        fi
+
+        if [ -d pub/static ]; then
+            find pub/static -mindepth 1 -maxdepth 1 ! -name .htaccess -exec rm -rf {} +
+        fi
+    '
 }
 
 deploy_disable_local_opcache_if_enabled() {
@@ -591,6 +628,7 @@ deploy_static_main() {
     _hyva_build=$(deploy_bool "${HYVA_BUILD:-1}")
     _run_static_admin=$(deploy_bool "${RUN_STATIC_ADMIN:-1}")
     _run_static_front=$(deploy_bool "${RUN_STATIC_FRONT:-1}")
+    _static_clean=$(deploy_bool "${STATIC_CLEAN:-0}")
     _use_maintenance=$(deploy_bool "${USE_MAINTENANCE:-0}")
     _confirm_prod=$(deploy_bool "${CONFIRM_PROD:-1}")
     _maintenance_enabled=0
@@ -613,6 +651,7 @@ deploy_static_main() {
                 [ "$_hyva_build" = "1" ] && deploy_cmd_run "hyva build" ":"
             fi
         else
+            [ "$_static_clean" = "1" ] && deploy_cmd_run "clean static artifacts (pub/static and var/view_preprocessed)" ":"
             if [ "$_run_hyva" = "1" ] && [ "$_hyva_build" = "1" ] && deploy_has_hyva_cfg; then
                 deploy_cmd_run "hyva build" ":"
             fi
@@ -652,6 +691,9 @@ deploy_static_main() {
     if [ "$_env" = "local" ]; then
         deploy_run_frontend_local
     else
+        if [ "$_static_clean" = "1" ]; then
+            deploy_cmd_run "clean static artifacts (pub/static and var/view_preprocessed)" "deploy_clean_static_artifacts"
+        fi
         deploy_run_frontend_prod
     fi
 
