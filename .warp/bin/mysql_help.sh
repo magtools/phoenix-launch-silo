@@ -133,8 +133,11 @@ function mysql_connect_help()
     warp_message ""
     warp_message_info "Help:"
     warp_message " Connect to mysql command line"
+    warp_message " in local mode, Warp opens DATABASE_NAME (or legacy DB_NAME) when it exists."
+    warp_message " if the configured local database is missing, it reports the condition and opens MySQL without selecting a database."
     warp_message " if mysql service is missing and you confirm external DB, Warp persists MYSQL_VERSION=rds plus DATABASE_*"
     warp_message " values in .env and next runs connect against that external host using local SQL client tools."
+    warp_message " if the configured external database returns ERROR 1049, Warp reports it and opens the remote client without selecting a database."
     warp_message ""
 
     warp_message_info "Example:"
