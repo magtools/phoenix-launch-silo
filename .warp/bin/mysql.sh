@@ -377,6 +377,36 @@ mysql_load_external_conn_values() {
     [ -z "$DB_PORT" ] && DB_PORT=3306
 }
 
+mysql_external_database_status() {
+    local _database_name="$1"
+    local _client_bin=""
+    local _output=""
+    local _rc=0
+
+    _client_bin=$(mysql_pick_external_client_bin)
+    _output=$("$_client_bin" \
+        -h"$DB_HOST" \
+        -P"$DB_PORT" \
+        -u"$DB_USER" \
+        -p"$DB_PASSWORD" \
+        "$_database_name" \
+        -e 'SELECT 1' 2>&1)
+    _rc=$?
+
+    if [ "$_rc" -eq 0 ]; then
+        printf '%s\n' "exists"
+        return 0
+    fi
+
+    if printf '%s\n' "$_output" | grep -Eq 'ERROR[[:space:]]+1049'; then
+        printf '%s\n' "missing"
+        return 0
+    fi
+
+    printf '%s\n' "$_output"
+    return "$_rc"
+}
+
 mysql_print_external_connection_details() {
     _reason="$1"
 
@@ -412,6 +442,34 @@ mysql_exec_local_query() {
         --batch \
         --skip-column-names \
         -e "$_sql"
+}
+
+mysql_local_database_status() {
+    local _database_name="$1"
+    local _client_bin=""
+    local _root_password=""
+    local _databases=""
+    local _rc=0
+
+    _client_bin=$(warp_mysql_client_bin)
+    _root_password=$(warp_env_read_var DATABASE_ROOT_PASSWORD)
+    _databases=$(docker-compose -f "$DOCKERCOMPOSEFILE" exec -T mysql bash -c '
+        _client_bin="$1"
+        _root_password="$2"
+        command -v "$_client_bin" >/dev/null 2>&1 || _client_bin="mysql"
+        "$_client_bin" -N -B -uroot "-p$_root_password" -e "SHOW DATABASES"
+    ' bash "$_client_bin" "$_root_password" 2>&1)
+    _rc=$?
+    if [ "$_rc" -ne 0 ]; then
+        printf '%s\n' "$_databases"
+        return "$_rc"
+    fi
+
+    if printf '%s\n' "$_databases" | grep -Fqx -- "$_database_name"; then
+        printf '%s\n' "exists"
+    else
+        printf '%s\n' "missing"
+    fi
 }
 
 mysql_exec_external_query() {
@@ -570,6 +628,11 @@ EOF
 
 function mysql_connect()
 {
+    local _database_name=""
+    local _database_status=""
+    local _root_password=""
+    local _client_bin=""
+    local _rc=0
 
     if [ "$1" = "-h" ] || [ "$1" = "--help" ]
     then
@@ -587,14 +650,36 @@ function mysql_connect()
     if [ "$(mysql_external_mode_enabled)" = "true" ]; then
         mysql_ensure_external_clients || { warp_message_error "SQL client tools are required."; exit 1; }
         mysql_load_external_conn_values
-        MYSQL_CLIENT_BIN=$(mysql_pick_external_client_bin)
+        _client_bin=$(mysql_pick_external_client_bin)
+        _database_name="$DB_NAME"
         [ -z "$DB_HOST" ] && warp_message_error "DATABASE_HOST is empty in .env" && exit 1
         [ -z "$DB_USER" ] && warp_message_error "DATABASE_USER is empty in .env" && exit 1
         [ -z "$DB_PASSWORD" ] && warp_message_error "DATABASE_PASSWORD is empty in .env" && exit 1
-        "$MYSQL_CLIENT_BIN" -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USER" -p"$DB_PASSWORD" "$DB_NAME"
+        if [ -n "$_database_name" ]; then
+            _database_status=$(mysql_external_database_status "$_database_name")
+            _rc=$?
+            if [ "$_rc" -ne 0 ]; then
+                warp_message_error "Could not verify configured external database: $_database_name"
+                [ -n "$_database_status" ] && warp_message_error "$_database_status"
+                mysql_print_external_connection_details "Database preflight failed."
+                return "$_rc"
+            fi
+
+            if [ "$_database_status" = "missing" ]; then
+                warp_message_warn "Configured external database not found: $_database_name"
+                warp_message_warn "Opening MySQL shell without a selected database."
+                _database_name=""
+            fi
+        fi
+
+        if [ -n "$_database_name" ]; then
+            "$_client_bin" -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USER" -p"$DB_PASSWORD" "$_database_name"
+        else
+            "$_client_bin" -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USER" -p"$DB_PASSWORD"
+        fi
         _rc=$?
         if [ "$_rc" -ne 0 ]; then
-            mysql_print_external_connection_details "$MYSQL_CLIENT_BIN returned exit code ${_rc}."
+            mysql_print_external_connection_details "$_client_bin returned exit code ${_rc}."
         fi
         return "$_rc"
     fi
@@ -605,9 +690,37 @@ function mysql_connect()
         exit 1;
     fi
 
-    DATABASE_ROOT_PASSWORD=$(warp_env_read_var DATABASE_ROOT_PASSWORD)
-    MYSQL_CLIENT_BIN=$(warp_mysql_client_bin)
-    docker-compose -f $DOCKERCOMPOSEFILE exec mysql bash -c "CMD=\"$MYSQL_CLIENT_BIN\"; command -v \"\$CMD\" >/dev/null 2>&1 || CMD=\"mysql\"; \"\$CMD\" -uroot -p$DATABASE_ROOT_PASSWORD"
+    _database_name=$(warp_env_read_var DATABASE_NAME)
+    [ -z "$_database_name" ] && _database_name=$(warp_env_read_var DB_NAME)
+    _root_password=$(warp_env_read_var DATABASE_ROOT_PASSWORD)
+    _client_bin=$(warp_mysql_client_bin)
+
+    if [ -n "$_database_name" ]; then
+        _database_status=$(mysql_local_database_status "$_database_name")
+        _rc=$?
+        if [ "$_rc" -ne 0 ]; then
+            warp_message_error "Could not verify configured database: $_database_name"
+            [ -n "$_database_status" ] && warp_message_error "$_database_status"
+            return "$_rc"
+        fi
+
+        if [ "$_database_status" = "missing" ]; then
+            warp_message_warn "Configured database not found: $_database_name"
+            warp_message_warn "Opening MySQL shell without a selected database."
+            _database_name=""
+        fi
+    fi
+
+    docker-compose -f "$DOCKERCOMPOSEFILE" exec mysql bash -c '
+        _client_bin="$1"
+        _root_password="$2"
+        _database_name="$3"
+        command -v "$_client_bin" >/dev/null 2>&1 || _client_bin="mysql"
+        if [ -n "$_database_name" ]; then
+            exec "$_client_bin" -uroot "-p$_root_password" "$_database_name"
+        fi
+        exec "$_client_bin" -uroot "-p$_root_password"
+    ' bash "$_client_bin" "$_root_password" "$_database_name"
 }
 
 function mysql_update_db()
