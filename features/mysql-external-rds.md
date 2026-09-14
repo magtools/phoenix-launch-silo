@@ -76,6 +76,9 @@ Motor preferido según `.env`:
 
 1. `warp mysql connect`:
    - conecta al servidor externo con host/puerto/usuario/clave de `.env`.
+   - si `DATABASE_NAME` devuelve específicamente `ERROR 1049`, informa que no
+     existe y abre el cliente remoto sin seleccionar una base.
+   - errores de conectividad, autenticación o permisos no activan ese fallback.
 2. `warp mysql dump <db>`:
    - genera dump desde servidor externo.
 3. `warp mysql import <db>`:
@@ -86,7 +89,20 @@ Motor preferido según `.env`:
    - Enter usa `N` por defecto y cancela el import,
    - la confirmación se lee desde `/dev/tty` para no consumir el stream del dump por stdin.
 
-## 3.1 MySQLTuner en local y `rds`
+## 3.1 Selección de base en `warp mysql connect` local
+
+En modo local, `warp mysql connect` toma `DATABASE_NAME` de `.env`; si no está
+definida, conserva compatibilidad leyendo `DB_NAME`.
+
+1. Si la base configurada existe en el contenedor, abre el cliente con esa base
+   ya seleccionada.
+2. Si está vacía, abre el cliente como antes, sin una base seleccionada.
+3. Si está configurada pero no existe, informa el nombre y abre el cliente sin
+   base seleccionada para permitir inspección, creación o restauración manual.
+4. Si no se puede enumerar las bases (por ejemplo, contenedor o cliente no
+   disponible), conserva el error y no intenta el fallback de consola.
+
+## 3.2 MySQLTuner en local y `rds`
 
 `warp mysql tuner` reutiliza el mismo criterio de conexión:
 
