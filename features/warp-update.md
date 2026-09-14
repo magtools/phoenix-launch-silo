@@ -4,11 +4,15 @@ Este documento resume los cambios implementados en el flujo de `warp update` y e
 
 ## 1) Fuente remota y artefactos
 
-`warp` usa como origen remoto:
+`warp` usa dos orígenes remotos durante la transición de rename:
 
-- `https://raw.githubusercontent.com/magtools/phoenix-launch-silo/refs/heads/master/dist/version.md`
-- `https://raw.githubusercontent.com/magtools/phoenix-launch-silo/refs/heads/master/dist/sha256sum.md`
-- `https://raw.githubusercontent.com/magtools/phoenix-launch-silo/refs/heads/master/dist/warp`
+- primario: `https://raw.githubusercontent.com/magtools/warp-drive/refs/heads/master/dist`
+- fallback: `https://raw.githubusercontent.com/magtools/phoenix-launch-silo/refs/heads/master/dist`
+
+Para cada operación resuelve primero `version.md` desde el origen primario. Si no
+está disponible (incluyendo el 404 esperado antes del rename), usa el fallback.
+El origen que entregue la versión se conserva para descargar también
+`sha256sum.md` y `warp`; nunca se mezclan artefactos entre repositorios.
 
 ## 2) Directorio temporal y estado persistente
 
