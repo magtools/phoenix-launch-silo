@@ -1156,16 +1156,39 @@ warp_update_ensure_mail_defaults() {
 }
 
 warp_fetch_latest_version() {
-    warp_remote_base_url="https://raw.githubusercontent.com/magtools/phoenix-launch-silo/refs/heads/master/dist"
-    _fetch_output=$(curl --silent --show-error --fail --location --connect-timeout 3 --max-time 3 "${warp_remote_base_url}/version.md" 2>&1)
-    _fetch_status=$?
+    local _warp_remote_base_url
+    local _fetch_output
+    local _fetch_status
+    local _fetch_errors=""
 
-    if [ $_fetch_status -ne 0 ]; then
-        WARP_LAST_CHECK_ERROR="$_fetch_output"
-        return 1
-    fi
+    # Keep the legacy source during the repository rename transition. Resolve
+    # one source per operation so version, checksum and binary always come from
+    # the same published artifact set.
+    WARP_REMOTE_BASE_URL=""
+    WARP_REMOTE_VERSION=""
+    WARP_LAST_CHECK_ERROR=""
 
-    echo "$_fetch_output" | tr -d '\r\n'
+    for _warp_remote_base_url in \
+        "https://raw.githubusercontent.com/magtools/warp-drive/refs/heads/master/dist" \
+        "https://raw.githubusercontent.com/magtools/phoenix-launch-silo/refs/heads/master/dist"; do
+        _fetch_output=$(curl --silent --show-error --fail --location --connect-timeout 3 --max-time 3 "${_warp_remote_base_url}/version.md" 2>&1)
+        _fetch_status=$?
+
+        if [ "$_fetch_status" -eq 0 ]; then
+            _fetch_output=$(printf '%s' "$_fetch_output" | tr -d '\r\n')
+            if [ -n "$_fetch_output" ]; then
+                WARP_REMOTE_BASE_URL="$_warp_remote_base_url"
+                WARP_REMOTE_VERSION="$_fetch_output"
+                return 0
+            fi
+            _fetch_output="version.md is empty"
+        fi
+
+        _fetch_errors="${_fetch_errors}${_fetch_errors:+; }${_warp_remote_base_url}: ${_fetch_output}"
+    done
+
+    WARP_LAST_CHECK_ERROR="${_fetch_errors:-unknown error}"
+    return 1
 }
 
 warp_check_latest_version() {
@@ -1179,9 +1202,8 @@ warp_check_latest_version() {
         return
     fi
 
-    WARP_LAST_CHECK_ERROR=""
-    WARP_VERSION_LATEST=$(warp_fetch_latest_version)
-    if [ $? -ne 0 ] || [ -z "$WARP_VERSION_LATEST" ]; then
+    warp_fetch_latest_version
+    if [ $? -ne 0 ] || [ -z "$WARP_REMOTE_VERSION" ]; then
         {
             warp_pending_update_box_border
             warp_pending_update_box_line "WARP UPDATE CHECK ERROR"
@@ -1193,6 +1215,8 @@ warp_check_latest_version() {
         } | warp_pending_update_write
         return 1
     fi
+
+    WARP_VERSION_LATEST="$WARP_REMOTE_VERSION"
 
     WARP_VERSION_LOCAL_INT=$(warp_update_version_to_int "$WARP_VERSION")
     WARP_VERSION_LATEST_INT=$(warp_update_version_to_int "$WARP_VERSION_LATEST")
@@ -1233,7 +1257,6 @@ warp_message_not_install_yet() {
 }
 
 warp_update() {
-    WARP_REMOTE_BASE_URL="https://raw.githubusercontent.com/magtools/phoenix-launch-silo/refs/heads/master/dist"
     WARP_TMP_DIR="$PROJECTPATH/var/warp-update"
     WARP_TMP_EXTRACT_DIR="$WARP_TMP_DIR/extracted"
     WARP_TMP_WARP="$WARP_TMP_DIR/warp"
@@ -1303,8 +1326,9 @@ warp_update() {
     warp_update_tmp_clean
     mkdir -p "$WARP_TMP_EXTRACT_DIR" || { warp_message_error "unable to create $WARP_TMP_EXTRACT_DIR"; exit 1; }
 
-    curl --silent --show-error --fail --location "${WARP_REMOTE_BASE_URL}/version.md" -o "$WARP_TMP_VERSION" || { warp_message_error "unable to download version.md"; exit 1; }
-    WARP_VERSION_LATEST=$(tr -d '\r\n' < "$WARP_TMP_VERSION")
+    warp_fetch_latest_version || { warp_message_error "unable to download version.md: ${WARP_LAST_CHECK_ERROR:-unknown error}"; exit 1; }
+    WARP_VERSION_LATEST="$WARP_REMOTE_VERSION"
+    printf '%s\n' "$WARP_VERSION_LATEST" > "$WARP_TMP_VERSION" || { warp_message_error "unable to write downloaded version.md"; exit 1; }
 
     if [ -z "$WARP_VERSION_LATEST" ]; then
         warp_message_error "remote version is empty"
