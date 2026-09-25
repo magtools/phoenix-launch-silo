@@ -54,6 +54,11 @@ stress_help_usage() {
     warp_message " warmup automatically prefers /media/warmup.csv from the target server when it exists;"
     warp_message " otherwise it falls back to the sitemap dataset."
     warp_message ""
+    warp_message_info "Custom profiles and scenarios:"
+    warp_message " create .warp/docker/config/stress/profiles/<name>.env and set"
+    warp_message " STRESS_SCENARIO_SCRIPT=scenarios/<name>.js; place that k6 script in"
+    warp_message " .warp/docker/config/stress/scenarios/, then run warp stress validate/run --profile <name>."
+    warp_message ""
 }
 
 stress_help() {
