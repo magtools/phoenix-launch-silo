@@ -11,6 +11,7 @@ function help_main() {
     warp_message ""
     warp_message_info "Options:"
     warp_message_info   " -h, --help         $(warp_message 'display this help message')"
+    warp_message_info   " -v, --version      $(warp_message 'display only the Warp version')"
     warp_message ""
 
     warp_message_info "Available commands:"

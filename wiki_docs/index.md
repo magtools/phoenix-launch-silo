@@ -70,6 +70,7 @@ This repo comes with some useful bash command:
 |  Command  |  Description  |
 |  -------  |  -----------  |
 | **warp --help** | Shows the warp tool help |
+| **warp version** / **warp -v** | Shows only the Warp version |
 | **warp [command] --help** | Shows the specific command help. For instance: warp php --help |
 | **warp info** | Shows the configured values and useful information for each services |
 | **warp init** |  Initialize the warp framework the first time before to start the project |

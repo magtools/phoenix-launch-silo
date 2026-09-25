@@ -67,7 +67,6 @@ warp_source_required_marked "$WARPFOLDER/lib/banner.sh" || return 1
 # there are known dependencies, then autoload the rest tolerantly.
 # Exclude binary.sh because it is an executable helper script, not a library to source.
 warp_source_optional_marked "$WARPFOLDER/lib/version.sh" || return 1
-warp_source_optional_marked "$WARPFOLDER/lib/commit.sh" || return 1
 warp_source_optional_marked "$WARPFOLDER/lib/host.sh" || return 1
 warp_source_optional_marked "$WARPFOLDER/lib/fallback.sh" || return 1
 warp_source_optional_marked "$WARPFOLDER/lib/service_version.sh" || return 1

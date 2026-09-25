@@ -7,7 +7,6 @@
 #
 # Globals:
 #   WARP_VERSION
-#   WARP_COMMIT
 # Arguments:
 #   None
 # Returns:

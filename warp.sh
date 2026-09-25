@@ -2,6 +2,26 @@
 
 WARP_BINARY_VERSION="__BUILD_VERSION__"
 
+warp_version_value() {
+    local _version="$WARP_BINARY_VERSION"
+
+    if [[ ! "$_version" =~ ^[0-9][0-9.]*$ ]] && [ -f "$PROJECTPATH/.warp/lib/version.sh" ]; then
+        _version=$(grep '^WARP_VERSION=' "$PROJECTPATH/.warp/lib/version.sh" 2>/dev/null | head -n1 | cut -d '=' -f2 | tr -d '"')
+    fi
+
+    if [[ "$_version" =~ ^[0-9][0-9.]*$ ]]; then
+        printf '%s\n' "$_version"
+        return 0
+    fi
+
+    printf '%s\n' "unknown"
+    return 1
+}
+
+warp_version_print() {
+    warp_version_value
+}
+
 main () {
     # PROJECTPATH contains the full
     # directory path of the project itself
@@ -11,6 +31,14 @@ main () {
     # of the current script (e.g. "server")
     SCRIPTNAME="bin/$(basename "$0")"
     ORIGINAL_COMMAND="$1"
+
+    case "$ORIGINAL_COMMAND" in
+        version|-v|--version)
+            warp_version_print
+            exit $?
+            ;;
+    esac
+
     BOOT_RUNTIME_MODE=$(warp_runtime_mode_resolve_boot "$ORIGINAL_COMMAND")
 
     # Host-capable commands must not die in the global Docker precheck when the
@@ -351,7 +379,7 @@ warp_runtime_mode_read_raw_from_env() {
 warp_command_supports_host_runtime() {
     local _cmd="$1"
     case "$_cmd" in
-        ""|-h|--help|help|init|update|db|mysql|cache|redis|valkey|search|elasticsearch|opensearch|php|phpini|opcache|xdebug|profiler|agents|stress|magento|ece-tools|ece-patches|telemetry|info|composer|audit|scan|security)
+        ""|-h|--help|--version|-v|help|version|init|update|db|mysql|cache|redis|valkey|search|elasticsearch|opensearch|php|phpini|opcache|xdebug|profiler|agents|stress|magento|ece-tools|ece-patches|telemetry|info|composer|audit|scan|security)
             return 0
             ;;
         *)
